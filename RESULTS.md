@@ -281,3 +281,78 @@ if something turns out to be wrong, add a new entry correcting it rather than re
   entry removed after both screenshot pairs were captured.
 - **Nothing left open** on this specific item — both color-scheme branches are now real and visually
   confirmed, closing out the last remaining P1 item in TASKS.md as of this pass.
+
+---
+
+## 2026-07-25 — TASKS.md verify-before-work rule strengthened (user edit, external)
+
+- The user directly edited TASKS.md (not through this session) to add a stronger, more explicit
+  mandatory pre-task verification rule under "Notes for whoever picks this up next" — before starting
+  any unchecked item, open the file(s) it names (or search the codebase if none are listed) and
+  confirm with your own eyes whether it's already built, before writing any code; if already built,
+  mark it done, log the correction, commit that correction alone, and move on. This tightens the
+  looser rule this session had already added to CLAUDE.md's autonomous policy earlier today (see the
+  "TASKS.md re-audit" entry above) — same spirit, now living directly in TASKS.md itself where it's
+  read first every session. Committed locally by the user (`2f5e4e0`) before this session picked back
+  up; pushed alongside this session's next commit per the user's explicit instruction, not
+  re-committed.
+
+---
+
+## 2026-07-25 — Real Sign-In with Apple (P2, TASKS.md)
+
+- **Context**: after clearing P1, the next queued item was "Real Sign-In with Apple." Flagged to the
+  user first rather than guessing, since the spec gives no UI/UX detail for Sign-In itself and nothing
+  in the app would consume the resulting identity yet (friends/competition explicitly stays deferred,
+  no backend exists). User's direction: "build it simple now."
+- **What was done**: real Sign in with Apple, minimal scope, no backend/friends wiring. New
+  `Forge/Core/Auth/` module: `AuthUser` (id/email/fullName, `Codable`), `KeychainStore` (~35-line
+  minimal wrapper, one use — persisting the signed-in user across launches *and* reinstalls, per
+  Apple's own guidance, not just `UserDefaults`), `AuthService` protocol + `AppleAuthService` actor
+  (real `ASAuthorizationAppleIDProvider`-backed) + `InMemoryAuthService` (previews/`-uiTesting`),
+  `AuthServiceEnvironment` (matches the existing `EntitlementService`/repository environment-injection
+  pattern exactly). `ProfileView`'s previously-`.disabled(true)` stub button is now a real
+  `SignInWithAppleButton`; signed-in state shows the user's display name + a real Sign Out button.
+  Added the `com.apple.developer.applesignin` entitlement to `Forge.entitlements`.
+- **Judgment calls**:
+  - `handleSignIn` takes plain `Sendable` fields (`userID: String, email: String?, fullName: String?`)
+    rather than the `ASAuthorizationAppleIDCredential` object itself — that type isn't `Sendable`, and
+    this project's Swift 6 strict concurrency (`SWIFT_VERSION: "6.0"`) would reject passing it across
+    the `AppleAuthService` actor boundary. Extraction happens on the main thread inside
+    `SignInWithAppleButton`'s `onCompletion`, which already runs there.
+  - Apple only returns `email`/`fullName` on a given Apple ID's very first authorization for this app
+    — every later sign-in returns `nil` for both. `handleSignIn` merges with whatever was already
+    persisted rather than overwriting with `nil`, so a user who signs out locally (Keychain cleared)
+    and signs back in with the same Apple ID doesn't lose their name/email.
+  - `restoreSession()` calls `getCredentialState(forUserID:)` on every restore (wired to fire from
+    `ProfileView.task`), per Apple's own HIG requirement to detect a credential a user revoked from
+    system Settings without the app being told directly — clears local state on `.revoked`/
+    `.notFound`/`.transferred`.
+  - Sign Out has no confirmation alert (unlike this project's other destructive actions) — deliberate,
+    since it doesn't delete any local habit data and is trivially reversible (sign back in any time),
+    not the kind of data-loss action Engineering Standard #4 is about.
+  - `-uiTesting` gets `InMemoryAuthService`, matching the existing in-memory `ModelConfiguration`
+    pattern — a real Sign in with Apple flow needs genuine user interaction with system UI and has no
+    place in an automated fixture.
+- **What was verified, and how**: full rebuild succeeded (Simulator doesn't require the entitlement to
+  already be registered on the Apple Developer portal the way a real-device build would — codesigned
+  fine with "Sign to Run Locally"). Existing `WeeklyPagerSwipeTests`/`MoodCheckInTests` re-run and
+  still pass, confirming the new environment wiring in `ForgeApp.swift` didn't regress anything. A
+  temporary XCUITest (removed after use) confirmed via screenshot that the real `SignInWithAppleButton`
+  renders correctly (replacing the old visibly-disabled stub). A second temporary test, deliberately
+  **not** using `-uiTesting` (so it exercised the real `AppleAuthService`, not the in-memory
+  stand-in), tapped the button and screenshotted the result: this Simulator has no Apple ID signed in
+  at the OS level, so it correctly surfaced the real system alert "Sign in to your Apple Account — You
+  need to sign in to your Apple Account in Settings" with Close/Settings buttons — proving the
+  integration reaches Apple's actual `ASAuthorizationController` system boundary rather than silently
+  no-op'ing or crashing. A real device with a signed-in Apple ID would show the actual consent sheet
+  instead of this alert; per this project's own established precedent (the HealthKit consent-sheet
+  investigation elsewhere in this file), that sheet sits outside any accessibility tree this
+  environment can automate into, so completing a full interactive sign-in wasn't chased further here
+  — the code path up to that real system boundary is what's confirmed. Both temporary test files
+  removed after their screenshots were captured.
+- **Still open**: no backend consumes the resulting `AuthUser` yet (by design — see TASKS.md's P2
+  friends entry, which now notes Sign-In is real but the friends feature itself still needs its own
+  design pass before starting, per spec §9's own framing). A full interactive sign-in completion is
+  unverified beyond the system-alert boundary described above — would need a real device with a
+  signed-in Apple ID to go further.

@@ -73,12 +73,37 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
 
 ## P2 — Deferred by explicit spec decision (correctly not built, sequencing matters)
 
-- [ ] **Real Sign-In with Apple** — currently a disabled stub (per SWIFT_REWRITE_INVENTORY.md /
-      spec §9's own framing; confirmed no `ASAuthorization`/`SignInWithApple` code exists in `Forge/`
-      at all). Hard prerequisite for friends/competition (§9) — nothing else in the app depends on
-      it, so this can be picked up independently once P1 is clear.
-- [ ] **Compete-with-friends / per-habit challenges (§9)** — blocked on Sign-In above. Do not start
-      before real Sign-In exists. **Correction to this entry (re-audit, 2026-07-25):** previously
+- [x] **Real Sign-In with Apple** — BUILT this pass (per explicit user direction: "build it simple
+      now"). New `AuthService` protocol (`Forge/Core/Auth/`) + real `AppleAuthService` actor
+      implementation, `AuthUser` model, a minimal `KeychainStore` (persists across reinstalls, per
+      Apple's own Sign in with Apple guidance — not just `UserDefaults`), `InMemoryAuthService` for
+      previews/`-uiTesting`. `ProfileView`'s previously-disabled stub button is now a real
+      `SignInWithAppleButton` (`AuthenticationServices`); `credential.user`/`.email`/`.fullName` are
+      extracted on the main thread in `onCompletion` (not passed as the credential object itself,
+      which isn't `Sendable` — would violate this project's Swift 6 strict concurrency) before
+      crossing into the `AppleAuthService` actor. `restoreSession()` validates the persisted
+      credential's state on every launch (`ASAuthorizationAppleIDProvider.getCredentialState`), per
+      Apple's HIG requirement to detect out-of-band revocation. Added the
+      `com.apple.developer.applesignin` entitlement. **Deliberately minimal, matching the scope
+      decision**: no backend/friends wiring (neither exists yet — see the P2 friends entry's own
+      re-audit correction above), just the real auth capability, ready for a later phase to consume.
+      Verified: full rebuild succeeded; existing `WeeklyPagerSwipeTests`/`MoodCheckInTests` still pass
+      unaffected; a temporary XCUITest confirmed the real button renders (replacing the old disabled
+      stub, confirmed via screenshot) and that tapping it invokes genuine system UI — this Simulator
+      has no Apple ID signed in at the OS level, so it correctly showed the real system "Sign in to
+      your Apple Account in Settings" alert, proving the integration reaches Apple's real
+      `ASAuthorizationController` boundary rather than silently no-op'ing (a real device with a
+      signed-in Apple ID would show the actual consent sheet instead — not chased further here, same
+      "conclusively blocked past the accessibility-tree boundary" precedent as the HealthKit consent
+      sheet elsewhere in this file). Temporary test file removed after capturing.
+- [ ] **Compete-with-friends / per-habit challenges (§9)** — Sign-In above is now real, so this is
+      technically unblocked, but still not started: spec explicitly frames this as its own later
+      phase needing a real design pass first (§9's own "design note to revisit... be deliberate about
+      privacy/tone... per-habit opt-in sharing... keep framing positive/playful" — none of that is
+      resolved yet, and there's still no backend to store friend relationships or shared challenge
+      state). Treat "Sign-In is done" as clearing the hard dependency, not as a signal to start
+      building this without a product pass on the open design questions first. **Correction to this
+      entry (re-audit, 2026-07-25):** previously
       suggested reviewing `shared_sections`/`official_sections` Supabase tables as likely groundwork —
       wrong, those tables belong to the separate original Expo/RN app (see root `CLAUDE.md`'s
       "Supabase Tables" section), not this Swift rewrite. Confirmed via grep: zero Supabase code

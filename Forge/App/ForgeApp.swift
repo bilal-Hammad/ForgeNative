@@ -12,6 +12,7 @@ struct ForgeApp: App {
     private let healthKitService: HealthKitService
     private let moodRepository: MoodRepository
     private let entitlementService: EntitlementService
+    private let authService: AuthService
     /// Held as a `let` so it outlives `init()` — `UNUserNotificationCenter`
     /// only keeps a weak reference to its `delegate`.
     private let appNotificationDelegate = AppNotificationDelegate()
@@ -69,6 +70,11 @@ struct ForgeApp: App {
         healthKitService = HealthKitService(habitRepository: habitRepository, milestoneEngine: milestoneEngine)
         moodRepository = SwiftDataMoodRepository(modelContainer: modelContainer)
         entitlementService = StubEntitlementService()
+        // `-uiTesting` gets the always-signed-out stand-in, matching the
+        // in-memory `ModelConfiguration` above — a real Sign in with Apple
+        // flow needs genuine user interaction with a system sheet and has
+        // no place in an automated fixture.
+        authService = isUITesting ? InMemoryAuthService() : AppleAuthService()
 
         UNUserNotificationCenter.current().delegate = appNotificationDelegate
 
@@ -109,6 +115,7 @@ struct ForgeApp: App {
                 .environment(\.healthKitService, healthKitService)
                 .environment(\.moodRepository, moodRepository)
                 .environment(\.entitlementService, entitlementService)
+                .environment(\.authService, authService)
         }
     }
 }

@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 /// Profile screen. No "Profile" nav title — the large photo+name header is
@@ -16,14 +17,19 @@ import SwiftUI
 /// geometry across that boundary), but two elements crossfading in lockstep,
 /// which reads as one continuous transition.
 ///
-/// Sign-in state: real Apple Sign-In/backend doesn't exist in ForgeNative yet
-/// (§10-adjacent "sensitive integration," deferred). `isSignedIn` is
-/// hardcoded false — the signed-in branch (photo + name instead of the
-/// generic silhouette) is built for when that lands, but is unreachable and
-/// untested today since the Sign-in button is a disabled stub.
+/// Sign-in state: real Sign in with Apple now works (`AuthService` —
+/// APP_REDESIGN_SPEC.md §9's hard prerequisite for friends/competition,
+/// built in isolation ahead of that feature since neither a backend nor
+/// friends exist yet in this codebase). No name/photo beyond what Apple
+/// hands back (`AuthUser.displayName`) — there's still no backend profile
+/// to fetch a real avatar from, so the generic silhouette stays even when
+/// signed in.
 struct ProfileView: View {
-    @State private var isSignedIn = false
+    @Environment(\.authService) private var authService
+    @State private var currentUser: AuthUser?
     @State private var scrollOffset: CGFloat = 0
+
+    private var isSignedIn: Bool { currentUser != nil }
 
     private let collapseThreshold: CGFloat = 60
 
@@ -53,8 +59,8 @@ struct ProfileView: View {
                 ToolbarItem(placement: .principal) {
                     HStack(spacing: 6) {
                         avatar(size: 26)
-                        if isSignedIn {
-                            Text("Forge User")
+                        if let currentUser {
+                            Text(currentUser.displayName)
                                 .font(.headline)
                         }
                     }
@@ -68,6 +74,9 @@ struct ProfileView: View {
                     }
                 }
             }
+            .task {
+                currentUser = await authService.restoreSession()
+            }
         }
     }
 
@@ -75,20 +84,48 @@ struct ProfileView: View {
         VStack(spacing: 12) {
             avatar(size: 96)
 
-            if isSignedIn {
-                Text("Forge User")
+            if let currentUser {
+                Text(currentUser.displayName)
                     .font(.title2.weight(.semibold))
+
+                Button("Sign Out") {
+                    Task {
+                        await authService.signOut()
+                        self.currentUser = nil
+                    }
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .padding(.top, 2)
             } else {
                 Text("Not Signed In")
                     .font(.title3.weight(.medium))
                     .foregroundStyle(.secondary)
 
-                Button {
-                    // Stub — no auth/backend layer in ForgeNative yet.
-                } label: {
-                    Label("Sign in with Apple", systemImage: "apple.logo")
+                SignInWithAppleButton(.signIn) { request in
+                    request.requestedScopes = [.fullName, .email]
+                } onCompletion: { result in
+                    guard case .success(let authorization) = result,
+                          let credential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+                        return
+                    }
+                    // Extracted here, on the main thread this closure
+                    // already runs on, since `ASAuthorizationAppleIDCredential`
+                    // itself isn't `Sendable` — see `AuthService`'s doc
+                    // comment for why the actor boundary takes plain
+                    // fields instead of the credential object.
+                    let userID = credential.user
+                    let email = credential.email
+                    let fullName = credential.fullName.flatMap { components -> String? in
+                        let name = PersonNameComponentsFormatter().string(from: components)
+                        return name.isEmpty ? nil : name
+                    }
+                    Task {
+                        currentUser = await authService.handleSignIn(userID: userID, email: email, fullName: fullName)
+                    }
                 }
-                .disabled(true)
+                .signInWithAppleButtonStyle(.black)
+                .frame(width: 220, height: 44)
                 .padding(.top, 4)
             }
         }
@@ -107,4 +144,5 @@ struct ProfileView: View {
 #Preview {
     ProfileView()
         .environment(\.habitRepository, InMemoryHabitRepository())
+        .environment(\.authService, InMemoryAuthService())
 }
