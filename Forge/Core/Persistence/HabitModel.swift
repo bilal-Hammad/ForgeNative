@@ -46,6 +46,11 @@ final class HabitModel {
     /// Predicated on directly by Home's active-list query — kept a plain
     /// `Bool`, not derived, for the same query-reliability reason as above.
     var isArchived: Bool
+    /// A default value at the property declaration (not just in `init`) is
+    /// what lets SwiftData's automatic lightweight migration add this column
+    /// to existing installs without a manual migration plan — added after
+    /// `HabitModel` already shipped, unlike every field above it.
+    var weeklyReflectionEnabled: Bool = true
 
     /// Cascade delete: removing a habit removes all its completion history
     /// with it — no orphaned rows left behind pointing at a deleted habit.
@@ -70,7 +75,8 @@ final class HabitModel {
         notificationsEnabled: Bool,
         remindersAppSyncEnabled: Bool,
         calendarSyncEnabled: Bool,
-        isArchived: Bool
+        isArchived: Bool,
+        weeklyReflectionEnabled: Bool = true
     ) {
         self.id = id
         self.title = title
@@ -90,6 +96,7 @@ final class HabitModel {
         self.remindersAppSyncEnabled = remindersAppSyncEnabled
         self.calendarSyncEnabled = calendarSyncEnabled
         self.isArchived = isArchived
+        self.weeklyReflectionEnabled = weeklyReflectionEnabled
     }
 }
 
@@ -113,7 +120,8 @@ extension HabitModel {
             notificationsEnabled: habit.notificationsEnabled,
             remindersAppSyncEnabled: habit.remindersAppSyncEnabled,
             calendarSyncEnabled: habit.calendarSyncEnabled,
-            isArchived: habit.isArchived
+            isArchived: habit.isArchived,
+            weeklyReflectionEnabled: habit.weeklyReflectionEnabled
         )
     }
 
@@ -134,6 +142,7 @@ extension HabitModel {
         remindersAppSyncEnabled = habit.remindersAppSyncEnabled
         calendarSyncEnabled = habit.calendarSyncEnabled
         isArchived = habit.isArchived
+        weeklyReflectionEnabled = habit.weeklyReflectionEnabled
     }
 
     func toHabit() -> Habit {
@@ -157,6 +166,7 @@ extension HabitModel {
             notificationsEnabled: notificationsEnabled,
             remindersAppSyncEnabled: remindersAppSyncEnabled,
             calendarSyncEnabled: calendarSyncEnabled,
+            weeklyReflectionEnabled: weeklyReflectionEnabled,
             isArchived: isArchived
         )
     }

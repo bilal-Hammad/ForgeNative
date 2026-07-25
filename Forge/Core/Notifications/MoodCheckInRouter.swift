@@ -6,7 +6,7 @@ import Observation
 /// permanently near the top of Home (see `MoodCheckInCard`) — so "opens
 /// straight to" is interpreted here as: switch to the Home tab if the user
 /// was elsewhere, since the card is already immediately visible there
-/// without any further scrolling/navigation. `MoodNotificationDelegate`
+/// without any further scrolling/navigation. `AppNotificationDelegate`
 /// sets `pendingMoodCheckInPrompt` on a notification tap; `AppTabView`
 /// observes it and flips back to `false` once it's acted on.
 @MainActor
@@ -14,7 +14,7 @@ import Observation
 final class MoodCheckInRouter {
     static let shared = MoodCheckInRouter()
     /// `nonisolated` deliberately — read from `MoodNotificationScheduler`
-    /// and `MoodNotificationDelegate`, neither of which is main-actor
+    /// and `AppNotificationDelegate`, neither of which is main-actor
     /// isolated, unlike `shared`/`pendingMoodCheckInPrompt` above. It's an
     /// immutable `String` constant, so there's nothing actually requiring
     /// actor isolation.

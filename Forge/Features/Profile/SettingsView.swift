@@ -48,8 +48,20 @@ struct SettingsView: View {
     @AppStorage("moodCheckInReminderEnabled") private var moodCheckInReminderEnabled: Bool = false
     @AppStorage("moodCheckInReminderHour") private var moodCheckInReminderHour: Int = 20
     @AppStorage("moodCheckInReminderMinute") private var moodCheckInReminderMinute: Int = 0
+    /// §13's weekly reflection — independent of both toggles above, same
+    /// reasoning as mood's own independence: this is its own single
+    /// notification, not part of the per-habit reminder budget. Default
+    /// weekday 1 = Sunday (`Calendar`/`DateComponents.weekday` convention,
+    /// 1...7 = Sun...Sat) at 18:00 — "Sunday evening" per §13's shipped
+    /// default, still fully user-configurable.
+    @AppStorage("weeklyReflectionEnabled") private var weeklyReflectionEnabled: Bool = false
+    @AppStorage("weeklyReflectionWeekday") private var weeklyReflectionWeekday: Int = 1
+    @AppStorage("weeklyReflectionHour") private var weeklyReflectionHour: Int = 18
+    @AppStorage("weeklyReflectionMinute") private var weeklyReflectionMinute: Int = 0
     @State private var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @State private var habits: [Habit] = []
+
+    private static let weekdaySymbols = Calendar.current.weekdaySymbols
 
     private var moodCheckInReminderTime: Binding<Date> {
         Binding(
@@ -60,6 +72,19 @@ struct SettingsView: View {
                 let components = Calendar.current.dateComponents([.hour, .minute], from: newValue)
                 moodCheckInReminderHour = components.hour ?? 20
                 moodCheckInReminderMinute = components.minute ?? 0
+            }
+        )
+    }
+
+    private var weeklyReflectionTime: Binding<Date> {
+        Binding(
+            get: {
+                Calendar.current.date(bySettingHour: weeklyReflectionHour, minute: weeklyReflectionMinute, second: 0, of: .now) ?? .now
+            },
+            set: { newValue in
+                let components = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                weeklyReflectionHour = components.hour ?? 18
+                weeklyReflectionMinute = components.minute ?? 0
             }
         )
     }
@@ -107,7 +132,15 @@ struct SettingsView: View {
                 }
             }
 
-            if notificationsEnabledGlobal {
+            // Shown whenever either per-habit toggle a habit can carry is
+            // reachable from here — per-habit reminders (gated on the
+            // master switch above) or the weekly reflection per-habit mute
+            // (its own independent toggle, further below) — since both
+            // live inside `HabitSyncSettingsDetailView` now. Without the
+            // `||`, a user with reminders off but weekly reflection on
+            // would have no way to reach the mute toggle for a specific
+            // habit at all.
+            if notificationsEnabledGlobal || weeklyReflectionEnabled {
                 ForEach(HabitCategory.allCases) { category in
                     let categoryHabits = habits.filter { $0.category == category }
                     if !categoryHabits.isEmpty {
@@ -136,6 +169,20 @@ struct SettingsView: View {
                 }
             } footer: {
                 Text("A once-a-day nudge to log how you're feeling — always optional, never required, and separate from habit reminders above.")
+            }
+
+            Section {
+                Toggle("Weekly Reflection", isOn: $weeklyReflectionEnabled)
+                if weeklyReflectionEnabled {
+                    Picker("Day", selection: $weeklyReflectionWeekday) {
+                        ForEach(1...7, id: \.self) { weekday in
+                            Text(Self.weekdaySymbols[weekday - 1]).tag(weekday)
+                        }
+                    }
+                    DatePicker("Time", selection: weeklyReflectionTime, displayedComponents: .hourAndMinute)
+                }
+            } footer: {
+                Text("A weekly summary of how your habits went — mute it for individual habits from that habit's own Notifications screen above.")
             }
 
             Section("Data") {
@@ -199,6 +246,21 @@ struct SettingsView: View {
             guard moodCheckInReminderEnabled else { return }
             Task { await rescheduleMoodReminder() }
         }
+        .onChange(of: weeklyReflectionEnabled) { _, isOn in
+            Task { await handleWeeklyReflectionToggleChange(isOn) }
+        }
+        .onChange(of: weeklyReflectionWeekday) { _, _ in
+            guard weeklyReflectionEnabled else { return }
+            Task { await rescheduleWeeklyReflection() }
+        }
+        .onChange(of: weeklyReflectionHour) { _, _ in
+            guard weeklyReflectionEnabled else { return }
+            Task { await rescheduleWeeklyReflection() }
+        }
+        .onChange(of: weeklyReflectionMinute) { _, _ in
+            guard weeklyReflectionEnabled else { return }
+            Task { await rescheduleWeeklyReflection() }
+        }
     }
 
     /// Turning the mood reminder on requests permission right here (same
@@ -221,6 +283,29 @@ struct SettingsView: View {
             enabled: moodCheckInReminderEnabled,
             hour: moodCheckInReminderHour,
             minute: moodCheckInReminderMinute
+        )
+    }
+
+    /// Same permission-request-here, snap-back-off-if-denied pattern as
+    /// the mood reminder and the per-habit master switch above.
+    private func handleWeeklyReflectionToggleChange(_ isOn: Bool) async {
+        if isOn {
+            let granted = await WeeklyReflectionScheduler.requestAuthorizationIfNeeded()
+            if !granted {
+                weeklyReflectionEnabled = false
+                return
+            }
+        }
+        await rescheduleWeeklyReflection()
+    }
+
+    private func rescheduleWeeklyReflection() async {
+        await WeeklyReflectionScheduler.reschedule(
+            habitRepository: habitRepository,
+            enabled: weeklyReflectionEnabled,
+            weekday: weeklyReflectionWeekday,
+            hour: weeklyReflectionHour,
+            minute: weeklyReflectionMinute
         )
     }
 

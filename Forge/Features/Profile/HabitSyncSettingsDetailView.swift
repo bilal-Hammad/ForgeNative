@@ -17,9 +17,14 @@ struct HabitSyncSettingsDetailView: View {
 
     @Environment(\.habitRepository) private var habitRepository
     @AppStorage("notificationsEnabledGlobal") private var globalNotificationsEnabled: Bool = false
+    @AppStorage("weeklyReflectionEnabled") private var weeklyReflectionEnabledGlobal: Bool = false
+    @AppStorage("weeklyReflectionWeekday") private var weeklyReflectionWeekday: Int = 1
+    @AppStorage("weeklyReflectionHour") private var weeklyReflectionHour: Int = 18
+    @AppStorage("weeklyReflectionMinute") private var weeklyReflectionMinute: Int = 0
     @State private var notificationsEnabled: Bool
     @State private var calendarSyncEnabled: Bool
     @State private var remindersAppSyncEnabled: Bool
+    @State private var weeklyReflectionEnabled: Bool
     @State private var notificationPermissionDenied = false
 
     init(habit: Habit) {
@@ -27,6 +32,7 @@ struct HabitSyncSettingsDetailView: View {
         _notificationsEnabled = State(initialValue: habit.notificationsEnabled)
         _calendarSyncEnabled = State(initialValue: habit.calendarSyncEnabled)
         _remindersAppSyncEnabled = State(initialValue: habit.remindersAppSyncEnabled)
+        _weeklyReflectionEnabled = State(initialValue: habit.weeklyReflectionEnabled)
     }
 
     var body: some View {
@@ -49,6 +55,14 @@ struct HabitSyncSettingsDetailView: View {
                     Text("Notifications use this habit's Time mode (set in its editor) for when they fire. Calendar/Reminders sync aren't wired up to real EventKit data yet — these just record your preference for when that lands.")
                 }
             }
+
+            if weeklyReflectionEnabledGlobal {
+                Section {
+                    Toggle("Include in Weekly Reflection", isOn: $weeklyReflectionEnabled)
+                } footer: {
+                    Text("Turn off to leave this habit out of the weekly summary notification, without affecting its own reminders above.")
+                }
+            }
         }
         .navigationTitle(habit.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -62,6 +76,9 @@ struct HabitSyncSettingsDetailView: View {
             Task { await persist() }
         }
         .onChange(of: remindersAppSyncEnabled) { _, _ in
+            Task { await persist() }
+        }
+        .onChange(of: weeklyReflectionEnabled) { _, _ in
             Task { await persist() }
         }
     }
@@ -79,8 +96,21 @@ struct HabitSyncSettingsDetailView: View {
         updated.notificationsEnabled = notificationsEnabled
         updated.calendarSyncEnabled = calendarSyncEnabled
         updated.remindersAppSyncEnabled = remindersAppSyncEnabled
+        updated.weeklyReflectionEnabled = weeklyReflectionEnabled
         try? await habitRepository.save(updated)
         await HabitNotificationScheduler.reschedule(for: updated, globalNotificationsEnabled: globalNotificationsEnabled)
+        // Muting/unmuting this habit changes what the next weekly
+        // reflection's content should say — recompute it now rather than
+        // waiting for the next app-foreground refresh.
+        if weeklyReflectionEnabledGlobal {
+            await WeeklyReflectionScheduler.reschedule(
+                habitRepository: habitRepository,
+                enabled: true,
+                weekday: weeklyReflectionWeekday,
+                hour: weeklyReflectionHour,
+                minute: weeklyReflectionMinute
+            )
+        }
     }
 }
 

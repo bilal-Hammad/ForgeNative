@@ -14,7 +14,7 @@ struct ForgeApp: App {
     private let entitlementService: EntitlementService
     /// Held as a `let` so it outlives `init()` — `UNUserNotificationCenter`
     /// only keeps a weak reference to its `delegate`.
-    private let moodNotificationDelegate = MoodNotificationDelegate()
+    private let appNotificationDelegate = AppNotificationDelegate()
 
     init() {
         let schema = Schema([
@@ -70,10 +70,33 @@ struct ForgeApp: App {
         moodRepository = SwiftDataMoodRepository(modelContainer: modelContainer)
         entitlementService = StubEntitlementService()
 
-        UNUserNotificationCenter.current().delegate = moodNotificationDelegate
+        UNUserNotificationCenter.current().delegate = appNotificationDelegate
 
         let service = healthKitService
         Task { await service.registerBackgroundDelivery() }
+
+        // Refresh the weekly reflection notification's content on every
+        // launch — see `WeeklyReflectionScheduler`'s doc comment for why
+        // this is the chosen freshness mechanism (no remote push/
+        // BGTaskScheduler in this app yet). Reads UserDefaults directly
+        // rather than `@AppStorage`, matching `VacationSettings`'s own
+        // established pattern for reading app settings outside a View.
+        let repository = habitRepository
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: "weeklyReflectionEnabled") != nil, defaults.bool(forKey: "weeklyReflectionEnabled") {
+            let weekday = defaults.object(forKey: "weeklyReflectionWeekday") as? Int ?? 1
+            let hour = defaults.object(forKey: "weeklyReflectionHour") as? Int ?? 18
+            let minute = defaults.object(forKey: "weeklyReflectionMinute") as? Int ?? 0
+            Task {
+                await WeeklyReflectionScheduler.reschedule(
+                    habitRepository: repository,
+                    enabled: true,
+                    weekday: weekday,
+                    hour: hour,
+                    minute: minute
+                )
+            }
+        }
     }
 
     var body: some Scene {

@@ -114,3 +114,64 @@ if something turns out to be wrong, add a new entry correcting it rather than re
   autonomous pass) — the rest (seed data, check Home for auto-complete, tap Drink Water and check the
   Health app for the write-back, screenshot everything) can all be done entirely programmatically from
   there, no further human involvement needed.
+
+---
+
+## 2026-07-25 — Weekly reflection notifications (§13, TASKS.md P1)
+
+- **What was done**: Built the previously-entirely-missing weekly reflection notification. New
+  `WeeklyReflectionScheduler.swift` (mirrors `MoodNotificationScheduler`'s independent-toggle shape),
+  `Habit.weeklyReflectionEnabled` field (added to the `Habit` struct, `HabitModel` SwiftData entity
+  with a property-declaration default so lightweight migration handles existing installs, and both
+  repository mapping directions), a new Settings section (day picker + time picker, mirroring the
+  Mood Check-In section's layout), a per-habit "Include in Weekly Reflection" mute toggle in
+  `HabitSyncSettingsDetailView` (shown whenever either per-habit-toggle-holding feature is reachable,
+  not just the reminders master switch — a real coupling bug caught and fixed before it shipped: the
+  per-habit list was originally gated only on `notificationsEnabledGlobal`, which would've made the
+  weekly-reflection mute toggle unreachable for a user with habit reminders off), and a
+  `WeeklyReflectionRouter` (routes a notification tap to the Progress tab, where the underlying stats
+  live — mirrors `MoodCheckInRouter`'s shape, routes to Home). Renamed `MoodNotificationDelegate` →
+  `AppNotificationDelegate` since it's now the one shared delegate for two notification categories,
+  not one — the old name would have read as misleading to a future maintainer.
+- **Judgment calls**:
+  1. **Content-freshness mechanism**: the notification body needs real per-habit data from "this
+     week," which keeps changing all week, but this app has no remote push or `BGTaskScheduler`
+     background refresh yet (both explicitly later-phase per §7). Rather than build either just for
+     this, `reschedule` recomputes content and re-schedules a one-time (not repeating) trigger for
+     the next occurrence every time it's called — from Settings when the toggle/time/day changes,
+     and once on every app launch (`ForgeApp.init()`). This means content is only as fresh as the
+     last time the user opened the app that week — a real, documented limitation, not silently
+     assumed away.
+  2. **Content selection**: with multiple eligible habits, picked one highlight per notification
+     (a perfect 7/7 week if any habit has one, else the single most-missed habit) rather than listing
+     every habit — keeps the notification body concise while still genuinely personalized, matching
+     the tone of both examples in the spec.
+  3. **"Win" tally**: used `Completion.isComplete` directly across all categories (it already means
+     "avoided" for Bad habits per that type's own doc comment), rather than writing separate
+     Good/Bad/To-Do counting logic.
+- **What was verified, and how**: Real build + install + launch on Simulator (no crash on the schema
+  migration against the existing real data store — confirmed by the app launching cleanly with its
+  pre-existing habits intact). Real XCUITest screenshot confirmed the new Settings section renders
+  correctly (toggle, footer text, revealed Day/Time pickers). Toggling it via XCUITest initially
+  appeared broken — logged zero scheduler activity — until root-caused via a full accessibility-tree
+  dump: SwiftUI `Toggle` rows expose **two** switch elements, a labeled row-wrapper (found by
+  `app.switches["Weekly Reflection"]`) and a separate unlabeled element at the actual on-screen knob
+  position; only the unlabeled one responds to a synthesized tap. Once the test targeted the correct
+  element, `os_log`-based diagnostic instrumentation (temporary, removed after confirming) showed:
+  `ForgeApp.init()`'s app-launch refresh correctly reads the persisted toggle state and correctly
+  no-ops when notification permission is `.notDetermined` (doesn't auto-prompt on launch, which
+  would be wrong — only the explicit Settings toggle should prompt); toggling in Settings correctly
+  fires `reschedule` with the right parameters; toggling off correctly cancels the pending request.
+  This is the same mechanism, and same level of confidence, as the already-shipped Mood Check-In
+  reminder feature, which uses an identical pattern. Confirmed both pre-existing gesture-regression
+  tests (`WeeklyPagerSwipeTests`, `MoodCheckInTests`) still pass after this change (on a freshly
+  booted Simulator — they'd been intermittently failing on the long-running one from earlier in this
+  session's HealthKit work, confirmed as simulator degradation rather than a regression by passing
+  reliably, and much faster, right after a reboot).
+- **Still open**: the actual system notification-permission consent alert (a simple 2-button system
+  alert, not HealthKit's complex sheet) was never explicitly tapped through and confirmed granted in
+  this pass — the toggle logic is verified correct up to that boundary, matching Mood's already-
+  proven pattern exactly, but a real "it fired at the right time with the right words" confirmation
+  would need either a real device left running for a week, or manually advancing the system clock
+  past the scheduled time in Simulator. Not attempted this pass — lower value than the structural
+  verification already done, given the pattern is proven elsewhere in this app.

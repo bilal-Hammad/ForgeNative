@@ -34,22 +34,17 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
 
 ## P1 — Genuinely missing features (spec claims done or doesn't flag as missing; code has nothing)
 
-- [ ] **Weekly reflection notifications (§13)** — NOT BUILT. Spec describes a real
-      once-a-week (default Sunday evening) local notification summarizing that week's per-habit/
-      per-category performance ("You stuck with Drink Water all week — 7/7 days", framed
-      non-judgmentally for misses), referencing points/streaks, togglable globally and per-habit.
-      Grepped the whole codebase: no file, no `weekly`/`reflection` symbol anywhere.
-      `HabitNotificationScheduler` only does per-habit reminders (time-of-day based on
-      `timeMode`/`repeatMode`); `MoodNotificationScheduler` is a separate, unrelated daily prompt.
-      This needs: a new scheduler (mirror `MoodNotificationScheduler`'s shape — `@AppStorage` toggle
-      + hour/minute, `UNCalendarNotificationTrigger` on the chosen weekday), a per-habit mute flag
-      (new `Habit` field or a separate `Set<Habit.ID>` in UserDefaults), and the actual weekly-stats
-      computation (completion rate over the last 7 days per habit/category, reusing
-      `HabitRepository.fetchCompletions(from:to:)` — bounded 7-day window, not a full-history scan).
-      **Acceptance**: toggle in Settings, real scheduled notification fires at the configured
-      day/time, body text reflects real per-habit/category data for the past 7 days, per-habit mute
-      works, tapping the notification opens the app (Progress tab is the natural landing spot, since
-      that's where the underlying stats live).
+- [x] **Weekly reflection notifications (§13)** — BUILT this pass. Once-a-week (default Sunday
+      evening, user-configurable day+time) local notification summarizing that week's per-habit
+      performance, non-judgmental framing for misses, global + per-habit toggle, taps route to
+      Progress. New `WeeklyReflectionScheduler` (mirrors `MoodNotificationScheduler`'s shape),
+      `Habit.weeklyReflectionEnabled` field (SwiftData lightweight-migration-safe default), content
+      computed from a bounded 7-day `fetchCompletions(from:to:)` window only. `MoodNotificationDelegate`
+      renamed to `AppNotificationDelegate` since it's now the shared delegate for two categories, not
+      one. See RESULTS.md for the full account, including a real XCUITest automation finding worth
+      keeping in mind for future test-writing in this project: SwiftUI `Toggle` rows expose two
+      accessibility switch elements (a labeled row-wrapper and an unlabeled control at the actual
+      knob position) — only the unlabeled one reliably responds to a synthesized tap.
 
 - [ ] **Section 5 toolbar — "•••" menu wrapping Edit + Reset**. Currently `CategoryDetailView`'s
       toolbar has a plain `NavigationLink("Edit")` only; "Reset" is real and correctly implemented
@@ -138,8 +133,8 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       color/icon language (weather-metaphor icons, not Apple's purple/blue/orange), Home-page card +
       optional notification, never mandatory, doesn't touch points/streaks, premium mood-correlation
       tie-in noted as a future Progress card. Verified: `MoodCheckInCard.swift`, `MoodEntry.swift`,
-      `MoodNotificationScheduler.swift`. (Weekly reflection notification is the other half of §13 —
-      see P1, genuinely missing.)
+      `MoodNotificationScheduler.swift`. Weekly reflection notification, §13's other half, now also
+      built (see P1 above) — `WeeklyReflectionScheduler.swift`.
 - [x] §14 Goal/Unit/Step — `HabitUnit` matches the documented consolidation exactly (`.count` absorbs
       "times"/no-unit/"things"; mmHg/mg/dL/% internal-only, excluded from `pickerOptions`). Verified:
       `HabitUnit.swift`.

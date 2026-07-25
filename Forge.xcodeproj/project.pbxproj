@@ -40,6 +40,7 @@
 		4F5337F69C13EBC57DD40ACC /* HabitColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 412307AB57C455F20017C1C8 /* HabitColor.swift */; };
 		503CE12F1F30177C5E74FC26 /* CompletionFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4295D6EE380F992FC14F4BC /* CompletionFeedback.swift */; };
 		520CD8DBD81539E6D19C1290 /* HealthKitTypeMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA6C49F676543583E44E88D0 /* HealthKitTypeMapping.swift */; };
+		54282C61B8F9C6956B078870 /* WeeklyReflectionScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121D1A3926FB559936FB9AFA /* WeeklyReflectionScheduler.swift */; };
 		55639823C10CBF03699C81CA /* HabitTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 189BA6C66791E2E3452D5945 /* HabitTemplate.swift */; };
 		5609E855972050657F9FA041 /* HabitModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 137DCAC8C4885EA8D25FC15A /* HabitModel.swift */; };
 		5D1E9CC507C304AEFCEF158F /* TemplateSectionRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35A3D5E5509EAC8C03ACDC8A /* TemplateSectionRepository.swift */; };
@@ -56,13 +57,13 @@
 		7BD030D59429180024E24A5D /* TemplateCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91A703FE817D83C2CEFE30F /* TemplateCatalog.swift */; };
 		7EA756B805334B8948AFC093 /* TemplateSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 355DE92A884A2D3821E0891E /* TemplateSection.swift */; };
 		85CFD7CD27D199549EBF4184 /* VacationSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7099B990E33E0CF17E0CCA7D /* VacationSettings.swift */; };
-		861AD948EC092DBBD9744A2D /* MoodNotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D355F7E0385ABAB50FC360D5 /* MoodNotificationDelegate.swift */; };
 		87EED502E2817A0A36968818 /* Completion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E1ADE5948619653B4083016 /* Completion.swift */; };
 		8985F9C59CB1BEFC814979DD /* SwiftDataMilestoneRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = A974A03E706CD2185017D430 /* SwiftDataMilestoneRepository.swift */; };
 		8A848402AC9796EC42259C42 /* MilestonesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4BDBA976019695A5CFA9CA9 /* MilestonesListView.swift */; };
 		8B2301F6DD4C892AA84C6F91 /* MilestoneRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AB60F6E62E32CD49FFA56B2 /* MilestoneRepository.swift */; };
 		916CB33F04B36C97E9C950BE /* WeeklyRingsPagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3A4D78AFD385DD3E494224A /* WeeklyRingsPagerView.swift */; };
 		91B3E80CD6ED07285654BFC8 /* EntitlementService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F405819F55143F5AAA23D633 /* EntitlementService.swift */; };
+		9944B32D8221D5D19FC2E340 /* WeeklyReflectionRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35CEFEDB1A64C69B9E67F953 /* WeeklyReflectionRouter.swift */; };
 		9B6F941F0786C2D70044FCF5 /* StreakLinesStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF86847E6D0665429ABF0BB9 /* StreakLinesStripView.swift */; };
 		9BBC12458FE8A65D8A561C5C /* SwiftDataMoodRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101713D0AFA98FD4534EDEF4 /* SwiftDataMoodRepository.swift */; };
 		A0216CB85455EF18091BA1CE /* EditSectionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 495D3DF7046CC93FD79B629F /* EditSectionDetailView.swift */; };
@@ -94,6 +95,7 @@
 		F4F4C86F82479240FA0A83B0 /* MoodRepositoryEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73DB53131CE0424BD8331E4F /* MoodRepositoryEnvironment.swift */; };
 		F70FA8CF08AF30AA9E851335 /* SwiftDataTemplateSectionRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = E78244A157131A15E685FB31 /* SwiftDataTemplateSectionRepository.swift */; };
 		F7EFB4283CD093333B5E95C9 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945C0ED6499DE1D14328DDED /* ProfileView.swift */; };
+		FB28A4B021E4049859DB02BA /* AppNotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EBDE919B369BA7ACBE2B66 /* AppNotificationDelegate.swift */; };
 		FB4252BA3986E8E1544BA3CC /* MoodLevel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41598F96D0FE8F9EF9D5924C /* MoodLevel.swift */; };
 /* End PBXBuildFile section */
 
@@ -118,6 +120,7 @@
 		0E52B5394271811AA8CEE092 /* EditSectionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditSectionsView.swift; sourceTree = "<group>"; };
 		0E8CCB651EE9A0CBD4F2B9F6 /* MoodEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodEntry.swift; sourceTree = "<group>"; };
 		101713D0AFA98FD4534EDEF4 /* SwiftDataMoodRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataMoodRepository.swift; sourceTree = "<group>"; };
+		121D1A3926FB559936FB9AFA /* WeeklyReflectionScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReflectionScheduler.swift; sourceTree = "<group>"; };
 		137DCAC8C4885EA8D25FC15A /* HabitModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitModel.swift; sourceTree = "<group>"; };
 		186272623D7828B105255AC2 /* HabitCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitCategory.swift; sourceTree = "<group>"; };
 		189BA6C66791E2E3452D5945 /* HabitTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitTemplate.swift; sourceTree = "<group>"; };
@@ -129,6 +132,7 @@
 		330C1B9266E34521CC428F5F /* HabitDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitDetailView.swift; sourceTree = "<group>"; };
 		355DE92A884A2D3821E0891E /* TemplateSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSection.swift; sourceTree = "<group>"; };
 		35A3D5E5509EAC8C03ACDC8A /* TemplateSectionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSectionRepository.swift; sourceTree = "<group>"; };
+		35CEFEDB1A64C69B9E67F953 /* WeeklyReflectionRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReflectionRouter.swift; sourceTree = "<group>"; };
 		374AD2D54777742738C4AF92 /* HealthKitRealDeviceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitRealDeviceTests.swift; sourceTree = "<group>"; };
 		412307AB57C455F20017C1C8 /* HabitColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitColor.swift; sourceTree = "<group>"; };
 		41598F96D0FE8F9EF9D5924C /* MoodLevel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodLevel.swift; sourceTree = "<group>"; };
@@ -169,6 +173,7 @@
 		9CAF136A2212C7BAAD8461CD /* ForgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeApp.swift; sourceTree = "<group>"; };
 		9EE193FE89FAB98966A7CCE4 /* HealthKitBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitBadgeView.swift; sourceTree = "<group>"; };
 		A5C72C32E098E83C726E5A76 /* MilestoneDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneDetailView.swift; sourceTree = "<group>"; };
+		A5EBDE919B369BA7ACBE2B66 /* AppNotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNotificationDelegate.swift; sourceTree = "<group>"; };
 		A7B188FF827204DDB10B2751 /* AddSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSectionView.swift; sourceTree = "<group>"; };
 		A974A03E706CD2185017D430 /* SwiftDataMilestoneRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataMilestoneRepository.swift; sourceTree = "<group>"; };
 		A9A8461332CF1132351706FC /* MilestoneKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneKind.swift; sourceTree = "<group>"; };
@@ -180,7 +185,6 @@
 		CDDA16EB6B7B2BF0F81079B1 /* MilestoneRepositoryEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneRepositoryEnvironment.swift; sourceTree = "<group>"; };
 		CE44E9DE33B83E77F19895EB /* InMemoryTemplateSectionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryTemplateSectionRepository.swift; sourceTree = "<group>"; };
 		D2F7E3AA2B3CD47505A0E877 /* WeeklyPagerSwipeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyPagerSwipeTests.swift; sourceTree = "<group>"; };
-		D355F7E0385ABAB50FC360D5 /* MoodNotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodNotificationDelegate.swift; sourceTree = "<group>"; };
 		D3A4D78AFD385DD3E494224A /* WeeklyRingsPagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyRingsPagerView.swift; sourceTree = "<group>"; };
 		D4295D6EE380F992FC14F4BC /* CompletionFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionFeedback.swift; sourceTree = "<group>"; };
 		D4BAC5DF16DA4E154D5A801A /* DebugSeedHealthKitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSeedHealthKitView.swift; sourceTree = "<group>"; };
@@ -205,10 +209,12 @@
 		16B28E70DAE15EB23CEDB497 /* Notifications */ = {
 			isa = PBXGroup;
 			children = (
+				A5EBDE919B369BA7ACBE2B66 /* AppNotificationDelegate.swift */,
 				7AD2020E9966C7045248DF33 /* HabitNotificationScheduler.swift */,
 				2EC63C385AD41C6C4E9E0F82 /* MoodCheckInRouter.swift */,
-				D355F7E0385ABAB50FC360D5 /* MoodNotificationDelegate.swift */,
 				90E056ABC0397BA133AA6FEB /* MoodNotificationScheduler.swift */,
+				35CEFEDB1A64C69B9E67F953 /* WeeklyReflectionRouter.swift */,
+				121D1A3926FB559936FB9AFA /* WeeklyReflectionScheduler.swift */,
 			);
 			path = Notifications;
 			sourceTree = "<group>";
@@ -564,6 +570,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				471F971BD54E11C47805790D /* AddSectionView.swift in Sources */,
+				FB28A4B021E4049859DB02BA /* AppNotificationDelegate.swift in Sources */,
 				F4B534D9BB531A40290457A6 /* AppTabView.swift in Sources */,
 				10304986CEDB08E40D198D2A /* ArchivedHabitsView.swift in Sources */,
 				704F888215E75119B9F0139D /* Badge3DView.swift in Sources */,
@@ -617,7 +624,6 @@
 				E7DA78F0306128A442C09EB2 /* MoodEntry.swift in Sources */,
 				4200CFB482029B3BC5B44CBE /* MoodEntryModel.swift in Sources */,
 				FB4252BA3986E8E1544BA3CC /* MoodLevel.swift in Sources */,
-				861AD948EC092DBBD9744A2D /* MoodNotificationDelegate.swift in Sources */,
 				6ECA5B7D24955D896687A11E /* MoodNotificationScheduler.swift in Sources */,
 				7A82452E35B00C32BFC66E03 /* MoodRepository.swift in Sources */,
 				F4F4C86F82479240FA0A83B0 /* MoodRepositoryEnvironment.swift in Sources */,
@@ -645,6 +651,8 @@
 				AD4DEED77A32E558566C18A8 /* TemplateSectionRepositoryEnvironment.swift in Sources */,
 				D0A380D790FA5291221B958D /* TimeMode.swift in Sources */,
 				85CFD7CD27D199549EBF4184 /* VacationSettings.swift in Sources */,
+				9944B32D8221D5D19FC2E340 /* WeeklyReflectionRouter.swift in Sources */,
+				54282C61B8F9C6956B078870 /* WeeklyReflectionScheduler.swift in Sources */,
 				916CB33F04B36C97E9C950BE /* WeeklyRingsPagerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -55,6 +55,14 @@ struct Habit: Identifiable, Codable, Equatable {
     var remindersAppSyncEnabled: Bool
     var calendarSyncEnabled: Bool
 
+    /// §13: per-habit mute for the weekly reflection notification (the
+    /// global toggle lives in `SettingsView`/`WeeklyReflectionScheduler`) —
+    /// "togglable per-habit too (mute reflection notifications for specific
+    /// habits without disabling all of them)". Same shape as
+    /// `notificationsEnabled` above, independent of it — a habit can have
+    /// its per-tap reminders on and weekly reflection off, or vice versa.
+    var weeklyReflectionEnabled: Bool
+
     /// Archived habits are hidden from Home's active list but not deleted —
     /// surfaced in Profile's Archived Habits screen with an unarchive action.
     var isArchived: Bool
@@ -77,6 +85,7 @@ struct Habit: Identifiable, Codable, Equatable {
         notificationsEnabled: Bool = true,
         remindersAppSyncEnabled: Bool = false,
         calendarSyncEnabled: Bool = false,
+        weeklyReflectionEnabled: Bool = true,
         isArchived: Bool = false
     ) {
         self.id = id
@@ -96,6 +105,7 @@ struct Habit: Identifiable, Codable, Equatable {
         self.notificationsEnabled = notificationsEnabled
         self.remindersAppSyncEnabled = remindersAppSyncEnabled
         self.calendarSyncEnabled = calendarSyncEnabled
+        self.weeklyReflectionEnabled = weeklyReflectionEnabled
         self.isArchived = isArchived
     }
 }

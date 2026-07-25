@@ -40,6 +40,13 @@ struct AppTabView: View {
             selectedTab = .home
             MoodCheckInRouter.shared.pendingMoodCheckInPrompt = false
         }
+        // §13's weekly reflection notification routes to Progress — see
+        // `WeeklyReflectionRouter`'s doc comment.
+        .onChange(of: WeeklyReflectionRouter.shared.pendingWeeklyReflectionPrompt) { _, pending in
+            guard pending else { return }
+            selectedTab = .progress
+            WeeklyReflectionRouter.shared.pendingWeeklyReflectionPrompt = false
+        }
     }
 }
 
