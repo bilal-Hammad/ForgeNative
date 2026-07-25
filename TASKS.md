@@ -173,7 +173,14 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
 
 ## Notes for whoever (or whichever autonomous pass) picks this up next
 
-- This file should be re-audited (not just checked off from memory) whenever a P1/P2 item is
+- **Mandatory pre-task check — do this before writing a single line for any item below:** open the
+  file(s) this item names as "Verified:" (or, if it has none yet, search the codebase for the
+  feature/symbol this item describes) and confirm with your own eyes whether it's actually already
+  built. If it's already there, mark it `[x]`, move its "Verified:" evidence into place, log the
+  correction in `RESULTS.md`, commit that correction alone, and move on — **do not implement, rewrite,
+  or "improve" something that already works** just because a checkbox was unchecked. An unchecked box
+  means "confirm state," not "build it."
+- This file should be re-audited (not just checked off from memory) whenever a P0/P1/P2 item is
   claimed complete — same discipline used to generate it: read the actual file, don't trust a
   comment or a prior session's summary.
 - The engineering standards in CLAUDE.md (bounded queries, repository pattern, real XCUITest for
