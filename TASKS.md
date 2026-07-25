@@ -46,15 +46,13 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       accessibility switch elements (a labeled row-wrapper and an unlabeled control at the actual
       knob position) — only the unlabeled one reliably responds to a synthesized tap.
 
-- [ ] **Section 5 toolbar — "•••" menu wrapping Edit + Reset**. Currently `CategoryDetailView`'s
-      toolbar has a plain `NavigationLink("Edit")` only; "Reset" is real and correctly implemented
-      (with a destructive confirmation alert, `EditSectionsView.swift:95-105`) but lives one level
-      deeper inside the Edit screen, not as a sibling top-level option under a "•••" menu as spec
-      describes. Functionally complete, IA doesn't match spec exactly.
-      **Acceptance**: top-right toolbar shows a "•••" `Menu` with two items, "Edit" (pushes
-      `EditSectionsView` as today) and "Reset" (either pushes straight to the existing reset
-      confirmation, or triggers it directly from the menu) — decide the exact interaction, it's a
-      small enough UI change not to need a product-decision pause.
+- [x] **Section 5 toolbar — "•••" menu wrapping Edit + Reset**. FIXED this pass. `CategoryDetailView`'s
+      toolbar is now a `Menu` (SF Symbol `ellipsis.circle`, exposed to accessibility as "More") with
+      "Edit" (`NavigationLink` to `EditSectionsView`, confirmed via XCUITest that a `NavigationLink`
+      inside a `Menu` still navigates correctly) and "Reset" (destructive-styled when sections differ
+      from default, real confirmation dialog) as siblings. Reset's logic moved up from
+      `EditSectionsView` to `CategoryDetailView` rather than being duplicated in both places —
+      `EditSectionsView` no longer has its own Reset entry point.
 
 - [ ] **Section 16 — light-mode card color formula**. `HomeView.swift`'s `Color.deepCardTint()`
       (line ~432) always applies the same "low-brightness, high-saturation" formula regardless of
@@ -105,9 +103,9 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       card-based `RoundedRectangle` styling, HealthKit badge via shared `HealthKitBadgeView`.
       Verified: `CategoryPickerView.swift`, `CategoryDetailView.swift`, `HealthKitBadgeView.swift`.
 - [x] §5 Category detail — thematic sections (not A-Z), scrubber index (`SectionIndexStrip`),
-      `.searchable`, Edit (reorder/delete/add-custom/add-suggested) and Reset both real and working
-      (see P1 above for the one IA-structure gap). Verified: `CategoryDetailView.swift`,
-      `EditSectionsView.swift`, `AddSectionView.swift`.
+      `.searchable`, "•••" menu with Edit + Reset as siblings (fixed this pass, see P1 history),
+      Edit (reorder/delete/add-custom/add-suggested) and Reset both real and working. Verified:
+      `CategoryDetailView.swift`, `EditSectionsView.swift`, `AddSectionView.swift`.
 - [x] §6 Progress page — Consistency Heatmap, Streak chart, Category Breakdown, premium-gated
       Best Day/Time & Streak Distribution, Recent Activity, Milestones, Habit Trends, in spec order.
       No literal rings anywhere. Verified: `ProgressScreenView.swift`, `ConsistencyHeatmapCard.swift`,

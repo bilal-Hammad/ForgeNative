@@ -11,6 +11,11 @@ import SwiftUI
 /// Reminders itself uses, rather than hand-rolled buttons approximating it.
 /// The info "i" button is added per-row as ordinary row content alongside
 /// that native chrome.
+///
+/// "Reset to default" lives one level up now, in `CategoryDetailView`'s own
+/// "•••" menu as a sibling to "Edit" (APP_REDESIGN_SPEC.md §5) — it used to
+/// be a toolbar button on this screen, nested one level deeper than the
+/// spec describes; moved up rather than duplicated in both places.
 struct EditSectionsView: View {
     let category: HabitCategory
     var onChange: () -> Void
@@ -20,19 +25,6 @@ struct EditSectionsView: View {
     @State private var deletedCount = 0
     @State private var isPresentingAddSection = false
     @State private var editingCustomSection: TemplateSection?
-    @State private var isPresentingResetConfirm = false
-
-    /// Whether the current section state actually differs from default —
-    /// drives Reset's color so it only reads as destructive when it would
-    /// actually change something. Only the built-in portion of `sections`
-    /// counts: a custom section's mere presence isn't something Reset would
-    /// undo (it preserves custom sections), so it shouldn't make Reset look
-    /// destructive on its own.
-    private var isModifiedFromDefault: Bool {
-        let builtInIDs = TemplateCatalog.sections(for: category).map(\.id)
-        let currentBuiltInOrder = sections.map(\.id).filter(builtInIDs.contains)
-        return currentBuiltInOrder != TemplateCatalog.defaultSectionIDs(for: category) || deletedCount > 0
-    }
 
     var body: some View {
         List {
@@ -90,23 +82,6 @@ struct EditSectionsView: View {
         .environment(\.editMode, .constant(.active))
         .navigationTitle("Edit \(category.displayName) Sections")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Reset") { isPresentingResetConfirm = true }
-                    .foregroundStyle(isModifiedFromDefault ? Color.red : Color.accentColor)
-            }
-        }
-        .confirmationDialog(
-            "Reset to default sections?",
-            isPresented: $isPresentingResetConfirm,
-            titleVisibility: .visible
-        ) {
-            Button("Reset", role: .destructive) {
-                Task { await reset() }
-            }
-        } message: {
-            Text("Restores the default section order and visibility for \(category.displayName). Custom sections you've created aren't deleted.")
-        }
         .sheet(isPresented: $isPresentingAddSection) {
             AddSectionView(category: category) {
                 isPresentingAddSection = false
@@ -139,12 +114,6 @@ struct EditSectionsView: View {
         for index in offsets {
             try? await repository.softDelete(sectionID: sections[index].id, for: category)
         }
-        await reload()
-        onChange()
-    }
-
-    private func reset() async {
-        try? await repository.resetToDefault(for: category)
         await reload()
         onChange()
     }

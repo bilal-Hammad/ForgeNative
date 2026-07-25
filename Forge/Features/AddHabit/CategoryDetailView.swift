@@ -23,6 +23,20 @@ struct CategoryDetailView: View {
     @State private var searchText = ""
     @State private var selectedTemplate: HabitTemplate?
     @State private var sections: [TemplateSection] = []
+    @State private var deletedSectionCount = 0
+    @State private var isPresentingResetConfirm = false
+
+    /// Drives Reset's destructive styling in the confirmation dialog — same
+    /// formula `EditSectionsView` used before Reset moved up to this
+    /// screen's own "•••" menu (APP_REDESIGN_SPEC.md §5: "Edit" and "Reset"
+    /// as sibling options under one menu, not Reset nested one screen
+    /// deeper). Only the built-in portion of `sections` counts — a custom
+    /// section's mere presence isn't something Reset would undo.
+    private var isModifiedFromDefault: Bool {
+        let builtInIDs = TemplateCatalog.sections(for: category).map(\.id)
+        let currentBuiltInOrder = sections.map(\.id).filter(builtInIDs.contains)
+        return currentBuiltInOrder != TemplateCatalog.defaultSectionIDs(for: category) || deletedSectionCount > 0
+    }
 
     private var filteredSections: [TemplateSection] {
         guard !searchText.isEmpty else { return sections }
@@ -84,13 +98,39 @@ struct CategoryDetailView: View {
         .navigationTitle(category.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // "•••" menu (APP_REDESIGN_SPEC.md §5): Edit and Reset as
+            // sibling options, not Reset nested one screen deeper inside
+            // Edit — a real IA gap this pass fixed (Reset was previously
+            // only reachable from inside `EditSectionsView`).
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink("Edit") {
-                    EditSectionsView(category: category) {
-                        Task { await reload() }
+                Menu {
+                    NavigationLink {
+                        EditSectionsView(category: category) {
+                            Task { await reload() }
+                        }
+                    } label: {
+                        Label("Edit", systemImage: "pencil")
                     }
+                    Button(role: isModifiedFromDefault ? .destructive : nil) {
+                        isPresentingResetConfirm = true
+                    } label: {
+                        Label("Reset", systemImage: "arrow.counterclockwise")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
             }
+        }
+        .confirmationDialog(
+            "Reset to default sections?",
+            isPresented: $isPresentingResetConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Reset", role: .destructive) {
+                Task { await reset() }
+            }
+        } message: {
+            Text("Restores the default section order and visibility for \(category.displayName). Custom sections you've created aren't deleted.")
         }
         .sheet(item: $selectedTemplate) { template in
             HabitFormView(template: template) {
@@ -104,6 +144,12 @@ struct CategoryDetailView: View {
     private func reload() async {
         guard let config = try? await sectionRepository.fetchConfiguration(for: category) else { return }
         sections = config.resolvedActiveSections(for: category)
+        deletedSectionCount = config.deletedSectionIDs.count
+    }
+
+    private func reset() async {
+        try? await sectionRepository.resetToDefault(for: category)
+        await reload()
     }
 }
 

@@ -175,3 +175,29 @@ if something turns out to be wrong, add a new entry correcting it rather than re
   would need either a real device left running for a week, or manually advancing the system clock
   past the scheduled time in Simulator. Not attempted this pass — lower value than the structural
   verification already done, given the pattern is proven elsewhere in this app.
+
+---
+
+## 2026-07-25 — Category detail "•••" menu (§5, TASKS.md P1)
+
+- **What was done**: `CategoryDetailView`'s toolbar changed from a plain `NavigationLink("Edit")` to
+  a `Menu` (ellipsis-circle icon) containing "Edit" and "Reset" as sibling items, matching the spec's
+  "Edit"/"Reset" two-option description exactly. Reset's logic (confirmation dialog,
+  `isModifiedFromDefault` destructive-styling check, the actual `resetToDefault` repository call) was
+  moved from `EditSectionsView` up to `CategoryDetailView` — not duplicated in both places, since that
+  would've meant two separate confirmation dialogs and two independently-computed
+  `isModifiedFromDefault` values that could drift out of sync over time.
+- **Judgment calls**: The `isModifiedFromDefault` check now needs `deletedSectionIDs.count`, which
+  `CategoryDetailView` wasn't previously tracking (only `EditSectionsView` was) — added a
+  `deletedSectionCount` state var and populated it in the existing `reload()` rather than introducing
+  a second fetch.
+- **What was verified, and how**: Real XCUITest run confirmed all three things end to end: the menu
+  button (SF Symbol `ellipsis.circle`, exposed to accessibility as label "More" — confirmed via a
+  hierarchy dump, not guessed) opens and shows both "Edit" and "Reset"; tapping "Edit" — a
+  `NavigationLink` nested inside a `Menu`, a combination that doesn't always navigate correctly in
+  SwiftUI — was specifically checked and confirmed it does push to `EditSectionsView` correctly here;
+  a real screenshot confirms the menu's visual styling (Reset shown in normal, non-destructive color
+  since the section was at its default order at capture time — correct, since nothing had been
+  modified). Full app rebuild succeeded with no errors. Exploratory test file removed after
+  confirming (not kept as a permanent regression test — this is a static menu-presence check, lower
+  value than the gesture-driven tests already kept permanently in this project).
