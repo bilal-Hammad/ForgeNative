@@ -936,3 +936,117 @@ streaks); mood's exact 5-color/5-icon set; mood card placement (top of
 Home's list content vs. inside the pinned strip's own safeAreaInset); and
 interpreting "opens straight to the card" as a tab switch, not a sheet/
 scroll-to.
+
+## Autonomous operation policy
+
+Added per explicit instruction (2026-07-25) to let a session pick up work
+continuously across the project without stopping for routine implementation
+decisions. Applies to this project going forward, not just the pass that
+introduced it.
+
+**At the start of every session:**
+1. Read `TASKS.md` (repo root) first, before touching code. It's the
+   priority-ordered work queue — foundational items before polish, spec
+   deviations flagged explicitly, everything audited against the actual
+   codebase rather than trusted from a prior summary.
+2. Work through unchecked items in order. Prefer P0/P1 (blocking / genuinely
+   missing) over P2 (deliberately deferred) over polish — but use judgment
+   if a later item is trivially quick and unblocks nothing to skip ahead for.
+3. Full permission is granted for this project to make routine implementation
+   decisions autonomously — which SwiftUI modifier, which internal function
+   shape, which file to put something in, minor naming, etc. Document
+   non-obvious judgment calls in the commit message and/or a code comment as
+   they're made (the pattern already used throughout this file and the
+   codebase's own doc comments) — not in a side conversation, since the code
+   and commit history are what a future session actually reads.
+
+**Only stop and wait for explicit direction on:**
+- A genuine product/design decision the spec doesn't resolve (tone, exact
+  visual treatment where §-level guidance runs out, monetization specifics,
+  anything a reasonable engineer couldn't infer from the spec + existing
+  app conventions).
+- A confirmed hard blocker — something tried multiple genuinely different
+  ways, root-caused as far as possible, and still not resolvable from this
+  environment (the real-device-vs-Simulator HealthKit consent-sheet
+  investigation is the reference example: multiple angles tried, the actual
+  mechanism identified precisely, only then reported as blocked rather than
+  guessed at after one attempt).
+- Anything destructive/hard-to-reverse outside normal commit/push flow (force
+  push, deleting user data, changing shared infrastructure) — normal
+  commit-and-push of this project's own code is pre-authorized by this
+  policy; the things flagged as needing confirmation elsewhere in this
+  project's own conventions (see root `CLAUDE.md`'s general safety guidance
+  it inherits) still apply beyond that.
+
+**After each completed task, in order:**
+1. Check it off in `TASKS.md`.
+2. Append an entry to `RESULTS.md` (repo root) — what was done, judgment
+   calls made, what was verified and exactly how (screenshot / real test /
+   manual check — be specific, "looks right" is not verification), anything
+   still open about that specific task. Never overwrite prior entries.
+3. Commit the code change and the `TASKS.md`/`RESULTS.md` updates together.
+4. Push.
+5. Move to the next item immediately — don't idle waiting for acknowledgment
+   on routine progress.
+
+## Engineering standards
+
+Standing bar for all work in this project (Swift rewrite and, where it still
+applies, the original RN app) — not a one-time checklist. Complements the
+"Production Scaling Standards" near the top of this file; that section is
+about backend/external-API scale, this one is about client-side correctness
+and craft.
+
+1. **No unbounded collection/loop/query scaling with total historical data.**
+   Always page/window/bound. This is not a hypothetical — it's the exact,
+   previously-shipped bug documented above under "Home weekly strip freeze":
+   a `ForEach` over `minWeekOffset...0` (5201 elements, ~100 years back)
+   measurably delayed MainActor's return to unrelated pending work elsewhere
+   in the app. The fix (windowed/recentering pager, §-pattern used
+   throughout this codebase) is the standing model: a small constant window
+   around whatever "now" is, not a range sized to the data's full history.
+   Same principle applies to queries — `fetchCompletions(from:to:)` takes an
+   explicit bounded range everywhere it's called, never "fetch everything
+   and filter in Swift."
+2. **All data access goes through the existing repository pattern.** Never
+   read/write SwiftData models directly from a View or from business logic
+   outside a `*Repository` implementation. New data needs get a new
+   repository method (or a new repository entirely, matching
+   `HabitRepository`/`MoodRepository`/etc.'s existing shape: protocol +
+   `SwiftData*` implementation + `InMemory*` implementation for previews/
+   tests), not a bypass.
+3. **Correct async/await and actor isolation throughout; nothing expensive
+   on the main thread.** SwiftData repositories are `@ModelActor`-isolated
+   for exactly this reason. A tap handler that needs to do real work (a
+   milestone check, a HealthKit call) dispatches it rather than awaiting it
+   inline if the result isn't needed before the UI can respond — see the
+   "Home tap-to-complete" investigation above for the measured cost of
+   getting this wrong (a synchronous milestone-engine await added
+   870-1080ms to every single tap).
+4. **Every destructive action requires an explicit confirmation alert, no
+   exceptions.** Matches §12's own resolved decision for habit deletion,
+   generalized: any irreversible data loss (delete habit, delete custom
+   section, reset a category's sections to default, etc.) gets a real
+   `.alert` with a named destructive action before it fires — never a bare
+   single tap.
+5. **Every gesture/interaction feature gets a real XCUITest regression test
+   before being considered done.** Simulator mouse-drag does not reliably
+   register as a swipe/drag gesture in this environment (confirmed
+   repeatedly, multiple investigations, see the weekly-pager history above)
+   — `ForgeUITests` (kept permanently for exactly this reason) using real
+   touch injection is the only way found so far to verify gesture-driven
+   behavior actually works, not just that the code compiles and "looks
+   right" in a static screenshot. Real system UI (HealthKit's consent
+   sheet, and likely other system permission prompts) is its own further
+   wrinkle — see the HealthKit real-device investigation below for what's
+   confirmed about that boundary specifically.
+6. **Match Apple's HIG/terminology by default unless a documented reason
+   says otherwise.** Field names, interaction patterns, and platform
+   conventions should read as genuinely native unless this project has an
+   explicit, on-the-record reason to diverge — and when it does diverge,
+   that reason should be written down at the point of divergence (matching
+   how §1's rings-avoidance and §13's mood-check-in-vs-Apple's-slider
+   decisions are already documented in `APP_REDESIGN_SPEC.md`): both are
+   deliberate original-design choices for a paid app's legal/differentiation
+   concerns, not arbitrary departures from HIG. New deviations need the same
+   kind of explicit reasoning, not a silent choice.

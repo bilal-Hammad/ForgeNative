@@ -15,6 +15,13 @@ settings:
     INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
     ASSETCATALOG_COMPILER_APPICON_NAME: ForgeIconv1
     ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    # Real-device builds need these — previously only set via Xcode's own
+    # Signing & Capabilities GUI, which xcodegen generate silently wipes on
+    # every regeneration since project.yml is the actual source of truth.
+    # Declaring it here is what makes real-device builds/tests survive a
+    # regen instead of failing with "requires a development team."
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: 53T98NLS49
 
 targets:
   Forge:
@@ -34,12 +41,12 @@ targets:
         INFOPLIST_KEY_NSHealthShareUsageDescription: "Forge reads Health data to automatically mark HealthKit-tracked habits (like water intake, workouts, and sleep) complete when your data already meets your goal."
         INFOPLIST_KEY_NSHealthUpdateUsageDescription: "Forge writes to Health when you manually log a HealthKit-tracked habit, so your data stays in sync in both directions."
 
-  # TEMPORARY — added for the weekly-pager swipe investigation, so a real
-  # swipe gesture can be verified via actual touch injection (XCUITest),
-  # since Simulator mouse-drag does not register as a page-swipe gesture in
-  # this environment (see CLAUDE.md's Home weekly strip investigation
-  # history). Remove this target and ForgeUITests/ once that's done, unless
-  # the user wants to keep it for future gesture regressions.
+  # Kept permanently (confirmed) — this project's real gesture/interaction
+  # regression suite. Originally added for the weekly-pager swipe
+  # investigation (Simulator mouse-drag never registers as a page-swipe
+  # gesture; XCUITest's real touch injection does) and now also used for
+  # HealthKit system-consent-sheet interaction and other gesture-driven
+  # features. See CLAUDE.md's Home weekly strip investigation history.
   ForgeUITests:
     type: bundle.ui-testing
     platform: iOS

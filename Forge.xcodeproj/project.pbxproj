@@ -22,6 +22,7 @@
 		19CBA570F000C158B6A832A9 /* MilestoneEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC4984B59FDD409822A6632 /* MilestoneEngine.swift */; };
 		20611B2D79CBE113E61B9393 /* BestDayTimeStreakDistributionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 827CCA0E998C638D1C3A7992 /* BestDayTimeStreakDistributionCard.swift */; };
 		20C407A650E8850652C0EE78 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0C67F3ACD4D8E2FD015C9B5E /* Assets.xcassets */; };
+		22F2437A72A872912929FAC4 /* HealthKitRealDeviceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 374AD2D54777742738C4AF92 /* HealthKitRealDeviceTests.swift */; };
 		23C454AB11A7E777C571ED1D /* ForgeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CAF136A2212C7BAAD8461CD /* ForgeApp.swift */; };
 		250C2D05EF323FCC484C4E5D /* InMemoryMoodRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D60DBB18B5E7E96EAF98E6E /* InMemoryMoodRepository.swift */; };
 		2772719859D72764DC4BEE95 /* CategoryDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56EC53751E7F4C12054F6816 /* CategoryDetailView.swift */; };
@@ -128,6 +129,7 @@
 		330C1B9266E34521CC428F5F /* HabitDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitDetailView.swift; sourceTree = "<group>"; };
 		355DE92A884A2D3821E0891E /* TemplateSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSection.swift; sourceTree = "<group>"; };
 		35A3D5E5509EAC8C03ACDC8A /* TemplateSectionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSectionRepository.swift; sourceTree = "<group>"; };
+		374AD2D54777742738C4AF92 /* HealthKitRealDeviceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitRealDeviceTests.swift; sourceTree = "<group>"; };
 		412307AB57C455F20017C1C8 /* HabitColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitColor.swift; sourceTree = "<group>"; };
 		41598F96D0FE8F9EF9D5924C /* MoodLevel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodLevel.swift; sourceTree = "<group>"; };
 		41884147DAE3AD6646B3D5B7 /* PointsLedgerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointsLedgerModel.swift; sourceTree = "<group>"; };
@@ -191,7 +193,7 @@
 		E6DF04BACEC898B4663F85C2 /* ProgressScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressScreenView.swift; sourceTree = "<group>"; };
 		E78244A157131A15E685FB31 /* SwiftDataTemplateSectionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataTemplateSectionRepository.swift; sourceTree = "<group>"; };
 		E9B4912998C44716F0FEAB09 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
-		EAD57FE43439B2C292022C07 /* Forge.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Forge.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EAD57FE43439B2C292022C07 /* Forge.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Forge.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F405819F55143F5AAA23D633 /* EntitlementService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementService.swift; sourceTree = "<group>"; };
 		F4BDBA976019695A5CFA9CA9 /* MilestonesListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestonesListView.swift; sourceTree = "<group>"; };
 		F7E536C16A867F0A9653B587 /* HabitUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitUnit.swift; sourceTree = "<group>"; };
@@ -377,6 +379,7 @@
 		C31349E3F02EFC1031777538 /* ForgeUITests */ = {
 			isa = PBXGroup;
 			children = (
+				374AD2D54777742738C4AF92 /* HealthKitRealDeviceTests.swift */,
 				7F66DC2541D078D6905E7A13 /* MoodCheckInTests.swift */,
 				D2F7E3AA2B3CD47505A0E877 /* WeeklyPagerSwipeTests.swift */,
 			);
@@ -513,7 +516,13 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					048EF5FF280B1128083FAB7B = {
+						DevelopmentTeam = 53T98NLS49;
+						ProvisioningStyle = Automatic;
 						TestTargetID = B86A17B415789897E93F9B10;
+					};
+					B86A17B415789897E93F9B10 = {
+						DevelopmentTeam = 53T98NLS49;
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -644,6 +653,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				22F2437A72A872912929FAC4 /* HealthKitRealDeviceTests.swift in Sources */,
 				01252BB84EA5B3EB48130CC3 /* MoodCheckInTests.swift in Sources */,
 				718F085437308A07DBCEBD2F /* WeeklyPagerSwipeTests.swift in Sources */,
 			);
@@ -684,7 +694,6 @@
 				CODE_SIGN_ENTITLEMENTS = Forge/Forge.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 53T98NLS49;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Forge reads Health data to automatically mark HealthKit-tracked habits (like water intake, workouts, and sleep) complete when your data already meets your goal.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Forge writes to Health when you manually log a HealthKit-tracked habit, so your data stays in sync in both directions.";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -735,8 +744,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 53T98NLS49;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -787,7 +798,6 @@
 				CODE_SIGN_ENTITLEMENTS = Forge/Forge.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 53T98NLS49;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Forge reads Health data to automatically mark HealthKit-tracked habits (like water intake, workouts, and sleep) complete when your data already meets your goal.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Forge writes to Health when you manually log a HealthKit-tracked habit, so your data stays in sync in both directions.";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -838,8 +848,10 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 53T98NLS49;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;

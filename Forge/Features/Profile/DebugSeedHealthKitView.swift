@@ -39,6 +39,12 @@ struct DebugSeedHealthKitView: View {
     private let healthStore = HKHealthStore()
 
     private static let testHabits: [Habit] = [
+        // Steps/Sleep deliberately included so real-device verification can
+        // read genuine, already-existing personal HealthKit data (motion-
+        // coprocessor step count, and Sleep tracking if set up) instead of
+        // needing synthetic seeding — the cleanest possible read-path proof.
+        Habit(title: "Steps", category: .good, isHealthKitTracked: true, sourceTemplateID: "steps-10k", iconSystemName: "shoeprints.fill", goal: 10000, unit: .steps, step: 1000),
+        Habit(title: "Sleep", category: .good, isHealthKitTracked: true, sourceTemplateID: "sleep", iconSystemName: "bed.double.fill", goal: 8, unit: .hours, step: 1),
         Habit(title: "Basketball", category: .good, isHealthKitTracked: true, sourceTemplateID: "hk-basketball", iconSystemName: "basketball.fill", goal: 30, unit: .minutes, step: 10),
         Habit(title: "Wash Your Hands", category: .good, isHealthKitTracked: true, sourceTemplateID: "hk-handwashing", iconSystemName: "hands.and.sparkles.fill", goal: 5, unit: .count, step: 1),
         Habit(title: "Blood Pressure", category: .good, isHealthKitTracked: true, sourceTemplateID: "hk-blood-pressure", iconSystemName: "waveform.path.ecg", goal: 1, unit: .count, step: 1),
