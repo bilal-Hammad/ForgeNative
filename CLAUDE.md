@@ -952,7 +952,23 @@ introduced it.
 2. Work through unchecked items in order. Prefer P0/P1 (blocking / genuinely
    missing) over P2 (deliberately deferred) over polish — but use judgment
    if a later item is trivially quick and unblocks nothing to skip ahead for.
-3. Full permission is granted for this project to make routine implementation
+3. **Before starting any individual item, verify it isn't already implemented
+   by checking the actual relevant files/code — never start work based on the
+   checklist's checkbox state alone.** `TASKS.md` is generated and updated by
+   the same kind of session doing this work, and has been caught drifting
+   from reality before: a 2026-07-25 re-audit found a P3 entry describing
+   `HabitFormView.swift`'s field order and delete-confirmation location
+   inaccurately, and a P2 entry suggesting nonexistent Supabase groundwork in
+   this codebase (see TASKS.md's own "Correction" notes on those entries for
+   the specifics) — both stale claims that would have sent a future session
+   either redoing already-working code or chasing a lead that didn't exist.
+   A one-line `grep`/`Read` against the specific file(s) the item names is
+   normally enough — this isn't a full spec re-audit before every single
+   item, just a sanity check that the checkbox still matches the code before
+   spending real work on it. If a task turns out to already be done: mark it
+   done in `TASKS.md`, log the correction in `RESULTS.md`, commit, and move
+   on — don't redo working code.
+4. Full permission is granted for this project to make routine implementation
    decisions autonomously — which SwiftUI modifier, which internal function
    shape, which file to put something in, minor naming, etc. Document
    non-obvious judgment calls in the commit message and/or a code comment as

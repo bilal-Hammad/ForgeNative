@@ -201,3 +201,49 @@ if something turns out to be wrong, add a new entry correcting it rather than re
   modified). Full app rebuild succeeded with no errors. Exploratory test file removed after
   confirming (not kept as a permanent regression test — this is a static menu-presence check, lower
   value than the gesture-driven tests already kept permanently in this project).
+
+---
+
+## 2026-07-25 — TASKS.md re-audit (correction pass, per explicit user instruction)
+
+- **What prompted this**: mid-session, while starting the next queued item (§16 light-mode card
+  color), the user asked for a full stop-and-re-verify pass — concerned that TASKS.md's checkbox
+  state might not accurately reflect the real code anymore, and asked for every item to be checked
+  against actual files/grep results rather than trusted from the existing checklist.
+- **What was done**: went through every P0/P1/P2/P3 item in TASKS.md and verified its specific claim
+  against the real code (not re-reading the spec — checking the checklist's own claims): HealthKit
+  crash fix (`HealthKitTypeMapping.swift`, `HealthKitService.swift`), weekly reflection notification
+  (`Habit.swift`, `HabitModel.swift`, `AppNotificationDelegate.swift`, `WeeklyReflectionScheduler
+  .swift`, `SettingsView.swift`, `AppTabView.swift`), the just-shipped Section 5 toolbar change, every
+  P2 "correctly not built" claim (grepped for `ASAuthorization`, `StoreKit`, `WidgetKit`/`WatchKit`/
+  `AppIntent`/`Intents` — all absent as claimed), and every P3 "confirmed fully built" file citation
+  (§1–§8, §10–§15, HealthKit architecture).
+- **Two real inaccuracies found and fixed in TASKS.md itself**:
+  1. §12's P3 entry claimed the create/edit form's field order matched spec all the way through
+     "Notifications → Sync toggles." False — `HabitFormView.swift` stops at Title → Icon/Color →
+     Goal/Unit/Step → Repeat → Time → Dates. Notifications/Reminders-sync/Calendar-sync are
+     deliberately **not** in this form — the file's own doc comment documents a prior, real decision
+     to centralize all three in `SettingsView` → `HabitSyncSettingsDetailView` instead. This is a
+     genuine, on-the-record spec deviation (matching CLAUDE.md Engineering Standard #6's bar for
+     documented deviations), not an unbuilt feature — but the P3 entry's own description of it was
+     simply wrong. Also fixed: the delete-confirmation alert doesn't live in `HabitFormView.swift`
+     (it has no delete affordance at all) — it's in `HomeView.swift`'s swipe-to-delete action.
+  2. P2's "Compete-with-friends" entry suggested reviewing `shared_sections`/`official_sections`
+     Supabase tables as likely existing groundwork. False — those tables belong to the separate
+     original Expo/RN app (documented in root `CLAUDE.md`'s own "Supabase Tables" section), not this
+     Swift rewrite. Grepped `Forge/` for `Supabase`/`supabase`: zero real usage, one passing doc-
+     comment noting the backend choice is *undecided* (CloudKit, Supabase, or otherwise). No backend
+     groundwork exists yet for this feature in this codebase.
+- **No functional code was found to be wrongly marked incomplete** — every item checked off as done
+  genuinely is done; the drift was entirely in two descriptive/citation details, not in false-positive
+  completions. The item actually being worked on when the user's message arrived (§16 light-mode card
+  color) was independently re-confirmed as genuinely unbuilt before this pass started (verified by
+  reading `deepCardTint()` in `HomeView.swift` — it had no `colorScheme` branch at all) — this wasn't
+  a case of chasing an already-done item, but the user's instruction to re-verify systematically
+  applies going forward regardless.
+- **Permanent fix**: added a new numbered step to CLAUDE.md's "Autonomous operation policy" (step 3,
+  renumbering the old step 3 to 4) requiring a real file/grep check against an item's specific claim
+  before starting work on it — not a full spec re-audit every time, just enough to confirm the
+  checkbox still matches the code. See CLAUDE.md for the exact wording.
+- **What was verified, and how**: every claim above was checked via direct `grep`/`Read` against the
+  named files in this session, not assumed from memory of prior sessions' summaries.

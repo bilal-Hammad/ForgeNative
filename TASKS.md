@@ -73,9 +73,14 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       at all). Hard prerequisite for friends/competition (§9) — nothing else in the app depends on
       it, so this can be picked up independently once P1 is clear.
 - [ ] **Compete-with-friends / per-habit challenges (§9)** — blocked on Sign-In above. Do not start
-      before real Sign-In exists. When picked up: review the two already-defined, zero-consuming-code
-      Supabase tables (`shared_sections`, `official_sections`) first — likely early groundwork for
-      this, not a from-scratch build.
+      before real Sign-In exists. **Correction to this entry (re-audit, 2026-07-25):** previously
+      suggested reviewing `shared_sections`/`official_sections` Supabase tables as likely groundwork —
+      wrong, those tables belong to the separate original Expo/RN app (see root `CLAUDE.md`'s
+      "Supabase Tables" section), not this Swift rewrite. Confirmed via grep: zero Supabase code
+      exists anywhere in `Forge/` (one passing doc-comment mention in `HabitRepository.swift` noting
+      the backend choice — CloudKit, Supabase, or otherwise — is undecided, not that Supabase is
+      already in use). No backend groundwork exists yet for this feature in this codebase; when
+      picked up, the backend choice itself is an open decision, not inherited from the RN app.
 - [ ] **StoreKit 2 subscription + real premium gating (§10)** — `EntitlementService` protocol exists
       and is correctly wired into Progress's premium card (`StubEntitlementService` always returns
       `false`); real `Transaction`/`Product` async StoreKit 2 flow is unbuilt. Small follow-up noted
@@ -124,9 +129,19 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       never "Awards". Verified: `Badge3DView.swift`, `MilestonesListView.swift`,
       `MilestoneDetailView.swift`.
 - [x] §12 Habit editing — name/icon/color editable on every habit including HealthKit-tracked ones;
-      goal/unit/HK-linkage locked on HK habits; field order matches spec (Title → Icon/Color →
-      Goal/Unit/Step → Repeat → Time → Notifications → Sync toggles); delete confirmation alert on
-      every delete entry point. Verified: `HabitFormView.swift`.
+      goal/unit/HK-linkage locked on HK habits. **Correction to this entry (re-audit, 2026-07-25):**
+      previously described the create/edit form's field order as matching spec all the way through
+      "Notifications → Sync toggles" — false, `HabitFormView.swift` actually stops at Title →
+      Icon/Color → Goal/Unit/Step → Repeat → Time → Dates. Notifications, Reminders-app sync, and
+      Calendar sync are deliberately **not** in this form at all — the file's own doc comment
+      documents moving all three to a centralized `SettingsView` → `HabitSyncSettingsDetailView` flow
+      instead, reached by drilling into a habit from a list rather than from the create/edit form.
+      This is a real, on-the-record deviation from spec §12's literal field-order recommendation
+      (matching CLAUDE.md Engineering Standard #6's bar for documented deviations), not an unbuilt
+      feature — the toggles exist and work, just not inline in this particular screen. Delete
+      confirmation alert is real, but actually lives in `HomeView.swift` (the swipe-to-delete entry
+      point) — `HabitFormView.swift` has no delete affordance of its own to confirm. Verified:
+      `HabitFormView.swift`, `HomeView.swift`, `HabitSyncSettingsDetailView.swift`.
 - [x] §13 Daily mood check-in — 5-option discrete picker (not Apple's slider), Forge's own
       color/icon language (weather-metaphor icons, not Apple's purple/blue/orange), Home-page card +
       optional notification, never mandatory, doesn't touch points/streaks, premium mood-correlation
