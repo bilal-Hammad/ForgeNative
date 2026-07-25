@@ -9,7 +9,7 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
 
 ---
 
-## P0 — Blocked on one human action, otherwise complete
+## P0 — Complete
 
 - [x] **HealthKit crash bug** — a real, would-have-shipped bug (requesting share/read auth on
       `HKCorrelationType(.bloodPressure)` crashes the app outright) found via a real crash log and
@@ -18,17 +18,19 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
 - [x] **HealthKit architecture** — confirmed correct by code review: contextual per-habit
       authorization request (not bulk-upfront), correct read/write split, background delivery via
       `HKObserverQuery`, async/await throughout, iPad guarded via `HealthKitService.isAvailable`.
-- [ ] **HealthKit end-to-end data-flow proof** (auto-complete from real/seeded data; a manual
-      write-back showing up in the real Health app) — **conclusively blocked**, not assumed after one
-      attempt: tried 3 genuinely different automation strategies (Forge's own `XCUIApplication`,
-      `springboard`'s, and a raw OS-level `cliclick` bypassing XCUITest entirely) across both
-      Simulator and a real device ("Bilal iPhone"); the real system HealthKit consent sheet is
-      confirmed to sit outside any accessibility tree this environment can query or click into —
-      consistent with Apple's deliberate anti-automation design for consent UI, not an environment
-      bug to keep chasing. **Needs exactly one ~30-second human action to unblock** — see RESULTS.md's
-      "HealthKit real-device verification" entry for the precise 5-step sequence. Once done, the rest
-      (seeding, checking Home, checking the real Health app) is fully autonomous from there — pick
-      this back up as the first thing next session/pass once that one step is done.
+- [x] **HealthKit end-to-end data-flow proof** — VERIFIED this pass, on the real device, after the
+      user completed the one human unblock step (Seed HealthKit Data → Create All Test Habits →
+      Request HealthKit Authorization → Turn On All → Allow). **Read-path**: Home shows the "Steps"
+      habit auto-completed (highlighted card, real device step count) with zero manual interaction —
+      genuine personal Steps data, not seeded. **Write-path**: tapping the debug "Drink Water (8
+      glasses)" seed button (which calls `HealthKitService.writeManualEntry`, the same method a real
+      manual completion tap uses) produced a real entry confirmed two ways — Forge's own debug screen
+      showed a save-confirmed status message, and, more importantly, the **real Apple Health app's own
+      Water category** (opened independently via a cross-app XCUITest, `com.apple.Health`) shows a
+      genuine non-zero total (3,785 mL) for today with a real chart bar — proof the write is visible
+      outside Forge's own UI, not just claimed by it. Full account with every screenshot and the
+      real-device navigation quirks hit along the way: see RESULTS.md's "HealthKit real-device
+      verification — resolved" entry.
 
 ---
 
@@ -192,7 +194,7 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
 - [x] HealthKit integration architecture (carried-over note, end of spec) — real read/write via
       `HealthKitService`, background delivery via `HKObserverQuery`, contextual per-habit
       authorization (not a bulk upfront ask), async/await throughout, iPad guarded via
-      `HealthKitService.isAvailable`. The one thing not yet *proven* end-to-end is P0 above.
+      `HealthKitService.isAvailable`. End-to-end data flow now proven on real device — see P0 above.
 
 ---
 

@@ -356,3 +356,66 @@ if something turns out to be wrong, add a new entry correcting it rather than re
   design pass before starting, per spec §9's own framing). A full interactive sign-in completion is
   unverified beyond the system-alert boundary described above — would need a real device with a
   signed-in Apple ID to go further.
+
+---
+
+## 2026-07-25 — HealthKit real-device verification — RESOLVED
+
+- **Context**: TASKS.md's P0 had one remaining item, conclusively documented earlier this session as
+  blocked on a single human action (the real system HealthKit consent sheet sits outside any
+  accessibility tree this environment can automate into). The user completed that action manually
+  (Seed HealthKit Data → Create All Test Habits → Request HealthKit Authorization → Turn On All →
+  Allow) and asked this session to resume and produce real screenshot proof of both the read-path
+  (auto-completion from real data) and write-path (a Forge completion showing up in the real Health
+  app).
+- **What was done**: re-ran the existing `HealthKitRealDeviceTests.testRealDeviceHealthKitEndToEnd`
+  (already written in a prior session, previously blocked at the consent step) against the real
+  device ("Bilal iPhone"), now that authorization is already granted and persisted.
+  - **First run failed** at the "navigate to Settings" step — the toolbar's gearshape button (whose
+    accessibility label is literally the string `'gearshape'`, confirmed via a diagnostic button
+    dump) wasn't found within the test's 5s timeout. Root cause: real-device cold-launch-after-
+    reinstall latency (`xcodebuild test` reinstalls the app fresh every invocation, a previously-
+    documented finding in this file) — a second run immediately after, with the app already warm on
+    the device, passed cleanly end to end in 43s. Not a code bug; noted here in case a future session
+    hits the same transient failure and wonders whether to start debugging the toolbar instead.
+  - **Read-path confirmed**: `06-home-after-read` screenshot shows the "Steps" habit auto-completed
+    (highlighted blue card, real device step count "10,...", both without any manual tap) — genuine
+    personal Steps data on this device, not synthetic. `Sleep` correctly showed 0 (no real sleep data
+    logged yet today at 4:50pm) — expected, not a failure.
+  - **Write-path confirmed two ways**: (1) Forge's own debug screen showed a save-confirmation status
+    message after tapping "Drink Water (8 glasses)" (which calls `HealthKitService.writeManualEntry`
+    — the same method a real completion tap in the app uses, not a raw `HKHealthStore.save` bypass);
+    (2) independently, a second temporary cross-app XCUITest launched the real Apple Health app
+    (`XCUIApplication(bundleIdentifier: "com.apple.Health")`, a different process/bundle than Forge)
+    and navigated to its own native Water category page, which showed a genuine non-zero total —
+    **3,785 mL for 25 Jul 2026, with a real chart bar** — proving the write is visible from *inside
+    Health's own UI*, not just claimed by Forge's side of the integration.
+  - **Real-device Health-app navigation quirks hit and worked around** (kept here since they're
+    reusable findings, not just this pass's noise): the system Health app **preserves its navigation
+    stack across separate XCUITest `launch()` calls** — it's a system app, never reinstalled, so
+    relaunching lands back on whatever screen a previous test left it on, not a fresh root. Several
+    attempts assuming a fresh root failed for this reason (tapping "Summary"/"Browse" tab-bar buttons
+    silently no-ops while several levels deep in a pushed detail view — they only work from
+    shallower nesting). What worked: popping back to root one level at a time via
+    `app.navigationBars.buttons.element(boundBy: 0)` (the nav bar's first button — always the real
+    back chevron regardless of its accessibility label, which turned out to vary/not literally be
+    `"Back"` at every nesting level) until no back button remained, *then* using Search. A prior
+    attempt using `staticTexts["Water"].firstMatch` on search results tapped the wrong row entirely
+    (landed on "Running Speed") — fixed by matching a `cells` predicate (`label BEGINSWITH "Water"`)
+    instead, which is more specific to actual search-result rows than any static text on screen.
+- **Judgment call**: stopped short of drilling into Health's "Show All Data" per-entry list (which
+  would show the individual sample's source app name, e.g. "Forge") — the Water category's own total
+  page already constitutes real, sufficient proof (a genuine nonzero total on today's date, visible
+  from Health's own native UI, immediately after Forge's write), and further chasing that one specific
+  sub-screen was hitting diminishing returns on the same kind of navigation-state quirks described
+  above. If a future session wants that specific per-entry/source-attribution screenshot, the
+  navigation techniques above (step-wise back-popping, `cells` predicate matching) are the starting
+  point, not "Show All Data" button hunting from scratch.
+- **TASKS.md updated**: P0 marked fully complete (all three items now `[x]`) — this was the last open
+  P0 item.
+- **Temporary test files**: `HealthAppVerificationTest.swift` (the cross-app Health-verification test,
+  several iterations before landing on the working navigation approach) removed after capturing its
+  screenshots — a one-off verification, not a candidate for permanent-regression-test status the way
+  `ForgeUITests`' kept tests are (`WeeklyPagerSwipeTests`, `MoodCheckInTests`). `HealthKitRealDeviceTests.swift`
+  itself (pre-existing, written in a prior session) was **not** removed — it remains the permanent,
+  reusable real-device HealthKit regression test per its own doc comment's framing.
