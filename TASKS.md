@@ -54,17 +54,22 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       `EditSectionsView` to `CategoryDetailView` rather than being duplicated in both places —
       `EditSectionsView` no longer has its own Reset entry point.
 
-- [ ] **Section 16 — light-mode card color formula**. `HomeView.swift`'s `Color.deepCardTint()`
-      (line ~432) always applies the same "low-brightness, high-saturation" formula regardless of
-      `colorScheme` — deliberately, per its own doc comment ("stays readable regardless of
-      light/dark mode"). Spec explicitly wants a *different* formula in light mode: a heavily
-      lightened/desaturated pale tint (~90-95% lightness), "since light-mode cards read as light
-      surfaces by convention" — not the same deep tone inverted. This is a real, documented
-      deviation, not an oversight — but it doesn't match what was asked for.
-      **Acceptance**: read `\.colorScheme` in the card background and branch the tint formula per
-      spec's two-mode description; screenshot both light and dark mode to confirm the pale-vs-deep
-      distinction actually reads correctly (a previous session's own lesson: screenshot-verify color/
-      visual changes, don't just trust the math).
+- [x] **Section 16 — light-mode card color formula**. FIXED this pass. `Color.deepCardTint(for:)` in
+      `HomeView.swift` now takes `colorScheme` and branches: dark mode keeps the existing deep-tint
+      formula (brightness × 0.35, saturation × 1.1 clamped to 1); light mode is a new pale/desaturated
+      tint (saturation × 0.25, brightness fixed at 0.94) matching spec's "~90-95% lightness" pale-tint
+      description. `HabitCardRow` gained `@Environment(\.colorScheme)` to pass through. Verified with
+      real screenshots (not trusted from the math alone, per this project's own established lesson):
+      a temporary XCUITest completed a seeded habit and captured both states via `XCTAttachment`, run
+      twice — once under the app's own `isDarkMode` `@AppStorage` toggle set false, once set true (a
+      real finding this pass: `xcrun simctl ui ... appearance` alone does **not** affect this app,
+      since `AppTabView.swift` drives its own light/dark via that stored toggle rather than following
+      the system setting — `-isDarkMode YES/NO` as a launch argument, picked up through `UserDefaults`'
+      standard argument-domain registration, is what actually worked). Light mode now shows a genuinely
+      pale/light-blue card on completion (previously would have been the same near-black deep tile as
+      dark mode); dark mode screenshot confirmed unchanged from before. Temporary test file removed
+      after capturing screenshots, matching this project's established pattern for one-off verification
+      tests (kept only the reusable ones like `WeeklyPagerSwipeTests`/`MoodCheckInTests`).
 
 ## P2 — Deferred by explicit spec decision (correctly not built, sequencing matters)
 
@@ -156,8 +161,9 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       (`accessibilityReduceMotion` checked at every animation site), Sound Effects toggle in Settings.
       Verified: `CompletionFeedback.swift`, `HomeView.swift` (`HabitCardRow`), `SettingsView.swift`.
 - [x] §16 Habit card design — monochromatic derived-tint card background + full-saturation icon on
-      complete, neutral/no-partial-fill while mid-progress, `•••` menu stays neutral-colored. One real
-      gap: the light-mode-specific pale-tint formula (see P1). Verified: `HomeView.swift`.
+      complete, neutral/no-partial-fill while mid-progress, `•••` menu stays neutral-colored,
+      colorScheme-aware deep-vs-pale tint formula (fixed this pass, see P1 history). Verified:
+      `HomeView.swift`.
 - [x] HealthKit integration architecture (carried-over note, end of spec) — real read/write via
       `HealthKitService`, background delivery via `HKObserverQuery`, contextual per-habit
       authorization (not a bulk upfront ask), async/await throughout, iPad guarded via

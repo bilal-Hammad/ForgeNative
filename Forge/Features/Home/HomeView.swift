@@ -422,14 +422,23 @@ struct HomeView: View {
 }
 
 private extension Color {
-    /// A deep, low-brightness/high-saturation variant of this color for the
-    /// completed-card background — same hue, much darker than the source
-    /// color, so a full-saturation icon/ring on top of it stays readable
-    /// regardless of light/dark mode. Modeled on Apple Watch's Workout app
-    /// card treatment (bright icon, deep-toned card, same hue) rather than
-    /// a plain `.opacity()` tint, which would read as pastel/washed-out
-    /// against a light background instead of a genuinely dark tile.
-    func deepCardTint() -> Color {
+    /// The completed-card background tint, same hue as the source color but
+    /// a different shade per color scheme (APP_REDESIGN_SPEC.md §16's
+    /// "Color derivation formula"), so a full-saturation icon/ring on top
+    /// stays readable in both.
+    ///
+    /// - Dark mode: a deep, low-brightness/high-saturation variant — modeled
+    ///   on Apple Watch's Workout app card treatment (bright icon, deep-toned
+    ///   card, same hue) rather than a plain `.opacity()` tint, which would
+    ///   read as pastel/washed-out against a light background instead of a
+    ///   genuinely dark tile.
+    /// - Light mode: the inverse relationship the spec calls for — heavily
+    ///   lightened *and* desaturated (~90–95% brightness, saturation cut to
+    ///   roughly a quarter), a pale tint rather than a deep one, since
+    ///   light-mode cards read as light surfaces by convention. Previously
+    ///   this used the same deep-tint formula in both modes; that read as a
+    ///   near-black tile in light mode instead of a light surface.
+    func deepCardTint(for colorScheme: ColorScheme) -> Color {
         var hue: CGFloat = 0
         var saturation: CGFloat = 0
         var brightness: CGFloat = 0
@@ -437,9 +446,18 @@ private extension Color {
         guard UIColor(self).getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha) else {
             return self
         }
-        return Color(
-            UIColor(hue: hue, saturation: min(1, saturation * 1.1), brightness: brightness * 0.35, alpha: alpha)
-        )
+        switch colorScheme {
+        case .light:
+            return Color(
+                UIColor(hue: hue, saturation: saturation * 0.25, brightness: 0.94, alpha: alpha)
+            )
+        case .dark:
+            fallthrough
+        @unknown default:
+            return Color(
+                UIColor(hue: hue, saturation: min(1, saturation * 1.1), brightness: brightness * 0.35, alpha: alpha)
+            )
+        }
     }
 }
 
@@ -501,6 +519,7 @@ private struct HabitCardRow: View {
     let interactionToken: InteractionToken?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     /// Transient pop applied to the simple-habit checkmark on a completion
     /// transition — not the source of truth for anything, just an
     /// animation detail local to this row.
@@ -556,7 +575,7 @@ private struct HabitCardRow: View {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(.regularMaterial)
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(habit.color.color.deepCardTint())
+                    .fill(habit.color.color.deepCardTint(for: colorScheme))
                     .opacity(isComplete ? 1 : 0)
             }
         }

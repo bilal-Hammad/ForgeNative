@@ -247,3 +247,37 @@ if something turns out to be wrong, add a new entry correcting it rather than re
   checkbox still matches the code. See CLAUDE.md for the exact wording.
 - **What was verified, and how**: every claim above was checked via direct `grep`/`Read` against the
   named files in this session, not assumed from memory of prior sessions' summaries.
+
+---
+
+## 2026-07-25 — Light-mode card color formula (§16, TASKS.md P1)
+
+- **What was done**: `Color.deepCardTint()` in `HomeView.swift` took no `colorScheme` parameter and
+  always applied the same deep, low-brightness/high-saturation formula regardless of appearance mode
+  — spec §16's "Color derivation formula" explicitly wants the *inverse* relationship in light mode
+  (a heavily lightened/desaturated pale tint, ~90-95% lightness, "since light-mode cards read as light
+  surfaces by convention"), not the same deep tone. Changed the function to `deepCardTint(for
+  colorScheme:)` and branch: dark mode keeps the original formula unchanged (brightness × 0.35,
+  saturation × 1.1 clamped to 1); light mode is new — saturation × 0.25, brightness fixed at 0.94.
+  `HabitCardRow` gained `@Environment(\.colorScheme)` to read and pass through at the one call site.
+- **Judgment calls**: exact numeric formula for the light-mode branch wasn't spec'd beyond "~90-95%
+  lightness" and "heavily desaturated" — chose brightness 0.94 (mid-range of that window) and
+  saturation × 0.25 (desaturated enough to read as a pale wash rather than a saturated pastel) by eye,
+  then confirmed visually via screenshot rather than trusting the numbers alone.
+- **What was verified, and how**: built a temporary XCUITest (`CardColorScreenshotTest.swift`,
+  removed after use) that launches with the existing `-uiTesting` in-memory fixture, taps the one
+  seeded habit to complete it, and captures `XCTAttachment` screenshots before/after. Ran it twice —
+  once with the app's `isDarkMode` `@AppStorage` toggle forced off, once forced on. **Real finding
+  worth keeping in mind for future visual-verification passes in this project**: `xcrun simctl ui
+  <udid> appearance dark` (the system-level Simulator appearance command) has **no effect** on this
+  app's actual rendering — `AppTabView.swift` applies `.preferredColorScheme(isDarkMode ? .dark :
+  .light)` from its own stored settings toggle, overriding whatever the system is set to. Setting
+  `-isDarkMode YES`/`-isDarkMode NO` as an XCUITest launch argument (picked up via `UserDefaults`'
+  standard command-line argument-domain registration, which `@AppStorage` reads through) is what
+  actually worked. Screenshots confirmed: light mode now shows a genuinely pale, light-blue-tinted
+  card on completion (previously would have rendered as the same near-black deep tile dark mode uses);
+  dark mode screenshot confirmed unchanged — still the original deep-tone tile. Full app rebuild
+  succeeded with no errors both times. Temporary test file and its `xcodegen generate` project-file
+  entry removed after both screenshot pairs were captured.
+- **Nothing left open** on this specific item — both color-scheme branches are now real and visually
+  confirmed, closing out the last remaining P1 item in TASKS.md as of this pass.
