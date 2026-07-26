@@ -73,6 +73,8 @@ struct MilestoneEngine: Sendable {
             )
             try? await milestoneRepository.award(milestone)
         }
+
+        await revokeInvalidStreakMilestones(kind: .habitStreak, scopeID: habit.id.uuidString, currentLongest: scan.longest)
     }
 
     // MARK: - Category streak
@@ -127,6 +129,31 @@ struct MilestoneEngine: Sendable {
                 colorToken: category.rawValue
             )
             try? await milestoneRepository.award(milestone)
+        }
+
+        await revokeInvalidStreakMilestones(kind: .categoryStreak, scopeID: category.rawValue, currentLongest: scan.longest)
+    }
+
+    /// Self-healing counterpart to the award loops above: if a previously-
+    /// awarded streak badge's length now exceeds the longest streak the
+    /// current data actually supports — most commonly because a completion
+    /// that helped reach it was reset (see `HomeView.resetHabit`) — the
+    /// badge is no longer earned and is revoked. Runs as part of every
+    /// normal `checkHabitStreak`/`checkCategoryStreak` pass (not just after
+    /// a reset specifically), matching this engine's existing "self-heal on
+    /// every check, not just the triggering path" approach elsewhere.
+    ///
+    /// `fetchAll()` here is a full scan of every awarded milestone, not a
+    /// bounded query — deliberately: unlike completions (one row per habit
+    /// per day, genuinely unbounded over years of use), milestones only
+    /// grow one row per *achievement*, a naturally small, slow-growing set
+    /// even for a long-term user, so this doesn't carry the same scaling
+    /// risk this app's other bounded-query standard is guarding against.
+    private func revokeInvalidStreakMilestones(kind: MilestoneKind, scopeID: String, currentLongest: Int) async {
+        guard let existing = try? await milestoneRepository.fetchAll() else { return }
+        let invalid = existing.filter { $0.kind == kind && $0.scopeID == scopeID && $0.value > currentLongest }
+        for milestone in invalid {
+            try? await milestoneRepository.revoke(dedupeKey: milestone.dedupeKey)
         }
     }
 

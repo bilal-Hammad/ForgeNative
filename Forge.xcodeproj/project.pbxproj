@@ -76,6 +76,7 @@
 		9B6F941F0786C2D70044FCF5 /* StreakLinesStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF86847E6D0665429ABF0BB9 /* StreakLinesStripView.swift */; };
 		9BBC12458FE8A65D8A561C5C /* SwiftDataMoodRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101713D0AFA98FD4534EDEF4 /* SwiftDataMoodRepository.swift */; };
 		9CFF7FE01E3D5D61CA2B8EA8 /* HabitTimerRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 043DFE20CAE57716105CD05F /* HabitTimerRingView.swift */; };
+		9EEEF008C20C0E6A50341687 /* ResetHabitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80FE23758D24748FC07680FE /* ResetHabitTests.swift */; };
 		A0216CB85455EF18091BA1CE /* EditSectionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 495D3DF7046CC93FD79B629F /* EditSectionDetailView.swift */; };
 		A111542FF905BE57E0C8C0AE /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C845E8AAB692CA41FEA891D /* HealthKitService.swift */; };
 		A135A3B8A4CE709706C1E26E /* ForgeIconv1.icon in Resources */ = {isa = PBXBuildFile; fileRef = B032223927D6733174F1A1DE /* ForgeIconv1.icon */; };
@@ -202,6 +203,7 @@
 		7AD2020E9966C7045248DF33 /* HabitNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitNotificationScheduler.swift; sourceTree = "<group>"; };
 		7C845E8AAB692CA41FEA891D /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		7F66DC2541D078D6905E7A13 /* MoodCheckInTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodCheckInTests.swift; sourceTree = "<group>"; };
+		80FE23758D24748FC07680FE /* ResetHabitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetHabitTests.swift; sourceTree = "<group>"; };
 		81D893609E49F11C4983CB1C /* HabitSyncSettingsDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitSyncSettingsDetailView.swift; sourceTree = "<group>"; };
 		827CCA0E998C638D1C3A7992 /* BestDayTimeStreakDistributionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BestDayTimeStreakDistributionCard.swift; sourceTree = "<group>"; };
 		8AB60F6E62E32CD49FFA56B2 /* MilestoneRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneRepository.swift; sourceTree = "<group>"; };
@@ -466,6 +468,7 @@
 			children = (
 				374AD2D54777742738C4AF92 /* HealthKitRealDeviceTests.swift */,
 				7F66DC2541D078D6905E7A13 /* MoodCheckInTests.swift */,
+				80FE23758D24748FC07680FE /* ResetHabitTests.swift */,
 				66DCBD3510CFD7820D748944 /* TimerHabitTests.swift */,
 				D2F7E3AA2B3CD47505A0E877 /* WeeklyPagerSwipeTests.swift */,
 			);
@@ -787,6 +790,7 @@
 			files = (
 				22F2437A72A872912929FAC4 /* HealthKitRealDeviceTests.swift in Sources */,
 				01252BB84EA5B3EB48130CC3 /* MoodCheckInTests.swift in Sources */,
+				9EEEF008C20C0E6A50341687 /* ResetHabitTests.swift in Sources */,
 				59374863BF3F98754D6F0442 /* TimerHabitTests.swift in Sources */,
 				718F085437308A07DBCEBD2F /* WeeklyPagerSwipeTests.swift in Sources */,
 			);

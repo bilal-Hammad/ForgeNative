@@ -22,6 +22,10 @@ actor InMemoryMilestoneRepository: MilestoneRepository {
         return true
     }
 
+    func revoke(dedupeKey: String) async throws {
+        milestones.removeAll { $0.dedupeKey == dedupeKey }
+    }
+
     func fetchPointsLedger() async throws -> PointsLedger {
         ledger
     }

@@ -15,6 +15,13 @@ protocol MilestoneRepository: Sendable {
     @discardableResult
     func award(_ milestone: Milestone) async throws -> Bool
 
+    /// Removes a previously-awarded badge by its `dedupeKey`, a no-op if
+    /// none exists. Self-healing counterpart to `award` — used when a
+    /// habit-streak/category-streak badge's underlying data no longer
+    /// supports it (e.g. a completion that helped reach it was reset), not
+    /// a general-purpose delete for arbitrary badges.
+    func revoke(dedupeKey: String) async throws
+
     func fetchPointsLedger() async throws -> PointsLedger
     func savePointsLedger(_ ledger: PointsLedger) async throws
 }

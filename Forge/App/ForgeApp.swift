@@ -68,6 +68,11 @@ struct ForgeApp: App {
             // minute real wait.
             let timerHabit = Habit(title: "Timer Test Habit", category: .good, iconSystemName: "timer", goal: 0.05, unit: .minutes, startDate: eightWeeksAgo)
             context.insert(HabitModel(habit: timerHabit))
+            // Seeded for `ResetHabitTests` — a plain quantity habit (small
+            // goal, so a couple of taps reach partial progress quickly)
+            // to exercise the long-press Complete/Reset dialog.
+            let quantityHabit = Habit(title: "Quantity Test Habit", category: .good, iconSystemName: "number", goal: 3, unit: .count, step: 1, startDate: eightWeeksAgo)
+            context.insert(HabitModel(habit: quantityHabit))
             try? context.save()
         }
         habitRepository = SwiftDataHabitRepository(modelContainer: modelContainer)

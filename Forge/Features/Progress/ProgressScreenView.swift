@@ -195,7 +195,17 @@ struct ProgressScreenView: View {
                 .padding()
             }
             .navigationTitle("Progress")
-            .task { await reload() }
+            // `.onAppear`, not `.task` — this app's `TabView` keeps every
+            // tab's view resident once created (switching tabs doesn't
+            // tear it down), so a parameterless `.task` only ever ran once
+            // per app launch, not once per visit to this tab. `.onAppear`
+            // genuinely refires on every tab switch back to Progress,
+            // which is what makes a same-day Reset on Home (or any other
+            // change) show up here immediately rather than only after a
+            // full relaunch.
+            .onAppear {
+                Task { await reload() }
+            }
         }
     }
 

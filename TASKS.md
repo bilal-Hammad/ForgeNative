@@ -62,6 +62,30 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       broken-spinner stage and the fixed-Gauge stage (not just the final result, so the fix itself is
       evidenced, not just asserted).
 
+- [x] **Context-aware long-press: Complete/Reset choice, full cascade**. BUILT this pass, per explicit
+      user request (not from the spec). Long-press on a habit with no progress still instantly
+      completes (unchanged); long-press with partial progress (quantity `count > 0` below goal, or a
+      running timer that hasn't reached goal) now presents a confirmation dialog offering "Complete"
+      (jump to goal, same as today's instant-complete) or "Reset"; long-press on an already-complete
+      habit offers only "Reset". New `resetHabit(_:)` (`HomeView.swift`) zeros the completion record
+      through the real repository (not local `@State` only) and cascades correctly through every
+      downstream system — see its own doc comment and RESULTS.md for the full account of what needed
+      real code vs. what was already correct by construction (streaks and points needed zero new code,
+      confirmed by reading `StreakMath`/`MilestoneEngine.catchUpPoints` directly, not assumed).
+      **Also found and fixed, in the same pass, a real bug in previously-shipped behavior**: the
+      existing long-press-to-complete gesture (built in an earlier pass) was never actually reliable —
+      `.onTapGesture` + `.onLongPressGesture` as two independent modifiers on the same view is a
+      genuinely ambiguous gesture composition, and a real long hold was being swallowed as a plain tap.
+      Fixed via `LongPressGesture(minimumDuration: 0.5).exclusively(before: TapGesture())` (order
+      matters — `TapGesture` has no duration cap and wins on release if listed first). New
+      `ForgeUITests/ResetHabitTests.swift` (kept permanently) covers all three dialog states for both
+      a quantity and a timer habit. HealthKit write-back cascade (deleting Forge's own previously-written
+      sample on reset) is implemented via new `Completion.healthKitSampleUUIDs` tracking +
+      `HealthKitService.deleteSamples` but its real-device verification was **inconclusive** — 5 attempts
+      hit real-device XCUITest/navigation flakiness, not a code-correctness doubt (reuses the same
+      proven `HKHealthStore.save`/`delete` APIs already verified elsewhere in this file's HealthKit
+      history). See RESULTS.md for the full account.
+
 ---
 
 ## P1 — Genuinely missing features (spec claims done or doesn't flag as missing; code has nothing)

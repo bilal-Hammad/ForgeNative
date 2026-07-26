@@ -25,6 +25,16 @@ actor SwiftDataMilestoneRepository: MilestoneRepository {
         return true
     }
 
+    func revoke(dedupeKey: String) async throws {
+        let descriptor = FetchDescriptor<MilestoneModel>(predicate: #Predicate { $0.dedupeKey == dedupeKey })
+        let matches = try modelContext.fetch(descriptor)
+        guard !matches.isEmpty else { return }
+        for model in matches {
+            modelContext.delete(model)
+        }
+        try modelContext.save()
+    }
+
     func fetchPointsLedger() async throws -> PointsLedger {
         try fetchOrCreateLedgerModel().toLedger()
     }

@@ -33,6 +33,11 @@ final class CompletionModel {
     var isComplete: Bool
     var startedAt: Date?
     var loggedAt: Date
+    /// See `Completion.healthKitSampleUUIDs`'s doc comment. Property-
+    /// declaration default (`= []`) for lightweight-migration safety on an
+    /// existing install, matching this project's established pattern for
+    /// every field added after initial ship.
+    var healthKitSampleUUIDs: [UUID] = []
 
     var habit: HabitModel?
 
@@ -43,7 +48,8 @@ final class CompletionModel {
         count: Double,
         isComplete: Bool,
         startedAt: Date?,
-        loggedAt: Date
+        loggedAt: Date,
+        healthKitSampleUUIDs: [UUID] = []
     ) {
         self.id = id
         self.habitID = habitID
@@ -52,6 +58,7 @@ final class CompletionModel {
         self.isComplete = isComplete
         self.startedAt = startedAt
         self.loggedAt = loggedAt
+        self.healthKitSampleUUIDs = healthKitSampleUUIDs
     }
 }
 
@@ -64,7 +71,8 @@ extension CompletionModel {
             count: completion.count,
             isComplete: completion.isComplete,
             startedAt: completion.startedAt,
-            loggedAt: completion.loggedAt
+            loggedAt: completion.loggedAt,
+            healthKitSampleUUIDs: completion.healthKitSampleUUIDs
         )
     }
 
@@ -73,6 +81,7 @@ extension CompletionModel {
         isComplete = completion.isComplete
         startedAt = completion.startedAt
         loggedAt = completion.loggedAt
+        healthKitSampleUUIDs = completion.healthKitSampleUUIDs
     }
 
     func toCompletion() -> Completion {
@@ -83,7 +92,8 @@ extension CompletionModel {
             count: count,
             isComplete: isComplete,
             startedAt: startedAt,
-            loggedAt: loggedAt
+            loggedAt: loggedAt,
+            healthKitSampleUUIDs: healthKitSampleUUIDs
         )
     }
 }

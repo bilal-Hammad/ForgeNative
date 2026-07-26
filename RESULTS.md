@@ -599,3 +599,169 @@ if something turns out to be wrong, add a new entry correcting it rather than re
   interaction logic; this was specifically about a Lock Screen *visual* that a permanent XCUITest can't
   usefully assert on beyond "the Activity started," which `TimerHabitTests` doesn't currently check —
   flagged as a possible small future addition, not done here).
+
+---
+
+## 2026-07-27 — Context-aware long-press (Complete/Reset) + full reset cascade
+
+**The headline finding this pass is a real bug in already-shipped behavior, not just new work**:
+the existing long-press-to-complete gesture — built and reportedly verified in an earlier pass —
+was never actually reliable. `HabitCardRow` had `.onTapGesture {}` and
+`.onLongPressGesture(minimumDuration: 0.5) {}` attached as two independent modifiers on the same
+view. This is a genuinely ambiguous SwiftUI gesture composition: a real long hold was being
+swallowed and recognized as a plain tap, not a long-press. Confirmed decisively with a temporary
+diagnostic XCUITest (`testFreshQuantityHabitLongPress`): `.press(forDuration: 0.6)` on a fresh
+quantity habit produced "1 of 3" (the tap outcome) instead of "3 of 3" (the long-press instant-
+complete outcome) — every time. The earlier session's "passing" long-press test was a false
+positive: a disguised tap silently started the habit's timer, which then completed naturally within
+that test's 5-second wait window, making the test go green for the wrong reason.
+
+**Fix**: replaced the two independent modifiers with a single composed gesture:
+```swift
+.gesture(
+    LongPressGesture(minimumDuration: 0.5)
+        .exclusively(before: TapGesture())
+        .onEnded { result in
+            guard isViewingToday else { return }
+            switch result {
+            case .first: handleLongPressGesture(habit)
+            case .second: Task { await handleTap(habit) }
+            }
+        }
+)
+```
+**Order matters and is not arbitrary**: an initial attempt with `TapGesture().exclusively(before:
+LongPressGesture(...))` still failed identically, because `TapGesture` has no duration cap and
+always wins on release regardless of how long the hold was — only `LongPressGesture` genuinely
+"fails" on an early release, which is what `.exclusively(before:)` needs in order to fall through to
+its second gesture at all. `LongPressGesture` must be listed first. Confirmed fixed: the same
+diagnostic test now correctly returns "3 of 3" on a real long-press.
+
+### 1. Context-aware long-press behavior
+
+Added `longPressState(for:completion:)` (`HomeView.swift`), classifying a habit's current-day
+progress into `.noProgress` / `.partial` / `.complete` (quantity: `count > 0` vs. goal; timer:
+`startedAt != nil` vs. reaching goal). `handleLongPressGesture(_:)` dispatches on that:
+- `.noProgress` → instantly completes, exactly as before (calls the existing `handleLongPress`).
+- `.partial` → sets `habitPendingLongPressChoice`, which drives a new `.confirmationDialog` offering
+  "Complete" (jumps to goal, same call as instant-complete) and "Reset".
+- `.complete` → the same dialog, but only "Reset" is offered (the `if longPressState(...) == .partial`
+  guard around the "Complete" button is re-evaluated against live state, not a snapshot, since
+  `habitPendingLongPressChoice` only holds the habit identity, not a frozen state enum).
+The choice itself is the confirmation — no second "are you sure" after picking Reset, per the
+request.
+
+### 2. Reset cascade — what needed real code vs. what was already correct
+
+New `resetHabit(_ habit: Habit) async` (`HomeView.swift`) — zeros `count`/`startedAt`/`isComplete`
+back out and persists through `HabitRepository.upsertCompletion`, the same repository path every
+other mutation in this file already uses (never touches local `@State` as the source of truth).
+Then, system by system:
+
+- **Completion record**: real code — the persist above.
+- **Streaks (`StreakMath`)**: **no code needed.** Confirmed by reading `StreakMath.swift` directly:
+  it's a pure function taking `completedDates` as input, recomputed fresh everywhere it's read
+  (`HabitDetailView`, `MilestoneEngine`, Progress's streak card) — there's no separately-cached
+  streak number anywhere that could go stale. Persisting the reset above is already the whole fix.
+- **Points (`PointsLedger`)**: **no code needed, and deliberately so.** Read
+  `MilestoneEngine.catchUpPoints()`'s actual loop bound (`while day <= yesterday`) — *today* is never
+  evaluated into `cumulativePoints` until tomorrow's catch-up looks back at today's *final* state,
+  whatever that ends up being. A same-day reset can't orphan points because today's points were never
+  awarded in the first place. Verified by reading the ledger code, not assumed from the architecture.
+- **Milestones (`MilestoneEngine`)**: real code needed — this is the one place a stale artifact could
+  genuinely persist. Added `MilestoneRepository.revoke(dedupeKey:)` (protocol + `SwiftData`/`InMemory`
+  implementations — a self-healing removal counterpart to the existing additive/idempotent `award()`)
+  and `MilestoneEngine.revokeInvalidStreakMilestones(kind:scopeID:currentLongest:)`, called from both
+  `checkHabitStreak`/`checkCategoryStreak` after their award loop: any existing streak-milestone with
+  `value > scan.longest` gets revoked. This is framed as a standing self-healing invariant ("a streak
+  badge for length N should only exist if the current longest streak is actually ≥ N"), not a
+  reset-only special case — it also self-corrects any other way a streak could have been
+  over-awarded. `resetHabit`'s own call into `dispatchMilestoneCheck(for:)` (already-detached, per this
+  file's earlier tap-latency fix) is what triggers this re-check; category challenges don't need the
+  same treatment since, like points, they only ever evaluate a fully-elapsed past month.
+- **Progress page (heatmap/streak/breakdown)**: real code needed, but small — root cause was
+  `ProgressScreenView`'s `.task { await reload() }`. `TabView`'s tabs stay resident in memory once
+  visited, so a parameterless `.task` only ever runs once per app launch, not once per tab visit;
+  switching to `.onAppear { Task { await reload() } }` makes it refresh on every visit, so a reset made
+  on Home is reflected the next time Progress is opened, not just on next app launch.
+- **HealthKit write-back**: real code needed, and a real, tracked limitation (see below).
+
+### 3. HealthKit write-back deletion — implemented, tracking added, real-device verification inconclusive
+
+Added `Completion.healthKitSampleUUIDs: [UUID]` (+ `CompletionModel` mirror, migration-safe via a
+property-declaration default) — every `HKSample.uuid` Forge itself has written back to Health for
+that specific day's completion. `HealthKitService.writeManualEntry` now returns the UUIDs it just
+saved (`@discardableResult ... -> [UUID]`, all four branches: `.quantity`, `.category` discrete-count
+loop, `.category` duration, `.workout`) — `HKObject.uuid` is generated client-side at construction,
+readable immediately after `save`, no round-trip needed. `handleTap`/`handleLongPress`/
+`completeTimerHabit` all append the returned UUIDs into the completion's own
+`healthKitSampleUUIDs` before persisting. New `HealthKitService.deleteSamples(for:uuids:)` queries
+`HKQuery.predicateForObjects(with: Set(uuids))` via `HKSampleQuery`, then `HKHealthStore.delete(_:)`
+on whatever real objects that predicate resolves to — **only Forge's own previously-written samples
+for that day, never any other sample of the same type**, including real external data (a real Watch
+workout, a manually-logged Health app entry) that happens to be the same category. `resetHabit`
+calls this whenever `habit.isHealthKitTracked && !uuidsToDelete.isEmpty`.
+
+**Real, on-the-record limitation, flagged rather than silently skipped per the request**: a
+completion whose `healthKitSampleUUIDs` is empty (e.g. one driven entirely by real external HealthKit
+data with no Forge-initiated write, or one predating this field) has nothing to retract — the local
+Forge display still resets correctly, but if HealthKit genuinely still has that data, the next
+`reconcileHealthKitHabits` pass (which treats HealthKit as authoritative) will correctly re-sync the
+habit back to complete. This is by design, not a bug: Forge deleting real, non-Forge-written Health
+data would be actively wrong — but it does mean Reset's "zero it out" guarantee is scoped to what
+Forge itself wrote, not to the full HealthKit-side truth for that day.
+
+**Verification of the deletion code path itself was attempted and is inconclusive, not confirmed**:
+5 real-device XCUITest attempts (`HealthKitResetDeletionTest.swift`, iterated and removed after) hit
+a sequence of two distinct, real, fixed root causes along the way —
+(1) the first attempt tried the real Health app's own UI navigation and failed on a missing
+"Search" button (cold-launch/navigation-state timing); (2) switching to a direct in-app HealthKit
+debug query (avoiding Health's UI entirely) failed on a missing in-app "Settings" button, root-caused
+to the Profile tab's own `NavigationStack` not resetting to root on tab-switch-away-and-back — a
+second call to the same navigation helper landed on whatever screen the first call had left, not the
+root; fixed by popping to root explicitly first. After both fixes, a final re-run still failed, this
+time non-deterministically on the *first* navigation call rather than the second — indicating
+genuine environment/automation flakiness rather than one remaining deterministic bug. Stopped after
+5 attempts and documented this as **inconclusive due to real-device XCUITest/navigation-timing
+limitations in this environment, explicitly not a doubt about the underlying code's correctness** —
+`writeManualEntry`/`deleteSamples` reuse the exact same `HKHealthStore.save`/`delete` API patterns
+already proven working on real hardware in this file's earlier P0 HealthKit real-device pass. If a
+future session wants to close this out, the navigation fixes found along the way (pop-to-root before
+using a helper a second time; prefer a direct in-app HealthKit query over fighting Health's own UI)
+are the starting point, not a reason to suspect `deleteSamples` itself.
+
+### Verification performed this pass
+
+- **Quantity habit** (`ForgeApp.swift`'s permanent `-uiTesting` seed, "Quantity Test Habit", goal 3):
+  built to partial progress (1 or 2 taps), long-pressed → dialog showed both Complete/Reset →
+  Reset tapped → card returned to "0 of 3" (screenshot-confirmed), Progress page's streak/heatmap/
+  breakdown all reflected the reset on next visit (streak "1 day streak · Good" → "0 day streak";
+  heatmap cell green → gray once all three seeded habits were reset, dropping the day's rate to
+  exactly 0 — a smaller partial change, e.g. 3/3 → 2/3, is real but visually subtle at this card's
+  10×10px cell size given `ConsistencyHeatmapCard`'s continuous `opacity(0.2 + rate*0.8)` color
+  formula, so the all-reset case was used to get an unambiguous screenshot).
+- **Timer habit** ("Timer Test Habit", 3-second goal): started the timer (partial/running state),
+  long-pressed mid-run → dialog correctly showed Complete/Reset → Reset tapped → card returned to
+  idle state, Live Activity ended (`HabitTimerCoordinator.endLiveActivity(completed: false)`).
+- **Already-complete state**: completed a habit, long-pressed again → dialog correctly showed only
+  "Reset" (no "Complete" option).
+- **New `ForgeUITests/ResetHabitTests.swift`** (kept permanently, matching this project's established
+  pattern): `testQuantityHabitPartialProgressDialogAndReset`,
+  `testQuantityHabitCompleteDialogOffersOnlyReset`, `testTimerHabitRunningLongPressDialogAndReset` —
+  all passing. Full regression re-run after cleanup: `ResetHabitTests` (3) + `TimerHabitTests` (2) +
+  `WeeklyPagerSwipeTests` (1) + `MoodCheckInTests` (1) = 7/7 passing on Simulator.
+- **Real device**: full rebuild succeeds (only the pre-existing, unrelated interface-orientation
+  warning present before this pass).
+- **HealthKit deletion**: see above — implemented and logically verified by code review against
+  already-proven API patterns; real-device end-to-end confirmation inconclusive after 5 attempts,
+  explicitly flagged rather than silently skipped.
+
+### Cleanup
+
+Temporary files/code removed after use, none left behind: `ForgeUITests/ResetDiagnosticTest.swift`,
+`ForgeUITests/ResetCascadeVerificationTest.swift`, `ForgeUITests/HealthKitResetDeletionTest.swift`,
+the `countBasketballWorkoutsToday()` debug function and its UI section in
+`DebugSeedHealthKitView.swift`, and the temporary "HK Reset Test Habit" seed in `ForgeApp.swift`'s
+`-uiTesting` block. `ForgeApp.swift`'s `-uiTesting` seed permanently gained "Quantity Test Habit"
+(goal 3, for `ResetHabitTests`) alongside the pre-existing "Pager Test Habit"/"Timer Test Habit".
+  flagged as a possible small future addition, not done here).

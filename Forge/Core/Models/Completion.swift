@@ -22,6 +22,17 @@ struct Completion: Identifiable, Codable, Equatable {
     /// Real timestamp of the last update — distinct from `date` (which is
     /// day-granularity) — used for Progress's Recent Activity list.
     var loggedAt: Date
+    /// Every `HKSample.uuid` Forge itself has written back to Health for
+    /// this specific day's completion (one per manual tap/long-press/timer-
+    /// completion that produced a write — a quantity habit tapped several
+    /// times before reaching goal accumulates one per tap). Empty for a
+    /// non-HealthKit habit, or for a HealthKit-tracked habit whose
+    /// completion came entirely from real external data (a genuine Steps/
+    /// Sleep reading Forge only *read*, never wrote). This is what makes
+    /// "Reset" able to delete *exactly* the samples Forge itself created —
+    /// never a real, externally-sourced Health record — see
+    /// `HomeView.resetHabit`.
+    var healthKitSampleUUIDs: [UUID]
 
     init(
         id: UUID = UUID(),
@@ -30,7 +41,8 @@ struct Completion: Identifiable, Codable, Equatable {
         count: Double = 0,
         isComplete: Bool = false,
         startedAt: Date? = nil,
-        loggedAt: Date = .now
+        loggedAt: Date = .now,
+        healthKitSampleUUIDs: [UUID] = []
     ) {
         self.id = id
         self.habitID = habitID
@@ -39,5 +51,6 @@ struct Completion: Identifiable, Codable, Equatable {
         self.isComplete = isComplete
         self.startedAt = startedAt
         self.loggedAt = loggedAt
+        self.healthKitSampleUUIDs = healthKitSampleUUIDs
     }
 }

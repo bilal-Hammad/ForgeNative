@@ -175,22 +175,28 @@ actor HealthKitService {
     /// quantity/category/workout samples are discrete entries that
     /// `todayCompletionState` sums, not a single mutable counter.
     ///
-    /// Deliberately one-directional on retraction: toggling a simple habit
-    /// back *off* does not delete the sample this wrote when it was turned
-    /// on. Retracting a specific previously-written sample needs its
-    /// HealthKit UUID tracked and looked up — real but meaningfully more
-    /// machinery for a case most HealthKit-writing apps don't support
-    /// either (there's no "undo" on a logged workout from a toggle). If the
-    /// user wants to correct Health data, the Health app itself is the
-    /// place to do it.
-    func writeManualEntry(for habit: Habit, habitUnitAmount: Double, at date: Date) async {
-        guard habitUnitAmount > 0, Self.isAvailable, let mapping = HealthKitTypeMapping.mapping(for: habit) else { return }
+    /// Returns every `HKSample.uuid` this call actually wrote (usually one;
+    /// the `.discreteCount` branch can write several) — `HKObject.uuid` is
+    /// generated client-side at construction, before `save`, so this is
+    /// free to read straight off the sample. Callers persist these onto the
+    /// day's `Completion.healthKitSampleUUIDs`, which is what makes
+    /// `deleteSamples(for:uuids:)` below able to retract *exactly* what
+    /// Forge itself wrote later (see `HomeView.resetHabit`) — the gap this
+    /// type's doc comment used to describe as real-but-unaddressed is now
+    /// closed for anything written through this method from this point
+    /// forward (existing installs' completions from before this field
+    /// existed still have no UUIDs to retract, which is the correct,
+    /// honest lightweight-migration behavior — there's nothing to recover
+    /// for a write this app genuinely didn't track at the time).
+    @discardableResult
+    func writeManualEntry(for habit: Habit, habitUnitAmount: Double, at date: Date) async -> [UUID] {
+        guard habitUnitAmount > 0, Self.isAvailable, let mapping = HealthKitTypeMapping.mapping(for: habit) else { return [] }
         // Read-only vitals/reproductive-health mappings never reach here —
         // see `HealthKitTypeMapping`'s doc comment for why a write-back
         // would either be dishonest data (no real value to write) or
         // deliberately conservative given the data's sensitivity.
-        guard mapping.supportsWriteBack else { return }
-        guard writeAuthorizationStatus(for: habit) == .sharingAuthorized else { return }
+        guard mapping.supportsWriteBack else { return [] }
+        guard writeAuthorizationStatus(for: habit) == .sharingAuthorized else { return [] }
 
         let hkValue = habitUnitAmount / mapping.habitUnitsPerHKUnit
 
@@ -199,7 +205,8 @@ actor HealthKitService {
             let type = HKQuantityType(identifier)
             let quantity = HKQuantity(unit: mapping.hkUnit, doubleValue: hkValue)
             let sample = HKQuantitySample(type: type, quantity: quantity, start: date, end: date)
-            try? await healthStore.save(sample)
+            guard (try? await healthStore.save(sample)) != nil else { return [] }
+            return [sample.uuid]
         case .category(let identifier) where mapping.rule == .discreteCount:
             // `habitUnitAmount` is a plain count of discrete events (e.g.
             // "washed hands once") here, not a duration — `mapping.hkUnit`
@@ -210,24 +217,55 @@ actor HealthKitService {
             // from the habit's own unit conversion.
             let type = HKCategoryType(identifier)
             let eventCount = Int(habitUnitAmount.rounded())
-            guard eventCount > 0 else { return }
+            guard eventCount > 0 else { return [] }
+            var uuids: [UUID] = []
             for _ in 0..<eventCount {
                 let sample = HKCategorySample(type: type, value: 0, start: date, end: date)
-                try? await healthStore.save(sample)
+                guard (try? await healthStore.save(sample)) != nil else { continue }
+                uuids.append(sample.uuid)
             }
+            return uuids
         case .category(let identifier):
             let type = HKCategoryType(identifier)
             let durationSeconds = HKQuantity(unit: mapping.hkUnit, doubleValue: hkValue).doubleValue(for: .second())
             let start = date.addingTimeInterval(-durationSeconds)
             let value = identifier == .sleepAnalysis ? HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue : 0
             let sample = HKCategorySample(type: type, value: value, start: start, end: date)
-            try? await healthStore.save(sample)
+            guard (try? await healthStore.save(sample)) != nil else { return [] }
+            return [sample.uuid]
         case .workout(let activityType):
             let durationSeconds = HKQuantity(unit: mapping.hkUnit, doubleValue: hkValue).doubleValue(for: .second())
             let start = date.addingTimeInterval(-durationSeconds)
             let workout = HKWorkout(activityType: activityType, start: start, end: date)
-            try? await healthStore.save(workout)
+            guard (try? await healthStore.save(workout)) != nil else { return [] }
+            return [workout.uuid]
         }
+    }
+
+    /// Deletes exactly the samples Forge itself previously wrote for this
+    /// habit, identified by the `HKSample.uuid`s `writeManualEntry` handed
+    /// back at write time (persisted on `Completion.healthKitSampleUUIDs`).
+    /// Queries for the real objects first (`HKHealthStore.delete` needs the
+    /// actual `HKObject`, not a bare UUID) via `HKQuery.predicateForObjects
+    /// (with:)` — the documented, real API for exactly this "delete by
+    /// previously-recorded identifier" case — then deletes only what's
+    /// actually found. Never touches any other sample of the same type
+    /// (e.g. a real Steps reading from the Health app/Apple Watch): a
+    /// habit's completion driven entirely by external HealthKit data has an
+    /// empty `uuids` array (nothing for Forge to have tracked), so this is
+    /// a safe no-op for that case rather than something that needs its own
+    /// separate guard.
+    func deleteSamples(for habit: Habit, uuids: [UUID]) async {
+        guard !uuids.isEmpty, Self.isAvailable, let mapping = HealthKitTypeMapping.mapping(for: habit) else { return }
+        let predicate = HKQuery.predicateForObjects(with: Set(uuids))
+        let objects: [HKObject] = await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(sampleType: mapping.sampleType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, _ in
+                continuation.resume(returning: samples ?? [])
+            }
+            healthStore.execute(query)
+        }
+        guard !objects.isEmpty else { return }
+        try? await healthStore.delete(objects)
     }
 
     // MARK: - Background delivery
