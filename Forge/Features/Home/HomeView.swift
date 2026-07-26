@@ -68,6 +68,7 @@ struct HomeView: View {
     @Environment(\.habitRepository) private var habitRepository
     @Environment(\.milestoneEngine) private var milestoneEngine
     @Environment(\.healthKitService) private var healthKitService
+    @Environment(\.scenePhase) private var scenePhase
     @State private var isPresentingAddHabit = false
     @State private var editingHabit: Habit?
     /// Stable, non-archived — the full active-habit list, used as-is for
@@ -208,6 +209,19 @@ struct HomeView: View {
             .onChange(of: selectedDate) { _, _ in
                 Task { await reloadSelectedDayCompletions() }
             }
+            .onChange(of: scenePhase) { _, newPhase in
+                // Catch-up sweep: a running timer's one-shot completion
+                // (`HabitTimerCoordinator.scheduleCompletion`) only fires
+                // while this process stays alive — if the app was
+                // backgrounded (or killed and relaunched) past the goal
+                // time, this is what actually marks it complete, driven
+                // purely off persisted `Completion.startedAt`, not
+                // anything the coordinator remembers. Same self-healing
+                // shape as `MilestoneEngine.runCatchUp()` elsewhere in
+                // this app.
+                guard newPhase == .active else { return }
+                Task { await checkTimerCompletions() }
+            }
             .sheet(isPresented: $isPresentingAddHabit) {
                 CategoryPickerView {
                     isPresentingAddHabit = false
@@ -242,6 +256,9 @@ struct HomeView: View {
         let allHabits = (try? await habitRepository.fetchAll()) ?? []
         habits = allHabits.filter { !$0.isArchived }
         await reloadSelectedDayCompletions()
+        if isViewingToday {
+            await checkTimerCompletions()
+        }
     }
 
     /// Refetches just the selected day's completions — called whenever
@@ -282,6 +299,16 @@ struct HomeView: View {
     /// Only ever called while viewing today (guarded at the gesture in
     /// `body`) — `selectedDate == .now` whenever this runs.
     private func handleTap(_ habit: Habit) async {
+        // Time-unit habits (minutes/hours goal) replace tap-to-increment
+        // entirely with the native timer — checked first, ahead of both
+        // `timeMode` and the quantity branch below, since a duration goal
+        // has no coherent "increment by step" or "started at" meaning of
+        // its own. Gated purely on `habit.unit`, not on template/name.
+        if habit.unit.isTimeBased {
+            await handleTimerTap(habit)
+            return
+        }
+
         var completion = selectedDayCompletions[habit.id] ?? Completion(habitID: habit.id, date: .now)
         var healthKitDelta: Double = 0
         // Captured before any mutation below, so the feedback dispatch at
@@ -355,6 +382,117 @@ struct HomeView: View {
         dispatchMilestoneCheck(for: habit)
     }
 
+    private func durationSeconds(for habit: Habit) -> TimeInterval {
+        habit.goal * habit.unit.secondsPerUnit
+    }
+
+    /// Tap on a time-unit habit: starts the timer if idle, cancels it if
+    /// already running (a plain second tap as the escape hatch — no
+    /// separate cancel UI), no-ops if already complete for today (matches
+    /// how a further tap on an at-goal quantity habit is already a no-op
+    /// just above, in `handleTap`). **Judgment call**: cancelling clears
+    /// `startedAt` rather than, say, pausing/resuming — this feature has no
+    /// pause concept, only start/cancel/instant-complete (long press).
+    private func handleTimerTap(_ habit: Habit) async {
+        let completion = selectedDayCompletions[habit.id]
+        guard completion?.isComplete != true else { return }
+        if completion?.startedAt != nil {
+            await cancelTimer(for: habit)
+        } else {
+            await startTimer(for: habit)
+        }
+    }
+
+    private func startTimer(for habit: Habit) async {
+        var completion = selectedDayCompletions[habit.id] ?? Completion(habitID: habit.id, date: .now)
+        let start = Date.now
+        completion.startedAt = start
+        completion.loggedAt = start
+        try? await habitRepository.upsertCompletion(completion)
+        selectedDayCompletions[habit.id] = completion
+
+        let end = start.addingTimeInterval(durationSeconds(for: habit))
+        HabitTimerCoordinator.shared.startLiveActivity(
+            habitID: habit.id,
+            title: habit.title,
+            iconSystemName: habit.iconSystemName,
+            color: habit.color,
+            start: start,
+            end: end
+        )
+        // See `HabitTimerCoordinator.scheduleCompletion`'s doc comment —
+        // this is what makes completion feel instant while the app stays
+        // foregrounded; `checkTimerCompletions` (below) is what actually
+        // guarantees correctness if it doesn't get the chance to fire.
+        HabitTimerCoordinator.shared.scheduleCompletion(habitID: habit.id, at: end) {
+            await completeTimerHabit(habitID: habit.id)
+        }
+    }
+
+    private func cancelTimer(for habit: Habit) async {
+        guard var completion = selectedDayCompletions[habit.id], completion.startedAt != nil else { return }
+        completion.startedAt = nil
+        completion.loggedAt = .now
+        try? await habitRepository.upsertCompletion(completion)
+        selectedDayCompletions[habit.id] = completion
+        HabitTimerCoordinator.shared.endLiveActivity(habitID: habit.id, completed: false)
+    }
+
+    /// Fires once a time-unit habit's timer genuinely reaches its goal —
+    /// called both from the one-shot scheduled completion (app stayed
+    /// foregrounded) and from `checkTimerCompletions`' catch-up sweep (app
+    /// was backgrounded/killed past the goal). Looks the habit up fresh by
+    /// ID rather than trusting a captured `Habit` value, since this can run
+    /// long after the tap that scheduled it.
+    private func completeTimerHabit(habitID: Habit.ID) async {
+        guard let habit = habits.first(where: { $0.id == habitID }) else { return }
+        guard var completion = selectedDayCompletions[habitID],
+              let startedAt = completion.startedAt,
+              !completion.isComplete else { return }
+
+        // Logged as the real elapsed time, not a hardcoded `habit.goal` —
+        // per explicit instruction to "log the actual elapsed duration."
+        // This is normally ~equal to the goal (the one-shot fires right at
+        // the end instant), but can genuinely exceed it when this runs from
+        // the catch-up sweep instead, after the app was away for a while.
+        let elapsedSeconds = Date.now.timeIntervalSince(startedAt)
+        let elapsedInHabitUnit = elapsedSeconds / habit.unit.secondsPerUnit
+        completion.count = elapsedInHabitUnit
+        completion.isComplete = true
+        completion.loggedAt = .now
+        try? await habitRepository.upsertCompletion(completion)
+        selectedDayCompletions[habitID] = completion
+
+        lastInteraction = InteractionToken(habitID: habitID)
+        CompletionFeedback.complete()
+
+        // See `handleTap`'s comment on this same guard for why it's here,
+        // not just inside `writeManualEntry`.
+        if habit.isHealthKitTracked {
+            await healthKitService.writeManualEntry(for: habit, habitUnitAmount: elapsedInHabitUnit, at: .now)
+        }
+        dispatchMilestoneCheck(for: habit)
+        HabitTimerCoordinator.shared.endLiveActivity(habitID: habitID, completed: true)
+    }
+
+    /// Catch-up sweep for time-unit habits whose goal time has already
+    /// passed without the in-process one-shot completion having fired —
+    /// called on initial load and every time the app returns to the
+    /// foreground (see `scenePhase` handling in `body`). Purely derived
+    /// from persisted `Completion.startedAt`, so this is correct even after
+    /// a full app relaunch, not just a background/foreground cycle.
+    private func checkTimerCompletions() async {
+        let now = Date.now
+        for habit in visibleHabits where habit.unit.isTimeBased {
+            guard let completion = selectedDayCompletions[habit.id],
+                  let startedAt = completion.startedAt,
+                  !completion.isComplete else { continue }
+            if now >= startedAt.addingTimeInterval(durationSeconds(for: habit)) {
+                await completeTimerHabit(habitID: habit.id)
+            }
+        }
+    }
+
     /// Fires milestone/streak/points bookkeeping in its own detached `Task`
     /// rather than being awaited inline by `handleTap`/`handleLongPress` —
     /// a real, measured fix, not a preemptive optimization. Measured with
@@ -396,6 +534,14 @@ struct HomeView: View {
         try? await habitRepository.upsertCompletion(completion)
         selectedDayCompletions[habit.id] = completion
 
+        // A running timer (if any) is superseded by this instant force-
+        // complete — end its Live Activity/scheduled completion rather
+        // than leaving a phantom countdown running for an already-done
+        // habit. `endLiveActivity` itself is a no-op if none is active.
+        if habit.unit.isTimeBased {
+            HabitTimerCoordinator.shared.endLiveActivity(habitID: habit.id, completed: true)
+        }
+
         let healthKitDelta = habit.goal > 1 ? max(0, habit.goal - previousCount) : (wasAlreadyComplete ? 0 : habit.goal)
         // See `handleTap`'s comment on this same guard for why it's here,
         // not just inside `writeManualEntry`.
@@ -411,12 +557,18 @@ struct HomeView: View {
         updated.isArchived = true
         try? await habitRepository.save(updated)
         HabitNotificationScheduler.removeAll(for: habit.id)
+        if habit.unit.isTimeBased {
+            HabitTimerCoordinator.shared.endLiveActivity(habitID: habit.id, completed: false)
+        }
         await reload()
     }
 
     private func delete(_ habit: Habit) async {
         try? await habitRepository.delete(id: habit.id)
         HabitNotificationScheduler.removeAll(for: habit.id)
+        if habit.unit.isTimeBased {
+            HabitTimerCoordinator.shared.endLiveActivity(habitID: habit.id, completed: false)
+        }
         await reload()
     }
 }
@@ -598,7 +750,9 @@ private struct HabitCardRow: View {
 
     @ViewBuilder
     private var statusIndicator: some View {
-        if habit.timeMode != .none {
+        if habit.unit.isTimeBased {
+            timerStatusIndicator
+        } else if habit.timeMode != .none {
             if let startedAt = completion?.startedAt, Calendar.current.isDate(startedAt, inSameDayAs: referenceDate) {
                 Text("Started \(startedAt, format: .dateTime.hour().minute())")
                     .font(.caption)
@@ -611,6 +765,32 @@ private struct HabitCardRow: View {
             quantityProgressIndicator
         } else {
             simpleCompletionIcon
+        }
+    }
+
+    /// Three states for a time-unit habit, gated purely on `habit.unit`
+    /// (see `HomeView.handleTap`) — idle (never tapped today), running
+    /// (a live native countdown, see `HabitTimerRingView`), and complete
+    /// (reuses the same checkmark every simple habit uses once done — a
+    /// time-unit habit is still a once-a-day completion at heart, just
+    /// reached via a timer instead of a tap).
+    @ViewBuilder
+    private var timerStatusIndicator: some View {
+        if isComplete {
+            simpleCompletionIcon
+                .accessibilityIdentifier("timerStatus.complete")
+        } else if let startedAt = completion?.startedAt {
+            HabitTimerRingView(
+                start: startedAt,
+                end: startedAt.addingTimeInterval(habit.goal * habit.unit.secondsPerUnit),
+                tint: habit.color.color
+            )
+            .accessibilityIdentifier("timerStatus.running")
+        } else {
+            Image(systemName: "timer")
+                .font(.title2)
+                .foregroundStyle(Color(.systemGray3))
+                .accessibilityIdentifier("timerStatus.idle")
         }
     }
 

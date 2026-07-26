@@ -937,6 +937,89 @@ Home's list content vs. inside the pinned strip's own safeAreaInset); and
 interpreting "opens straight to the card" as a tab switch, not a sheet/
 scroll-to.
 
+### Timer-based interaction for time-unit habits (§ new — no spec section number yet)
+
+Any habit whose `unit` is `.minutes` or `.hours` (`HabitUnit.isTimeBased`,
+gated purely on that enum case, not on any specific habit/template) now
+uses a native, self-updating countdown timer instead of tap-to-increment.
+Tapping starts the timer (persisted as `Completion.startedAt`); a second
+tap while running cancels it; long-press still instantly force-completes
+without ever touching the timer, unchanged from before. On reaching goal,
+`CompletionFeedback.complete()` fires exactly once, the real elapsed
+duration (not a hardcoded `goal`) is logged via the repository, and — if
+the habit is also a HealthKit write-back type — fed into
+`HealthKitService.writeManualEntry`.
+
+**Timer Live Activity — confirmed circular exception.** The running
+timer's ring (`HabitTimerRingView` in the main app; `HabitTimerLiveActivity`
+in the new `ForgeWidgets` extension, both for the in-app row and the Live
+Activity/Dynamic Island presentation) is circular, matching Apple's own
+Clock/Timer app — a deliberate, user-confirmed exception to this project's
+otherwise-consistent anti-Apple-copy visual rule (Home's weekly strip:
+rings → bars; Progress: rings removed entirely, §6; Milestones: squircle
+tiles, not Apple's hexagon/circle/banner, §11). Confirmed directly with the
+user when this feature was scoped, specifically because a circular
+depleting ring is the immediately recognizable "a timer is running"
+affordance — this is the one place in the app deliberately reusing Apple's
+own visual language rather than differentiating from it.
+
+**Real, empirically-confirmed finding worth remembering for future
+timer/Live-Activity work**: `ProgressView(timerInterval:).progressViewStyle
+(.circular)` — the literal API this feature was originally scoped
+around — does **not** render as a depleting ring on this SDK. Screenshot-
+verified, not assumed: it renders as the plain system activity-spinner
+glyph (a pinwheel of static spokes), visually unrelated to how much time
+remains, even though `Text(timerInterval:)` right next to it correctly
+ticks down. In the main app's in-list `HabitTimerRingView`, this was fixed
+by using `Gauge(value:in:).gaugeStyle(.accessoryCircularCapacity)` (the
+same circular-capacity ring API Apple uses for Watch complications) with
+its `value` recomputed each tick inside a `TimelineView(.periodic(from:
+by:))` — SwiftUI's own native declarative mechanism for date-driven
+periodic UI updates, not a manual `Timer`/`DispatchSourceTimer` instance,
+and still always correct-from-real-dates on every tick rather than an
+accumulated/drifting counter. The `ForgeWidgets` Live Activity view
+deliberately keeps the plain `ProgressView(timerInterval:).circular` API
+despite the spinner-glyph look, rather than switching to the same
+`Gauge`/`TimelineView` hybrid: a `TimelineView` needs its hosting process
+alive to re-fire, which the main app can assume (the row is only ever
+visible while Forge itself is running) but a Live Activity's entire
+purpose is staying accurate while the app/extension process is fully
+suspended — `Text`/`ProgressView`'s `timerInterval` initializers are
+Apple's specific, documented-safe views for that (the system repaints
+them, not the extension process), so correctness-under-suspension won out
+over exact visual match there. See `HabitTimerRingView`'s and
+`HabitTimerLiveActivity`'s own doc comments for the full reasoning.
+
+**New `ForgeWidgets` app-extension target** (`project.yml`) exists solely
+for this Live Activity — no home-screen widgets configured, just the one
+`ActivityConfiguration`. `HabitTimerAttributes.swift` and `HabitColor.swift`
+are compiled directly into both the `Forge` and `ForgeWidgets` targets
+(listed in both targets' `sources` in `project.yml`) rather than factored
+into a shared framework — matches this project's existing preference for
+direct multi-target file references over a framework boundary for
+something this small. `NSSupportsLiveActivities: YES` was added to the
+main app's Info.plist keys; no App Group/shared container exists or is
+needed, since the extension only ever renders from the `Activity`'s own
+`ContentState`, never reads app-side storage directly.
+
+**Judgment calls made, not fully specified by the original request**:
+- A second tap while the timer is running cancels it (clears `startedAt`)
+  rather than pausing/resuming — this feature has no pause concept, only
+  start/cancel/instant-complete (long-press). Matches the existing "tap
+  toggles state" convention used elsewhere on the card.
+- Tapping an already-complete time-unit habit is a no-op, matching how a
+  further tap on an at-goal quantity habit already behaves — no
+  "uncomplete via tap" gesture exists for this habit type.
+- The in-row ring's exact size (44×44, up from the 34×34 used for a
+  regular quantity habit's ring) — chosen to fit the countdown digits
+  legibly, since a duration timer has more to display than a bare count.
+- Catch-up correctness (`HomeView.checkTimerCompletions`) is driven purely
+  by persisted `Completion.startedAt` plus `habit.goal`/`habit.unit` — the
+  in-process one-shot completion (`HabitTimerCoordinator.scheduleCompletion`)
+  is a nice-to-have for instant feedback while foregrounded, never the
+  source of correctness. Same self-healing shape as
+  `MilestoneEngine.runCatchUp()` elsewhere in this app.
+
 ## Autonomous operation policy
 
 Added per explicit instruction (2026-07-25) to let a session pick up work

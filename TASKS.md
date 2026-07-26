@@ -34,6 +34,36 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
 
 ---
 
+## Ad-hoc feature requests (not derived from APP_REDESIGN_SPEC.md — direct user requests)
+
+- [x] **Timer-based interaction for time-unit habits**. BUILT this pass, per explicit user request
+      (not from the spec — no section number). Any habit whose `unit` is `.minutes`/`.hours`
+      (`HabitUnit.isTimeBased`, gated purely on that enum case) now uses a native countdown timer
+      instead of tap-to-increment: tap starts it, a second tap cancels it, long-press still instantly
+      force-completes unchanged. `HabitFormView`'s "Increment" field is hidden for these units (no
+      coherent meaning for a duration goal). Built entirely on native `Text(timerInterval:)` +
+      (for the in-app row) `Gauge(value:in:).accessoryCircularCapacity` driven by
+      `TimelineView(.periodic(from:by:))` — see CLAUDE.md's "Timer-based interaction for time-unit
+      habits" section for the full account, including a real empirical finding worth remembering:
+      `ProgressView(timerInterval:).circular` (the originally-scoped API) renders as a plain spinner
+      glyph on this SDK, not a depleting ring — confirmed via screenshot, not assumed. New ActivityKit
+      Live Activity (`ForgeWidgets` app-extension target, new in `project.yml`) shows the running
+      timer in the Dynamic Island/Lock Screen. HealthKit tie-in: a completed timer's real elapsed
+      duration feeds `HealthKitService.writeManualEntry` for any HealthKit-tracked duration habit
+      (Run/Yoga/Cycling/etc.), reusing the exact call already proven working elsewhere in this file's
+      P0 HealthKit history — not independently re-verified against a live HealthKit-tracked timer habit
+      this pass (flagged, not silently assumed). Catch-up correctness (an overdue timer completing even
+      after the app was backgrounded/killed) is derived purely from persisted `Completion.startedAt`,
+      checked on every foreground/appear — same self-healing shape as `MilestoneEngine.runCatchUp()`
+      elsewhere in this app. Verified: new `TimerHabitTests.swift` (kept permanently, matching
+      `WeeklyPagerSwipeTests`/`MoodCheckInTests`) passes on both Simulator and real device, covering
+      both the auto-complete-on-its-own path and the long-press-bypasses-timer path; existing
+      regression tests re-run and still pass; ring visual confirmed via real screenshots at both the
+      broken-spinner stage and the fixed-Gauge stage (not just the final result, so the fix itself is
+      evidenced, not just asserted).
+
+---
+
 ## P1 — Genuinely missing features (spec claims done or doesn't flag as missing; code has nothing)
 
 - [x] **Weekly reflection notifications (§13)** — BUILT this pass. Once-a-week (default Sunday

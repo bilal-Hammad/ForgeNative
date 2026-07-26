@@ -359,6 +359,129 @@ if something turns out to be wrong, add a new entry correcting it rather than re
 
 ---
 
+## 2026-07-26/27 — Timer-based interaction for time-unit habits (ad-hoc feature request)
+
+- **Context**: explicit user request, not derived from `APP_REDESIGN_SPEC.md` — replace tap-to-
+  increment entirely for any habit whose `unit` is `.minutes`/`.hours` with a native, self-updating
+  timer (start on tap, cancel on a second tap, long-press still instantly completes unchanged),
+  including an ActivityKit Live Activity for the Dynamic Island/Lock Screen, with an explicitly
+  confirmed exception to this project's usual anti-Apple-copy visual rule: the ring should look like
+  Apple's own Clock/Timer app.
+- **What was done**:
+  - `HabitUnit.isTimeBased` (`.minutes`/`.hours`) and `.secondsPerUnit` — the single, generic gate
+    everything else keys off, per explicit instruction not to gate on habit name/template.
+  - `HabitFormView.swift`: the "Increment" field is now hidden when the selected unit is time-based —
+    a duration goal has no coherent step-increment meaning.
+  - `HomeView.swift`: `handleTap` checks `habit.unit.isTimeBased` first, ahead of both the existing
+    `timeMode` and quantity branches, and routes to new `handleTimerTap`/`startTimer`/`cancelTimer`/
+    `completeTimerHabit`/`checkTimerCompletions` methods. `handleLongPress`/`archive`/`delete` gained a
+    one-line addition each to end any active Live Activity for a time-unit habit being force-completed/
+    archived/deleted, so nothing is left showing a phantom running countdown.
+  - New `Forge/Core/Timer/` module: `HabitTimerAttributes` (the `ActivityAttributes` struct, compiled
+    into both the `Forge` and new `ForgeWidgets` targets — no shared framework, matching this project's
+    existing `HabitColor`-across-targets precedent) and `HabitTimerCoordinator` (`@MainActor
+    @Observable` singleton, matching `MoodCheckInRouter`/`WeeklyReflectionRouter`'s existing pattern) —
+    owns only the ephemeral Live Activity handle + one-shot completion scheduling, deliberately not
+    persistence/feedback/HealthKit (those stay in `HomeView`, matching the existing
+    `HealthKitService`/`MilestoneEngine` separation-of-concerns).
+  - New `Forge/Features/Home/HabitTimerRingView.swift` — the in-row timer visual (see the empirical
+    finding below for why this isn't the literal originally-scoped API).
+  - New `ForgeWidgets/` app-extension target (`project.yml`): `ForgeWidgetsBundle` (`@main
+    WidgetBundle`) + `HabitTimerLiveActivity` (`ActivityConfiguration` with Lock Screen + full Dynamic
+    Island region set — expanded/compact-leading/compact-trailing/minimal). `NSSupportsLiveActivities:
+    YES` added to the main app's Info.plist keys.
+  - `ForgeApp.swift`: `HabitTimerCoordinator.shared.reattachExistingActivities()` on launch (re-
+    populates the in-memory Activity handle map from ActivityKit's own system-tracked state — a Live
+    Activity started in a previous, now-killed process is still genuinely running, just not yet known
+    to a fresh process's coordinator instance). `-uiTesting` seed gained a second habit ("Timer Test
+    Habit", goal 0.05 minutes = 3 real seconds) for `TimerHabitTests`.
+- **Real, empirically-confirmed technical finding (not assumed from the API name) — the most
+  significant discovery this pass**: `ProgressView(timerInterval:).progressViewStyle(.circular)`, the
+  literal API this feature was originally scoped around for the ring visual, does **not** render as a
+  depleting ring on this SDK. Screenshot-verified at both normal (44×44) and 3× scale: it renders as
+  the plain system activity-spinner glyph (a pinwheel of unequal static spokes) — visually unrelated to
+  remaining time, even though `Text(timerInterval:)` right next to it correctly ticked down every
+  second. This directly contradicted the assumption the feature request was scoped on. Fixed in the
+  main app's `HabitTimerRingView` by switching to `Gauge(value:in:).gaugeStyle
+  (.accessoryCircularCapacity)` (the same circular-capacity ring API Apple uses for Watch complications)
+  with its `value` recomputed each tick inside `TimelineView(.periodic(from:by:))` — SwiftUI's own
+  native mechanism for date-driven periodic UI updates (not a manual `Timer`/`DispatchSourceTimer`
+  instance, and the fraction is always derived fresh from real `start`/`end` dates each tick, never an
+  accumulated counter, so it stays exactly as correct-after-backgrounding as the built-in
+  `timerInterval` views). Re-screenshotted after the fix: a genuine depleting blue ring with the
+  centered countdown, matching Apple's Clock/Timer look convincingly.
+- **Judgment call on the Live Activity specifically**: deliberately did **not** apply the same
+  `Gauge`/`TimelineView` fix inside `ForgeWidgets/HabitTimerLiveActivity.swift` — kept the plain
+  `ProgressView(timerInterval:).circular` there despite the spinner-glyph look, because a `TimelineView`
+  needs its hosting process alive to re-fire its periodic closure. The main app can safely assume that
+  (the row is only ever on screen while Forge itself is running), but a Live Activity's entire purpose
+  is staying accurate while the app/extension process is fully suspended or killed — `Text`/
+  `ProgressView`'s `timerInterval` initializers are Apple's specific, documented-safe views for that
+  exact constraint (system-repainted, not extension-process-repainted). Correctness-under-suspension
+  won out over exact visual match for the Live Activity specifically; the in-app row and the Live
+  Activity's ring intentionally don't look identical as a result — documented explicitly in both files'
+  doc comments and in CLAUDE.md so this isn't mistaken for an inconsistency later.
+- **Other judgment calls** (all flagged per explicit instruction):
+  - A second tap while running cancels the timer (clears `startedAt`) rather than pausing/resuming —
+    no pause concept exists, matching the existing "tap toggles state" convention elsewhere on the
+    card.
+  - Tapping an already-complete time-unit habit is a no-op — matches how a further tap on an at-goal
+    quantity habit already behaves; no "uncomplete via tap" gesture exists for this habit type.
+  - The logged elapsed duration on completion is the *real* elapsed time (`now - startedAt`), not a
+    hardcoded `habit.goal` — per explicit instruction to log the actual duration. Normally ~equal to
+    goal (the one-shot fires right at the end instant) but can genuinely exceed it when completion
+    comes from the catch-up sweep instead, after the app was away for a while — this is intentional,
+    not a bug, and feeds the same (potentially-over-goal) value to both `Completion.count` and the
+    HealthKit write.
+  - Ring size bumped to 44×44 (from the 34×34 used for a regular quantity habit's ring) to fit the
+    countdown digits legibly.
+- **What was verified, and how**: new `TimerHabitTests.swift` (kept permanently, matching
+  `WeeklyPagerSwipeTests`/`MoodCheckInTests`'s precedent) — `testTimerStartsAndCompletesOnItsOwn`
+  (idle → tap → running → auto-complete with zero further interaction, using three dedicated
+  accessibility identifiers — `timerStatus.idle`/`.running`/`.complete` — added specifically for this)
+  and `testLongPressInstantlyCompletesWithoutTimer` (long-press jumps straight to complete, asserting
+  the running marker never appears at all). Both pass cleanly and repeatedly on **Simulator**. Existing
+  `WeeklyPagerSwipeTests`/`MoodCheckInTests` re-run and still pass — no regression from the new
+  `ForgeApp.swift`/environment wiring. Full app + widget-extension build succeeds on **both** Simulator
+  and the real device ("Bilal iPhone") — the real-device build specifically exercises the extension
+  embedding/signing path Simulator is more lenient about, and it's what caught the two real Info.plist
+  bugs below (Simulator installs are more permissive about missing bundle keys than a real-device
+  install is). **Real-device *test execution* itself (as opposed to the build) was inconclusive, not
+  failing**: two attempts both hit device-connectivity issues before the test logic ever ran — one a
+  clear `Lost pending connection to the test runner before launch` error, the second an apparent hang
+  (no CPU progress for 5+ minutes, killed rather than left indefinitely). This matches a real,
+  previously-observed pattern with this specific device's wireless connection in prior sessions, not
+  something new to this feature — treated the same way this project has previously treated confirmed
+  environmental flakiness (see the `WeeklyPagerSwipeTests` reboot-fixed-it entry elsewhere in this
+  file): Simulator's clean, repeated pass is accepted as sufficient functional verification rather than
+  continuing to retry an already-flaky wireless connection.
+- **Real build issues hit and fixed along the way** (kept as reusable findings for future
+  widget-extension work in this project):
+  1. `Activity.end(_:dismissalPolicy:)` — a genuine Swift 6 strict-concurrency "sending a main-actor-
+     isolated value into a nonisolated call" error, resolved by (a) making `HabitTimerAttributes`/its
+     `ContentState` explicitly `Sendable` and (b) `@preconcurrency import ActivityKit` in
+     `HabitTimerCoordinator.swift` — ActivityKit isn't fully Sendable-audited by Apple on this SDK, and
+     `@preconcurrency` is Apple's own documented mechanism for bridging exactly that gap for one
+     specific import, not a project-wide concurrency-checking suppression.
+  2. `Embedded binary's bundle identifier is not prefixed with the parent app's bundle identifier` —
+     misleading; the real cause was a hand-written `ForgeWidgets/Info.plist` missing the standard
+     `CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)` boilerplate (and `CFBundleExecutable`/
+     `CFBundlePackageType`/version keys), which `GENERATE_INFOPLIST_FILE: YES` normally injects
+     automatically — required explicitly once a target uses `GENERATE_INFOPLIST_FILE: NO` with a
+     literal plist file.
+  3. `does not have a CFBundleName key with a non-zero length string value` — a second, separate
+     missing-key issue caught only at install time (not at build time) — `CFBundleName` specifically,
+     distinct from `CFBundleDisplayName` which was already present.
+- **Still open / not independently re-verified this pass**: the HealthKit write-back tie-in
+  (`completeTimerHabit` → `healthKitService.writeManualEntry`) reuses the exact call shape already
+  proven working in this file's P0 HealthKit entry, but wasn't independently re-tested against a live
+  HealthKit-tracked timer habit (e.g. a real "Run"/"Yoga" habit) this pass — flagged rather than
+  silently assumed correct by similarity alone. A full interactive Live Activity/Dynamic Island
+  appearance (as opposed to the code building and the underlying `Activity.request` call succeeding)
+  wasn't visually screenshotted on a Dynamic-Island-capable device this pass either.
+
+---
+
 ## 2026-07-25 — HealthKit real-device verification — RESOLVED
 
 - **Context**: TASKS.md's P0 had one remaining item, conclusively documented earlier this session as

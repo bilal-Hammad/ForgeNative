@@ -21,6 +21,28 @@ enum HabitUnit: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// Gates the native timer interaction (replacing tap-to-increment
+    /// entirely for these habits — see `HomeView.handleTap`): a duration
+    /// goal has no coherent "increment by a fixed step" meaning the way a
+    /// count/quantity goal does. Generic on the unit case itself, not on
+    /// any specific habit/template — applies equally to a HealthKit-backed
+    /// preset (Run, Yoga) and a manually-created custom habit that happens
+    /// to use minutes/hours.
+    var isTimeBased: Bool {
+        self == .minutes || self == .hours
+    }
+
+    /// Seconds per one unit of `self` — converts a real elapsed
+    /// `TimeInterval` into this habit's own `goal`/`count` terms. Only
+    /// meaningful for `isTimeBased` units.
+    var secondsPerUnit: TimeInterval {
+        switch self {
+        case .hours: 3600
+        case .minutes: 60
+        default: 1
+        }
+    }
+
     static var pickerOptions: [HabitUnit] {
         [.count, .minutes, .hours, .steps, .glasses, .calories, .grams, .milligrams, .milliliters, .servings, .flights, .words, .kilograms, .centimeters]
     }

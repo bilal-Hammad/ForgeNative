@@ -40,6 +40,37 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Forge/Forge.entitlements
         INFOPLIST_KEY_NSHealthShareUsageDescription: "Forge reads Health data to automatically mark HealthKit-tracked habits (like water intake, workouts, and sleep) complete when your data already meets your goal."
         INFOPLIST_KEY_NSHealthUpdateUsageDescription: "Forge writes to Health when you manually log a HealthKit-tracked habit, so your data stays in sync in both directions."
+        # Required for `Activity.request` to succeed at all — the timer
+        # feature's Live Activity/Dynamic Island presentation.
+        INFOPLIST_KEY_NSSupportsLiveActivities: YES
+    dependencies:
+      - target: ForgeWidgets
+        embed: true
+
+  # Widget extension whose sole purpose is the timer feature's Live
+  # Activity (`HabitTimerLiveActivity`) — Dynamic Island + Lock Screen
+  # presentation for a running time-unit habit's countdown. No home-screen
+  # widgets are configured, just the one `ActivityConfiguration`.
+  # `HabitTimerAttributes.swift`/`HabitColor.swift` are compiled directly
+  # into this target too (see those files' own doc comments for why: no
+  # shared framework for something this small).
+  ForgeWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: ForgeWidgets
+      - path: Forge/Core/Timer/HabitTimerAttributes.swift
+      - path: Forge/Core/Models/HabitColor.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bilalhammad.forge.native.widgets
+        PRODUCT_NAME: ForgeWidgets
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        INFOPLIST_FILE: ForgeWidgets/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
 
   # Kept permanently (confirmed) — this project's real gesture/interaction
   # regression suite. Originally added for the weekly-pager swipe

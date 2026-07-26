@@ -61,6 +61,13 @@ struct ForgeApp: App {
             let eightWeeksAgo = Calendar.current.date(byAdding: .day, value: -56, to: .now) ?? .now
             let habit = Habit(title: "Pager Test Habit", category: .good, startDate: eightWeeksAgo)
             context.insert(HabitModel(habit: habit))
+            // A short real goal (3 seconds, expressed in minutes since
+            // `HabitUnit` has no seconds case) — seeded for
+            // `TimerHabitTests`, so the timer genuinely reaches its goal
+            // within a normal test timeout instead of needing a multi-
+            // minute real wait.
+            let timerHabit = Habit(title: "Timer Test Habit", category: .good, iconSystemName: "timer", goal: 0.05, unit: .minutes, startDate: eightWeeksAgo)
+            context.insert(HabitModel(habit: timerHabit))
             try? context.save()
         }
         habitRepository = SwiftDataHabitRepository(modelContainer: modelContainer)
@@ -80,6 +87,17 @@ struct ForgeApp: App {
 
         let service = healthKitService
         Task { await service.registerBackgroundDelivery() }
+
+        // Re-populate `HabitTimerCoordinator`'s in-memory Live Activity
+        // handles from ActivityKit's own system-tracked state — a timer
+        // running before this process was last killed is still genuinely
+        // active (system-rendered), just not yet known to this fresh
+        // process's coordinator instance. `HomeView`'s own catch-up sweep
+        // (persisted `Completion.startedAt`, not this call) is what
+        // actually re-marks an overdue timer's habit complete; this only
+        // restores the ability to *end* its Live Activity when that
+        // happens.
+        Task { HabitTimerCoordinator.shared.reattachExistingActivities() }
 
         // Refresh the weekly reflection notification's content on every
         // launch — see `WeeklyReflectionScheduler`'s doc comment for why

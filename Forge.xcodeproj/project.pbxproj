@@ -9,10 +9,13 @@
 /* Begin PBXBuildFile section */
 		008DA8E43049170A899AC5D6 /* MilestoneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AEB420AFB865FEBD7D44650 /* MilestoneModel.swift */; };
 		01252BB84EA5B3EB48130CC3 /* MoodCheckInTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F66DC2541D078D6905E7A13 /* MoodCheckInTests.swift */; };
+		03CF060868D1F506085F3376 /* HabitTimerCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E9E3CDC175D93A5F1BB9754 /* HabitTimerCoordinator.swift */; };
 		03E772FBEF471A0EE7A4086A /* TemplateSectionConfigurationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49050EC9E801D216DE2AF1CA /* TemplateSectionConfigurationModel.swift */; };
 		056BEB2EF498DABD48EFF13E /* CompletionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D2B276E5CD4FF30B23D83DB /* CompletionModel.swift */; };
 		05E99D153907B04EE9E806C8 /* DebugSeedHealthKitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4BAC5DF16DA4E154D5A801A /* DebugSeedHealthKitView.swift */; };
+		07FD56CE800FDE3B7A6027FD /* HabitColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 412307AB57C455F20017C1C8 /* HabitColor.swift */; };
 		0CB02CB065A4A8D5086401C9 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B4912998C44716F0FEAB09 /* HomeView.swift */; };
+		0E584795572898C34C82DA7E /* HabitTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA276ABED8B83855BEBF4C6 /* HabitTimerAttributes.swift */; };
 		0F56DF205E46B35CB8215BCD /* MilestoneRepositoryEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDDA16EB6B7B2BF0F81079B1 /* MilestoneRepositoryEnvironment.swift */; };
 		10304986CEDB08E40D198D2A /* ArchivedHabitsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 427AAE5C01BA77D4A32B4CDA /* ArchivedHabitsView.swift */; };
 		1076868907FEA0F389E4806E /* HealthKitBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EE193FE89FAB98966A7CCE4 /* HealthKitBadgeView.swift */; };
@@ -33,6 +36,7 @@
 		3554D562F3421ED168B1893A /* StreakMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18C0C3C8AE141F4A262204D9 /* StreakMath.swift */; };
 		371E21D11A375734F7F9CF72 /* HabitRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7495E882EE5CA0675BB590BE /* HabitRepository.swift */; };
 		383035F49E3B9B55FBCF11CF /* TemplateSectionConfiguration+Resolve.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A322B63CA07AF8006C6D79A /* TemplateSectionConfiguration+Resolve.swift */; };
+		3DCB05625578936E4A2DA896 /* ForgeWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 928C411445F8527BBB3CF6B2 /* ForgeWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		3F7F62A701CF07EDCEF36349 /* HabitFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 528A80329520F9914A990E6B /* HabitFormView.swift */; };
 		4200CFB482029B3BC5B44CBE /* MoodEntryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EF132C9FA46A0A810337A21 /* MoodEntryModel.swift */; };
 		471F971BD54E11C47805790D /* AddSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B188FF827204DDB10B2751 /* AddSectionView.swift */; };
@@ -44,6 +48,7 @@
 		54282C61B8F9C6956B078870 /* WeeklyReflectionScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 121D1A3926FB559936FB9AFA /* WeeklyReflectionScheduler.swift */; };
 		55639823C10CBF03699C81CA /* HabitTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 189BA6C66791E2E3452D5945 /* HabitTemplate.swift */; };
 		5609E855972050657F9FA041 /* HabitModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 137DCAC8C4885EA8D25FC15A /* HabitModel.swift */; };
+		59374863BF3F98754D6F0442 /* TimerHabitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66DCBD3510CFD7820D748944 /* TimerHabitTests.swift */; };
 		5D1E9CC507C304AEFCEF158F /* TemplateSectionRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35A3D5E5509EAC8C03ACDC8A /* TemplateSectionRepository.swift */; };
 		5E54CFA3C3278E22327A61AD /* InMemoryHabitRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D32CFC452F3B8BE51265ED /* InMemoryHabitRepository.swift */; };
 		5FEEDD19108800DEA99EAB63 /* HabitCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 186272623D7828B105255AC2 /* HabitCategory.swift */; };
@@ -63,21 +68,25 @@
 		8985F9C59CB1BEFC814979DD /* SwiftDataMilestoneRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = A974A03E706CD2185017D430 /* SwiftDataMilestoneRepository.swift */; };
 		8A848402AC9796EC42259C42 /* MilestonesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4BDBA976019695A5CFA9CA9 /* MilestonesListView.swift */; };
 		8B2301F6DD4C892AA84C6F91 /* MilestoneRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AB60F6E62E32CD49FFA56B2 /* MilestoneRepository.swift */; };
+		8BDECEDBE928F19106CF148C /* HabitTimerLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB8814AD0BAAEF7CD6572E1D /* HabitTimerLiveActivity.swift */; };
 		90926934F1B9AD8B9CE18F49 /* AuthServiceEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922D0BF85189F988261B7D29 /* AuthServiceEnvironment.swift */; };
 		916CB33F04B36C97E9C950BE /* WeeklyRingsPagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3A4D78AFD385DD3E494224A /* WeeklyRingsPagerView.swift */; };
 		91B3E80CD6ED07285654BFC8 /* EntitlementService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F405819F55143F5AAA23D633 /* EntitlementService.swift */; };
 		9944B32D8221D5D19FC2E340 /* WeeklyReflectionRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35CEFEDB1A64C69B9E67F953 /* WeeklyReflectionRouter.swift */; };
 		9B6F941F0786C2D70044FCF5 /* StreakLinesStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF86847E6D0665429ABF0BB9 /* StreakLinesStripView.swift */; };
 		9BBC12458FE8A65D8A561C5C /* SwiftDataMoodRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101713D0AFA98FD4534EDEF4 /* SwiftDataMoodRepository.swift */; };
+		9CFF7FE01E3D5D61CA2B8EA8 /* HabitTimerRingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 043DFE20CAE57716105CD05F /* HabitTimerRingView.swift */; };
 		A0216CB85455EF18091BA1CE /* EditSectionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 495D3DF7046CC93FD79B629F /* EditSectionDetailView.swift */; };
 		A111542FF905BE57E0C8C0AE /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C845E8AAB692CA41FEA891D /* HealthKitService.swift */; };
 		A135A3B8A4CE709706C1E26E /* ForgeIconv1.icon in Resources */ = {isa = PBXBuildFile; fileRef = B032223927D6733174F1A1DE /* ForgeIconv1.icon */; };
+		ACD50BDB7BFE6FA5D914CFD4 /* HabitTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA276ABED8B83855BEBF4C6 /* HabitTimerAttributes.swift */; };
 		AD4DEED77A32E558566C18A8 /* TemplateSectionRepositoryEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1E3E67806D936D09B66BEE6 /* TemplateSectionRepositoryEnvironment.swift */; };
 		AE632F825B00715829A04D34 /* MoodCheckInCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB61E49E0C476E33DCB290F4 /* MoodCheckInCard.swift */; };
 		B1E1B1DECAADECE8F0A4A409 /* MilestoneDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5C72C32E098E83C726E5A76 /* MilestoneDetailView.swift */; };
 		B602ABDFDB21C9FA6A82ED1E /* DebugSeedHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8CD3AA1284CB0B4A509C797 /* DebugSeedHistoryView.swift */; };
 		BD64736CAAEEAED4B88389D8 /* HabitNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AD2020E9966C7045248DF33 /* HabitNotificationScheduler.swift */; };
 		BFA7499EB1DFEC0BA0D63D45 /* EditSectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E52B5394271811AA8CEE092 /* EditSectionsView.swift */; };
+		C530606DB6A189BD84950C10 /* ForgeWidgetsBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 585E7ABB8D32A97602D22353 /* ForgeWidgetsBundle.swift */; };
 		C6229551F627E5556623BF3A /* ProgressScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DF04BACEC898B4663F85C2 /* ProgressScreenView.swift */; };
 		CAB279174C8F91C8C5F51E05 /* MilestoneEngineEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70CF5A4B9958FB21329EB53F /* MilestoneEngineEnvironment.swift */; };
 		CC3D10162E3BB2766BFDEB17 /* InMemoryTemplateSectionRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE44E9DE33B83E77F19895EB /* InMemoryTemplateSectionRepository.swift */; };
@@ -104,6 +113,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		0374AECF0E6C5C4C9EAE8F56 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DD0290201C0E580E7A86156E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 39B7B82502EF74964BCB56B9;
+			remoteInfo = ForgeWidgets;
+		};
 		3CCC01E0491824D759E4FCDD /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = DD0290201C0E580E7A86156E /* Project object */;
@@ -113,7 +129,22 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		D33040704521AF2A6E7E3A8C /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				3DCB05625578936E4A2DA896 /* ForgeWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		043DFE20CAE57716105CD05F /* HabitTimerRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitTimerRingView.swift; sourceTree = "<group>"; };
 		05D32CFC452F3B8BE51265ED /* InMemoryHabitRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryHabitRepository.swift; sourceTree = "<group>"; };
 		0757EA390D62EA27B15EE20D /* HealthKitServiceEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitServiceEnvironment.swift; sourceTree = "<group>"; };
 		080186DF3EEEAE1691690CBA /* EntitlementServiceEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementServiceEnvironment.swift; sourceTree = "<group>"; };
@@ -140,6 +171,7 @@
 		35A3D5E5509EAC8C03ACDC8A /* TemplateSectionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSectionRepository.swift; sourceTree = "<group>"; };
 		35CEFEDB1A64C69B9E67F953 /* WeeklyReflectionRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReflectionRouter.swift; sourceTree = "<group>"; };
 		374AD2D54777742738C4AF92 /* HealthKitRealDeviceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitRealDeviceTests.swift; sourceTree = "<group>"; };
+		39113B1569704859C394F49F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		412307AB57C455F20017C1C8 /* HabitColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitColor.swift; sourceTree = "<group>"; };
 		41598F96D0FE8F9EF9D5924C /* MoodLevel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodLevel.swift; sourceTree = "<group>"; };
 		41884147DAE3AD6646B3D5B7 /* PointsLedgerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointsLedgerModel.swift; sourceTree = "<group>"; };
@@ -151,12 +183,16 @@
 		528A80329520F9914A990E6B /* HabitFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitFormView.swift; sourceTree = "<group>"; };
 		535FF11F9F11E7F934A0B3E0 /* PointsLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointsLedger.swift; sourceTree = "<group>"; };
 		56EC53751E7F4C12054F6816 /* CategoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryDetailView.swift; sourceTree = "<group>"; };
+		585E7ABB8D32A97602D22353 /* ForgeWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeWidgetsBundle.swift; sourceTree = "<group>"; };
 		5E1ADE5948619653B4083016 /* Completion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Completion.swift; sourceTree = "<group>"; };
 		5EF132C9FA46A0A810337A21 /* MoodEntryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodEntryModel.swift; sourceTree = "<group>"; };
 		5EF8DCE6457041D274B3C2DA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		62894A0DEF98DD472A06BDA4 /* Habit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Habit.swift; sourceTree = "<group>"; };
 		635C61F86F05E11DF4B5BB93 /* MoodRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodRepository.swift; sourceTree = "<group>"; };
+		66DCBD3510CFD7820D748944 /* TimerHabitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerHabitTests.swift; sourceTree = "<group>"; };
 		6A322B63CA07AF8006C6D79A /* TemplateSectionConfiguration+Resolve.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TemplateSectionConfiguration+Resolve.swift"; sourceTree = "<group>"; };
+		6AA276ABED8B83855BEBF4C6 /* HabitTimerAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitTimerAttributes.swift; sourceTree = "<group>"; };
+		6E9E3CDC175D93A5F1BB9754 /* HabitTimerCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitTimerCoordinator.swift; sourceTree = "<group>"; };
 		7099B990E33E0CF17E0CCA7D /* VacationSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VacationSettings.swift; sourceTree = "<group>"; };
 		70CF5A4B9958FB21329EB53F /* MilestoneEngineEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneEngineEnvironment.swift; sourceTree = "<group>"; };
 		73DB53131CE0424BD8331E4F /* MoodRepositoryEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodRepositoryEnvironment.swift; sourceTree = "<group>"; };
@@ -173,6 +209,7 @@
 		8ECB5365B291706A6611E298 /* SectionIndexStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionIndexStrip.swift; sourceTree = "<group>"; };
 		90E056ABC0397BA133AA6FEB /* MoodNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodNotificationScheduler.swift; sourceTree = "<group>"; };
 		922D0BF85189F988261B7D29 /* AuthServiceEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthServiceEnvironment.swift; sourceTree = "<group>"; };
+		928C411445F8527BBB3CF6B2 /* ForgeWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ForgeWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		92E1B774779BBA00590D8E9D /* RecentlyDeletedSectionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentlyDeletedSectionsView.swift; sourceTree = "<group>"; };
 		9395F0760C7FB2EF9BD68A41 /* InMemoryMilestoneRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryMilestoneRepository.swift; sourceTree = "<group>"; };
 		945C0ED6499DE1D14328DDED /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
@@ -200,6 +237,7 @@
 		D91A703FE817D83C2CEFE30F /* TemplateCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateCatalog.swift; sourceTree = "<group>"; };
 		D9F872C2B7523B078A6B33DB /* SuggestedSectionTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuggestedSectionTier.swift; sourceTree = "<group>"; };
 		DA6C49F676543583E44E88D0 /* HealthKitTypeMapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitTypeMapping.swift; sourceTree = "<group>"; };
+		DB8814AD0BAAEF7CD6572E1D /* HabitTimerLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitTimerLiveActivity.swift; sourceTree = "<group>"; };
 		DDC4984B59FDD409822A6632 /* MilestoneEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneEngine.swift; sourceTree = "<group>"; };
 		E00AA58EC17458B87202A166 /* HabitRepositoryEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitRepositoryEnvironment.swift; sourceTree = "<group>"; };
 		E6DF04BACEC898B4663F85C2 /* ProgressScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressScreenView.swift; sourceTree = "<group>"; };
@@ -244,6 +282,16 @@
 				D4295D6EE380F992FC14F4BC /* CompletionFeedback.swift */,
 			);
 			path = Feedback;
+			sourceTree = "<group>";
+		};
+		2A9E642F87F5DAC3A7A6E76E /* ForgeWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				585E7ABB8D32A97602D22353 /* ForgeWidgetsBundle.swift */,
+				DB8814AD0BAAEF7CD6572E1D /* HabitTimerLiveActivity.swift */,
+				39113B1569704859C394F49F /* Info.plist */,
+			);
+			path = ForgeWidgets;
 			sourceTree = "<group>";
 		};
 		32AE5B70D4CB0113A8985420 /* AddHabit */ = {
@@ -317,6 +365,7 @@
 				16B28E70DAE15EB23CEDB497 /* Notifications */,
 				AA2BF180FA161D49C57507A1 /* Persistence */,
 				332100ACDE1D5E12D3886EFE /* Repositories */,
+				A9E03E21639FB1C959AA3705 /* Timer */,
 			);
 			path = Core;
 			sourceTree = "<group>";
@@ -334,6 +383,7 @@
 			children = (
 				EAD57FE43439B2C292022C07 /* Forge.app */,
 				31685D47D31E3DDDC140AB5A /* ForgeUITests.xctest */,
+				928C411445F8527BBB3CF6B2 /* ForgeWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -374,6 +424,15 @@
 			path = Entitlements;
 			sourceTree = "<group>";
 		};
+		A9E03E21639FB1C959AA3705 /* Timer */ = {
+			isa = PBXGroup;
+			children = (
+				6AA276ABED8B83855BEBF4C6 /* HabitTimerAttributes.swift */,
+				6E9E3CDC175D93A5F1BB9754 /* HabitTimerCoordinator.swift */,
+			);
+			path = Timer;
+			sourceTree = "<group>";
+		};
 		AA2BF180FA161D49C57507A1 /* Persistence */ = {
 			isa = PBXGroup;
 			children = (
@@ -407,6 +466,7 @@
 			children = (
 				374AD2D54777742738C4AF92 /* HealthKitRealDeviceTests.swift */,
 				7F66DC2541D078D6905E7A13 /* MoodCheckInTests.swift */,
+				66DCBD3510CFD7820D748944 /* TimerHabitTests.swift */,
 				D2F7E3AA2B3CD47505A0E877 /* WeeklyPagerSwipeTests.swift */,
 			);
 			path = ForgeUITests;
@@ -470,6 +530,7 @@
 			children = (
 				DD5E2466335F3E5F02761415 /* Forge */,
 				C31349E3F02EFC1031777538 /* ForgeUITests */,
+				2A9E642F87F5DAC3A7A6E76E /* ForgeWidgets */,
 				4D92E0C67E2F7B85FC426E2E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -485,6 +546,7 @@
 		FF95EFA556608D4B496FB2F5 /* Home */ = {
 			isa = PBXGroup;
 			children = (
+				043DFE20CAE57716105CD05F /* HabitTimerRingView.swift */,
 				E9B4912998C44716F0FEAB09 /* HomeView.swift */,
 				FB61E49E0C476E33DCB290F4 /* MoodCheckInCard.swift */,
 				AF86847E6D0665429ABF0BB9 /* StreakLinesStripView.swift */,
@@ -514,16 +576,35 @@
 			productReference = 31685D47D31E3DDDC140AB5A /* ForgeUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		39B7B82502EF74964BCB56B9 /* ForgeWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C7B883C9E5167BB19F7A32BF /* Build configuration list for PBXNativeTarget "ForgeWidgets" */;
+			buildPhases = (
+				5DCC49BFC3AF3CECBCB08E89 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ForgeWidgets;
+			packageProductDependencies = (
+			);
+			productName = ForgeWidgets;
+			productReference = 928C411445F8527BBB3CF6B2 /* ForgeWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		B86A17B415789897E93F9B10 /* Forge */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 14C3B2F58A3E154141422499 /* Build configuration list for PBXNativeTarget "Forge" */;
 			buildPhases = (
 				54A6215C61489CB2E4C48797 /* Sources */,
 				A16CEC7F4CECFBE8099E0D0C /* Resources */,
+				D33040704521AF2A6E7E3A8C /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				7268CE049DA82AE129DA529C /* PBXTargetDependency */,
 			);
 			name = Forge;
 			packageProductDependencies = (
@@ -546,6 +627,10 @@
 						ProvisioningStyle = Automatic;
 						TestTargetID = B86A17B415789897E93F9B10;
 					};
+					39B7B82502EF74964BCB56B9 = {
+						DevelopmentTeam = 53T98NLS49;
+						ProvisioningStyle = Automatic;
+					};
 					B86A17B415789897E93F9B10 = {
 						DevelopmentTeam = 53T98NLS49;
 						ProvisioningStyle = Automatic;
@@ -567,6 +652,7 @@
 			projectRoot = "";
 			targets = (
 				B86A17B415789897E93F9B10 /* Forge */,
+				39B7B82502EF74964BCB56B9 /* ForgeWidgets */,
 				048EF5FF280B1128083FAB7B /* ForgeUITests */,
 			);
 		};
@@ -622,6 +708,9 @@
 				F08AAE9569910315BBA247AC /* HabitRepositoryEnvironment.swift in Sources */,
 				31CF29B08C0E8B4F1D95EDFE /* HabitSyncSettingsDetailView.swift in Sources */,
 				55639823C10CBF03699C81CA /* HabitTemplate.swift in Sources */,
+				0E584795572898C34C82DA7E /* HabitTimerAttributes.swift in Sources */,
+				03CF060868D1F506085F3376 /* HabitTimerCoordinator.swift in Sources */,
+				9CFF7FE01E3D5D61CA2B8EA8 /* HabitTimerRingView.swift in Sources */,
 				3278ECEC083D7B9B9253C88D /* HabitUnit.swift in Sources */,
 				1076868907FEA0F389E4806E /* HealthKitBadgeView.swift in Sources */,
 				A111542FF905BE57E0C8C0AE /* HealthKitService.swift in Sources */,
@@ -681,12 +770,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		5DCC49BFC3AF3CECBCB08E89 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C530606DB6A189BD84950C10 /* ForgeWidgetsBundle.swift in Sources */,
+				07FD56CE800FDE3B7A6027FD /* HabitColor.swift in Sources */,
+				ACD50BDB7BFE6FA5D914CFD4 /* HabitTimerAttributes.swift in Sources */,
+				8BDECEDBE928F19106CF148C /* HabitTimerLiveActivity.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F3113D6B5AD30C2FC45B1C87 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				22F2437A72A872912929FAC4 /* HealthKitRealDeviceTests.swift in Sources */,
 				01252BB84EA5B3EB48130CC3 /* MoodCheckInTests.swift in Sources */,
+				59374863BF3F98754D6F0442 /* TimerHabitTests.swift in Sources */,
 				718F085437308A07DBCEBD2F /* WeeklyPagerSwipeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -694,6 +795,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		7268CE049DA82AE129DA529C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 39B7B82502EF74964BCB56B9 /* ForgeWidgets */;
+			targetProxy = 0374AECF0E6C5C4C9EAE8F56 /* PBXContainerItemProxy */;
+		};
 		D3E0091C3B64DA6AF6FB0103 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = B86A17B415789897E93F9B10 /* Forge */;
@@ -728,6 +834,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Forge reads Health data to automatically mark HealthKit-tracked habits (like water intake, workouts, and sleep) complete when your data already meets your goal.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Forge writes to Health when you manually log a HealthKit-tracked habit, so your data stays in sync in both directions.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -806,6 +913,27 @@
 			};
 			name = Release;
 		};
+		B8DF0F2456F18B31769B7E37 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ForgeWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bilalhammad.forge.native.widgets;
+				PRODUCT_NAME = ForgeWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 		BABE6FBABB009ABC6B5201BA /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -832,6 +960,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Forge reads Health data to automatically mark HealthKit-tracked habits (like water intake, workouts, and sleep) complete when your data already meets your goal.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Forge writes to Health when you manually log a HealthKit-tracked habit, so your data stays in sync in both directions.";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -841,6 +970,27 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.bilalhammad.forge.native;
 				PRODUCT_NAME = Forge;
 				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CB4F50A15C8C6B3E173FDFF5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ForgeWidgets/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.bilalhammad.forge.native.widgets;
+				PRODUCT_NAME = ForgeWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -943,6 +1093,15 @@
 			buildConfigurations = (
 				DCC2F712BBF791A5AA4F603C /* Debug */,
 				AF7B7C6608444234562BD549 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C7B883C9E5167BB19F7A32BF /* Build configuration list for PBXNativeTarget "ForgeWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B8DF0F2456F18B31769B7E37 /* Debug */,
+				CB4F50A15C8C6B3E173FDFF5 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

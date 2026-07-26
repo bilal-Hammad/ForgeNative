@@ -356,15 +356,22 @@ struct HabitFormView: View {
                             }
                         }
 
-                        HStack {
-                            Text("Increment")
-                            Spacer()
-                            TextField("Step", value: $step, format: .number)
-                                .keyboardType(.numberPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 80)
-                            Stepper("", value: $step, in: 1...10000)
-                                .labelsHidden()
+                        // A duration goal has no coherent "increment by a
+                        // fixed step" meaning — minutes/hours habits use the
+                        // native timer interaction instead of tap-to-
+                        // increment (see HomeView.handleTap), so there's
+                        // nothing for this field to configure.
+                        if !unit.isTimeBased {
+                            HStack {
+                                Text("Increment")
+                                Spacer()
+                                TextField("Step", value: $step, format: .number)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(width: 80)
+                                Stepper("", value: $step, in: 1...10000)
+                                    .labelsHidden()
+                            }
                         }
                     }
                 } header: {
