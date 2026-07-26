@@ -542,3 +542,60 @@ if something turns out to be wrong, add a new entry correcting it rather than re
   `ForgeUITests`' kept tests are (`WeeklyPagerSwipeTests`, `MoodCheckInTests`). `HealthKitRealDeviceTests.swift`
   itself (pre-existing, written in a prior session) was **not** removed — it remains the permanent,
   reusable real-device HealthKit regression test per its own doc comment's framing.
+
+---
+
+## 2026-07-27 — Live Activity layout bug fix (icon overlapping ring)
+
+- **Context**: the user manually screenshotted the timer feature's Live Activity on the real Lock
+  Screen and found the habit icon rendered directly on top of the countdown ring, making the number
+  illegible — asked for a fix plus real Lock Screen screenshot proof, the same way the last
+  verification in this file was done.
+- **Root cause, confirmed by reading the actual code**: `HabitTimerLiveActivity.swift`'s
+  `lockScreenView` stacked `ProgressView(timerInterval:).circular` and `Image(systemName:
+  iconSystemName)` in the same `ZStack`/44×44 frame — literally drawn on top of each other.
+- **Fix, pass 1**: restructured to `HStack`: ring alone (bumped to 50×50) on the left, habit title in
+  the middle, `Spacer()`, icon in its own dedicated slot on the right. Also added an explicit
+  `Text(timerInterval:)` inside the ring's `ZStack`, since the earlier (in-app, Simulator-only) finding
+  was that `ProgressView(timerInterval:).circular` renders as a bare spinner with no visible number —
+  reasonable to assume the same held here without re-checking.
+- **Real on-device Lock Screen screenshot after pass 1**: icon separation confirmed fixed (clearly on
+  the right, no overlap) — but a **new, real finding**: the ring's countdown number appeared visually
+  garbled/doubled ("1:52" with a stray extra stroke). Root cause: `ProgressView(timerInterval:)
+  .circular` **does** render its own legible countdown number natively inside a real
+  `ActivityViewContext`-hosted Live Activity (unlike the plain in-app `ProgressView` used earlier in
+  `HabitTimerRingView`, which was separately confirmed to render as a bare spinner in a normal
+  Simulator/app context — two different rendering environments, two different real behaviors, neither
+  assumed). The explicit `Text(timerInterval:)` added in pass 1 was therefore drawing a second,
+  slightly misaligned copy of the same number directly on top of the ring's own — `.labelsHidden()`
+  suppresses the peripheral title, not this built-in numeral.
+- **Fix, pass 2**: removed the redundant `Text(timerInterval:)`, keeping only the bare `ProgressView`
+  in the ring — its own native number is what's now shown, confirmed clean via a second real
+  screenshot (single legible "1:52", no doubling, icon still correctly separated on the right).
+- **New technique discovered this pass, kept in mind for future Live-Activity/Lock-Screen work**:
+  locking and re-waking a **real device** (not Simulator) purely via XCUITest, to capture an actual
+  Lock Screen screenshot — `XCUIDevice.shared.perform(NSSelectorFromString("pressLockButton"))`. One
+  press locks *and* sleeps the display (screen goes solid black); a second press wakes it again while
+  still locked, showing the real Lock Screen UI (wallpaper, clock, Live Activity banners). A first,
+  blind-fixed-delay attempt at this proved flaky — two separate runs each froze on a solid black
+  screenshot despite structurally identical timing to a run that had worked. Fixed with a direct
+  pixel-brightness check (downscale the captured `UIImage` to 8×8 and average RGB) rather than trusting
+  a fixed sleep duration or guessing an accessibility-element existence check on `springboard` — retry
+  the wake press (up to 5×) until the screenshot is genuinely non-black. This is a real, reusable
+  finding for any future on-device Lock Screen verification in this project, alongside the existing
+  cross-app-`XCUIApplication`-by-bundle-ID technique from the HealthKit/Health-app verification above.
+- **Verification habit used**: a temporary "Lock Screen Test Habit" (goal 2 minutes, well clear of the
+  permanent `TimerHabitTests` fixture's 3-second one) added to `ForgeApp.swift`'s `-uiTesting` seed
+  block purely for this manual check, then removed afterward — the committed `-uiTesting` fixture is
+  back to exactly what it was before this task (just "Pager Test Habit" + "Timer Test Habit").
+- **What was verified, and how**: full rebuild succeeds on both Simulator and the real device; the
+  permanent `TimerHabitTests` (both cases) plus `WeeklyPagerSwipeTests`/`MoodCheckInTests` all still
+  pass on Simulator, confirming no regression from touching `HabitTimerLiveActivity.swift`. The fix
+  itself is confirmed by two real, successive on-device Lock Screen screenshots (one per pass above) —
+  not just a build succeeding or the code "looking right."
+- **Temporary files removed**: `ForgeUITests/LockScreenExperimentTest.swift` and the temporary seed
+  habit in `ForgeApp.swift` — this was a one-off manual verification aid, not a candidate for
+  permanent-regression-test status (unlike `TimerHabitTests`, which already covers the feature's actual
+  interaction logic; this was specifically about a Lock Screen *visual* that a permanent XCUITest can't
+  usefully assert on beyond "the Activity started," which `TimerHabitTests` doesn't currently check —
+  flagged as a possible small future addition, not done here).

@@ -68,26 +68,44 @@ struct HabitTimerLiveActivity: Widget {
         }
     }
 
+    /// **Layout bug found via a real on-device Lock Screen screenshot,
+    /// fixed here**: the habit icon used to sit in the same `ZStack`/frame
+    /// as the countdown ring, directly on top of it — the ring genuinely
+    /// does render a legible countdown number of its own in this real Live
+    /// Activity context (unlike the plain in-app `ProgressView
+    /// (timerInterval:).circular`, which was separately found to render as
+    /// a bare spinner glyph — see this file's other doc comment), so the
+    /// overlapping icon was obscuring real, otherwise-legible text. Fixed
+    /// by giving the icon its own dedicated trailing position instead of
+    /// sharing the ring's bounds — ring (+ its own countdown text) on the
+    /// left, title in the middle, icon on the right, nothing overlapping
+    /// anything else.
     private func lockScreenView(context: ActivityViewContext<HabitTimerAttributes>) -> some View {
         HStack(spacing: 14) {
-            ZStack {
-                ProgressView(timerInterval: context.attributes.startDate...context.state.endDate, countsDown: true)
-                    .progressViewStyle(.circular)
-                    .tint(context.attributes.color.color)
-                    .labelsHidden()
-                Image(systemName: context.attributes.iconSystemName)
-                    .foregroundStyle(context.attributes.color.color)
-            }
-            .frame(width: 44, height: 44)
+            // No separate `Text(timerInterval:)` layered in here — a real
+            // on-device Lock Screen screenshot after the icon-overlap fix
+            // above showed a garbled, doubled numeral, because
+            // `ProgressView(timerInterval:).circular` already draws its
+            // own legible countdown number inside the ring in this real
+            // Live Activity context (`.labelsHidden()` only suppresses the
+            // peripheral title, not this) — confirmed via that same
+            // screenshot. Adding another `Text` on top of it was
+            // redundant, not additive.
+            ProgressView(timerInterval: context.attributes.startDate...context.state.endDate, countsDown: true)
+                .progressViewStyle(.circular)
+                .tint(context.attributes.color.color)
+                .labelsHidden()
+                .frame(width: 50, height: 50)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(context.attributes.habitTitle)
-                    .font(.headline)
-                Text(timerInterval: context.attributes.startDate...context.state.endDate, countsDown: true)
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
+            Text(context.attributes.habitTitle)
+                .font(.headline)
+                .lineLimit(2)
+
             Spacer()
+
+            Image(systemName: context.attributes.iconSystemName)
+                .font(.title2)
+                .foregroundStyle(context.attributes.color.color)
         }
         .padding()
     }
