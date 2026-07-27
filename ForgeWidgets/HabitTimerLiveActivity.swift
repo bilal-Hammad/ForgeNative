@@ -1,4 +1,5 @@
 import ActivityKit
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -52,6 +53,17 @@ struct HabitTimerLiveActivity: Widget {
                     Text(context.attributes.habitTitle)
                         .font(.headline)
                 }
+                // Interactive Stop control — `StopTimerIntent` conforms to
+                // `LiveActivityIntent`, so tapping this runs entirely in
+                // this extension's own process, never launching `Forge`.
+                // See that type's doc comment for the full mechanism.
+                DynamicIslandExpandedRegion(.bottom) {
+                    Button(intent: StopTimerIntent(habitID: context.attributes.habitID)) {
+                        Label("Stop", systemImage: "stop.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .tint(.red)
+                }
             } compactLeading: {
                 Image(systemName: context.attributes.iconSystemName)
                     .foregroundStyle(context.attributes.color.color)
@@ -81,31 +93,61 @@ struct HabitTimerLiveActivity: Widget {
     /// left, title in the middle, icon on the right, nothing overlapping
     /// anything else.
     private func lockScreenView(context: ActivityViewContext<HabitTimerAttributes>) -> some View {
-        HStack(spacing: 14) {
-            // No separate `Text(timerInterval:)` layered in here — a real
-            // on-device Lock Screen screenshot after the icon-overlap fix
-            // above showed a garbled, doubled numeral, because
-            // `ProgressView(timerInterval:).circular` already draws its
-            // own legible countdown number inside the ring in this real
-            // Live Activity context (`.labelsHidden()` only suppresses the
-            // peripheral title, not this) — confirmed via that same
-            // screenshot. Adding another `Text` on top of it was
-            // redundant, not additive.
-            ProgressView(timerInterval: context.attributes.startDate...context.state.endDate, countsDown: true)
-                .progressViewStyle(.circular)
-                .tint(context.attributes.color.color)
-                .labelsHidden()
-                .frame(width: 50, height: 50)
+        VStack(spacing: 12) {
+            HStack(spacing: 14) {
+                // No separate `Text(timerInterval:)` layered in here — a
+                // real on-device Lock Screen screenshot after the icon-
+                // overlap fix above showed a garbled, doubled numeral,
+                // because `ProgressView(timerInterval:).circular` already
+                // draws its own legible countdown number inside the ring in
+                // this real Live Activity context (`.labelsHidden()` only
+                // suppresses the peripheral title, not this) — confirmed
+                // via that same screenshot. Adding another `Text` on top of
+                // it was redundant, not additive.
+                //
+                // 56×56, up from the original 50×50 — a follow-up pass
+                // specifically re-checked this ring on a fresh real Lock
+                // Screen screenshot (see this file's own investigation
+                // notes in RESULTS.md) rather than assuming the separate
+                // in-app ring-unification pass touched this view at all
+                // (it didn't — `HabitTimerLiveActivity` is a distinct file
+                // using the system `ProgressView(timerInterval:)` renderer,
+                // never `HabitTimerRingView`'s `Gauge`/`TimelineView`
+                // approach). The system controls this view's internal
+                // number sizing, not us directly — more frame gives it more
+                // room to keep the digits clear of the stroke.
+                ProgressView(timerInterval: context.attributes.startDate...context.state.endDate, countsDown: true)
+                    .progressViewStyle(.circular)
+                    .tint(context.attributes.color.color)
+                    .labelsHidden()
+                    .frame(width: 56, height: 56)
 
-            Text(context.attributes.habitTitle)
-                .font(.headline)
-                .lineLimit(2)
+                Text(context.attributes.habitTitle)
+                    .font(.headline)
+                    .lineLimit(2)
 
-            Spacer()
+                Spacer()
 
-            Image(systemName: context.attributes.iconSystemName)
-                .font(.title2)
-                .foregroundStyle(context.attributes.color.color)
+                Image(systemName: context.attributes.iconSystemName)
+                    .font(.title2)
+                    .foregroundStyle(context.attributes.color.color)
+            }
+
+            // Interactive Stop control — previously, cancelling a running
+            // timer's Live Activity had no on-screen affordance at all
+            // (only the in-app row's own tap-again convention worked, and
+            // only once the app was reopened). `StopTimerIntent` conforms
+            // to `LiveActivityIntent`, so tapping this runs entirely in
+            // this extension's own process — the banner is dismissed
+            // immediately, without ever launching `Forge`. See that type's
+            // doc comment for the full mechanism, including how the
+            // persisted completion catches up afterward.
+            Button(intent: StopTimerIntent(habitID: context.attributes.habitID)) {
+                Label("Stop", systemImage: "stop.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .tint(.red)
         }
         .padding()
     }

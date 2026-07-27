@@ -116,6 +116,38 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       XCUITest flakiness finding (automation-mode init timing out until the device screen was freshly
       woken immediately before the run).
 
+- [x] **Visible timer Stop control (in-app + Live Activity) + Lock Screen ring spacing re-check**.
+      BUILT this pass — the two items left outstanding from the same request that produced the ring-
+      unification entry above. In-app: `HabitCardRow`'s running-timer row now shows a real `Button`
+      (red `stop.circle.fill`, `timerStatus.stopButton`) next to the ring, calling the same
+      `cancelTimer(for:)` the old tap-again convention always used — that convention still works
+      unchanged, this just gives it a real visual affordance. Live Activity: new `StopTimerIntent`
+      (`ForgeWidgets`, conforms to `LiveActivityIntent`, iOS 17+) wired into both the Lock Screen view
+      and the Dynamic Island's expanded region — tapping it ends the `Activity` immediately, directly
+      in the extension process, without ever launching `Forge` (`Activity<HabitTimerAttributes>
+      .activities` is visible from either process, no App Group needed for that lookup). The
+      persisted `Completion.startedAt` can't be mutated from the extension directly (SwiftData's
+      `ModelContainer` lives in the main app's process) — new App Group
+      (`group.com.bilalhammad.forge.native`) + `SharedTimerStopSignal` (a few bytes of shared
+      `UserDefaults`, not the whole store) carries which habit to cancel; `HomeView
+      .processPendingTimerStops()` (called from `reload()` and the `scenePhase` foreground handler)
+      catches it up next time the app opens, same self-healing shape as `checkTimerCompletions()`
+      right next to it. Lock Screen ring: re-checked via a fresh real screenshot rather than assumed
+      fixed by the separate ring-unification pass above (confirmed unrelated — `HabitTimerLiveActivity
+      .swift` is a distinct file using the system `ProgressView(timerInterval:)` renderer, never
+      touched by that pass); bumped 50×50 → 56×56 as a safety margin, verified clean via a real Lock
+      Screen screenshot. Verified: real device screenshots confirm the in-app Stop button works, the
+      Live Activity's Stop button visibly ends the banner the instant it's tapped from the real Lock
+      Screen (without opening the app), and the ring/text have clear separation. `ResetHabitTests`/
+      `TimerHabitTests` (which gained a new `testStopButtonStopsRunningTimer` case) re-run clean. See
+      RESULTS.md for the full account, including a real bug found via a failing XCUITest
+      (`.accessibilityIdentifier` on a wrapping container was cascading down and overwriting a child
+      `Button`'s own identifier) and an honestly-flagged limitation (confirming the persisted-
+      completion catch-up via a live app-relaunch screenshot hit a real Face ID/passcode
+      authentication boundary XCUITest can't cross — the mechanism itself is verified by code review
+      and reuses already-tested logic, matching this project's established precedent for this class of
+      system-security-UI limitation).
+
 ---
 
 ## P1 — Genuinely missing features (spec claims done or doesn't flag as missing; code has nothing)

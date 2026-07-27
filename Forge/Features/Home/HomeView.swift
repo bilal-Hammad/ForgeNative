@@ -217,7 +217,10 @@ struct HomeView: View {
                 // shape as `MilestoneEngine.runCatchUp()` elsewhere in
                 // this app.
                 guard newPhase == .active else { return }
-                Task { await checkTimerCompletions() }
+                Task {
+                    await processPendingTimerStops()
+                    await checkTimerCompletions()
+                }
             }
             .sheet(isPresented: $isPresentingAddHabit) {
                 CategoryPickerView {
@@ -282,7 +285,8 @@ struct HomeView: View {
             completion: selectedDayCompletions[habit.id],
             isHealthKitConnected: healthKitConnectionStatus[habit.id] ?? false,
             referenceDate: selectedDate,
-            interactionToken: lastInteraction
+            interactionToken: lastInteraction,
+            onStopTimer: { Task { await cancelTimer(for: habit) } }
         )
         .contentShape(Rectangle())
 
@@ -342,7 +346,10 @@ struct HomeView: View {
             completion: selectedDayCompletions[habit.id],
             isHealthKitConnected: healthKitConnectionStatus[habit.id] ?? false,
             referenceDate: selectedDate,
-            interactionToken: nil
+            interactionToken: nil,
+            // A context-menu preview is a static snapshot, not a live
+            // interactive view — no real tap ever reaches this closure.
+            onStopTimer: {}
         )
         .frame(maxWidth: .infinity)
     }
@@ -351,6 +358,7 @@ struct HomeView: View {
         let allHabits = (try? await habitRepository.fetchAll()) ?? []
         habits = allHabits.filter { !$0.isArchived }
         await reloadSelectedDayCompletions()
+        await processPendingTimerStops()
         if isViewingToday {
             await checkTimerCompletions()
         }
@@ -578,6 +586,37 @@ struct HomeView: View {
         }
         dispatchMilestoneCheck(for: habit)
         HabitTimerCoordinator.shared.endLiveActivity(habitID: habitID, completed: true)
+    }
+
+    /// Processes any pending "stop this timer" signals left by
+    /// `StopTimerIntent` — the Live Activity's interactive Stop button,
+    /// which runs entirely in the `ForgeWidgets` extension process and
+    /// never launches this app. The Live Activity itself already ended the
+    /// instant the user tapped it; this just catches up the *persisted*
+    /// `Completion.startedAt` next time the app is opened, same
+    /// self-healing shape as `checkTimerCompletions()` right below (called
+    /// on cold launch via `reload()`, and on every foreground via the
+    /// `scenePhase` handling in `body`).
+    ///
+    /// Resolves against real `.now`, never `selectedDate` — a running
+    /// timer only ever exists for today, and this can run while the user
+    /// happens to be viewing a different day.
+    private func processPendingTimerStops() async {
+        let pendingHabitIDs = SharedTimerStopSignal.drainPendingStops()
+        guard !pendingHabitIDs.isEmpty else { return }
+        let todaysCompletions = (try? await habitRepository.fetchCompletions(for: .now)) ?? []
+        var completionsByHabit = Dictionary(uniqueKeysWithValues: todaysCompletions.map { ($0.habitID, $0) })
+        for habitID in pendingHabitIDs {
+            guard var completion = completionsByHabit[habitID], completion.startedAt != nil else { continue }
+            completion.startedAt = nil
+            completion.loggedAt = .now
+            try? await habitRepository.upsertCompletion(completion)
+            completionsByHabit[habitID] = completion
+            if isViewingToday {
+                selectedDayCompletions[habitID] = completion
+            }
+            HabitTimerCoordinator.shared.endLiveActivity(habitID: habitID, completed: false)
+        }
     }
 
     /// Catch-up sweep for time-unit habits whose goal time has already
@@ -876,6 +915,14 @@ private struct HabitCardRow: View {
     /// this habit — see the type's doc comment. `nil`/unrelated most of the
     /// time; a day switch never touches this.
     let interactionToken: InteractionToken?
+    /// Invoked by the visible Stop button in `timerStatusIndicator`'s
+    /// running case — calls `HomeView.cancelTimer(for:)`, the exact same
+    /// logic a second tap on the row already triggered before this button
+    /// existed. That tap-again convention still works too (this button
+    /// doesn't replace it, just gives it a real visual affordance) — see
+    /// this property's use site for why a nested `Button` and the row's own
+    /// `.onTapGesture` don't conflict.
+    let onStopTimer: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
@@ -999,12 +1046,54 @@ private struct HabitCardRow: View {
             simpleCompletionIcon
                 .accessibilityIdentifier("timerStatus.complete")
         } else if let startedAt = completion?.startedAt {
-            HabitTimerRingView(
-                start: startedAt,
-                end: startedAt.addingTimeInterval(habit.goal * habit.unit.secondsPerUnit),
-                tint: habit.color.color
-            )
-            .accessibilityIdentifier("timerStatus.running")
+            // A visible Stop control — previously, cancelling a running
+            // timer relied entirely on the invisible "tap the row again"
+            // convention, with no on-screen affordance hinting it exists.
+            // `Button` is a real nested interactive control here, not a
+            // second competing `Gesture` recognizer on the same view (the
+            // ambiguous-gesture bug this project hit and fixed elsewhere in
+            // this file was specifically about two independent `Gesture`-
+            // protocol modifiers on one view; a `Button`'s own built-in hit
+            // testing is a different, well-defined mechanism that already
+            // reliably coexists with an ancestor's `.onTapGesture`
+            // elsewhere in this app, e.g. `List` swipe-action buttons) —
+            // but this is still verified with a real XCUITest, not just
+            // assumed correct from that reasoning, matching this project's
+            // own standing bar for gesture/interaction work.
+            //
+            // A real, empirically-found finding worth keeping in mind for
+            // future work in this file: `.accessibilityIdentifier` applied
+            // to a *wrapping* `HStack` here was found (via a failing
+            // XCUITest and its captured accessibility-hierarchy dump, not
+            // guessed) to cascade down and overwrite each child's own
+            // individually-set identifier — the Button ended up exposed
+            // with identifier `timerStatus.running` (the parent's) instead
+            // of `timerStatus.stopButton` (its own), making it
+            // unfindable by the identifier this code actually sets on it.
+            // Fixed by putting the identifier on `HabitTimerRingView`
+            // directly (matching exactly where it lived before this
+            // feature added the wrapping HStack) rather than on the
+            // container — each element now keeps its own distinct
+            // identifier, no propagation.
+            HStack(spacing: 8) {
+                Button {
+                    onStopTimer()
+                } label: {
+                    Image(systemName: "stop.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Stop Timer")
+                .accessibilityIdentifier("timerStatus.stopButton")
+
+                HabitTimerRingView(
+                    start: startedAt,
+                    end: startedAt.addingTimeInterval(habit.goal * habit.unit.secondsPerUnit),
+                    tint: habit.color.color
+                )
+                .accessibilityIdentifier("timerStatus.running")
+            }
         } else {
             Image(systemName: "timer")
                 .font(.title2)

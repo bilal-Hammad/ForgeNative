@@ -58,4 +58,37 @@ final class TimerHabitTests: XCTestCase {
         let runningMarker = app.descendants(matching: .any)["timerStatus.running"]
         XCTAssertFalse(runningMarker.exists, "long-press should never leave the timer in a running state")
     }
+
+    /// Regression test for the visible in-app Stop control — previously,
+    /// cancelling a running timer relied entirely on the invisible
+    /// "tap the row again" convention. Confirms the dedicated `Button`
+    /// (`timerStatus.stopButton`) tapped directly (not just tapping the
+    /// row generally) genuinely stops the timer, and that the row's own
+    /// tap-again convention still works unchanged alongside it.
+    ///
+    /// Uses "Stop Button Test Habit" (goal 2 minutes), not "Timer Test
+    /// Habit" (goal 3 seconds) — the 3-second habit was found to genuinely
+    /// auto-complete out from under this test before it could locate and
+    /// tap the Stop button, since finding+tapping takes real wall-clock
+    /// time on top of the running-state assertion above it.
+    func testStopButtonStopsRunningTimer() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting"]
+        app.launch()
+
+        let habitRow = app.staticTexts["Stop Button Test Habit"]
+        XCTAssertTrue(habitRow.waitForExistence(timeout: 10), "seeded timer habit row never appeared")
+
+        habitRow.tap()
+        let runningMarker = app.descendants(matching: .any)["timerStatus.running"]
+        XCTAssertTrue(runningMarker.waitForExistence(timeout: 5), "timer never entered the running state after tapping")
+
+        let stopButton = app.descendants(matching: .any)["timerStatus.stopButton"]
+        XCTAssertTrue(stopButton.waitForExistence(timeout: 5), "Stop button never appeared on the running timer row")
+        stopButton.tap()
+
+        let idleMarker = app.descendants(matching: .any)["timerStatus.idle"]
+        XCTAssertTrue(idleMarker.waitForExistence(timeout: 5), "Stop button tap never returned the timer to idle")
+        XCTAssertFalse(app.descendants(matching: .any)["timerStatus.running"].exists, "timer should no longer be running after Stop")
+    }
 }

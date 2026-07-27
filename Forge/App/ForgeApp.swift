@@ -73,6 +73,15 @@ struct ForgeApp: App {
             // to exercise the long-press Complete/Reset dialog.
             let quantityHabit = Habit(title: "Quantity Test Habit", category: .good, iconSystemName: "number", goal: 3, unit: .count, step: 1, startDate: eightWeeksAgo)
             context.insert(HabitModel(habit: quantityHabit))
+            // A deliberately *longer* goal than "Timer Test Habit" above —
+            // seeded for `TimerHabitTests.testStopButtonStopsRunningTimer`,
+            // which needs the timer to still genuinely be running while it
+            // locates and taps the Stop button; the 3-second habit above
+            // was found to auto-complete out from under that test before
+            // it got that far (a real, measured test-timing finding, not a
+            // Stop button bug — see RESULTS.md).
+            let stopButtonTestHabit = Habit(title: "Stop Button Test Habit", category: .good, iconSystemName: "timer", goal: 2, unit: .minutes, startDate: eightWeeksAgo)
+            context.insert(HabitModel(habit: stopButtonTestHabit))
             try? context.save()
         }
         habitRepository = SwiftDataHabitRepository(modelContainer: modelContainer)

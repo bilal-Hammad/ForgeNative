@@ -901,3 +901,139 @@ files before starting), so no test changes were needed. Both suites re-run clean
 change.
 
 **Temporary files removed after capturing**: `ForgeUITests/RingSizeVerificationTest.swift`.
+
+---
+
+## 2026-07-27 — Visible timer Stop control (in-app + Live Activity) + Lock Screen ring spacing re-check
+
+**Context**: two items left outstanding from the same request that produced the ring-unification entry
+above — stopping a running timer had no visible affordance at all (only the invisible "tap the row
+again" convention), and the Lock Screen ring's spacing needed a fresh real check rather than an
+assumption that the ring-unification pass had incidentally fixed it (it hadn't touched that file at
+all — see below).
+
+### 1. In-app Stop button
+
+`HabitCardRow`'s `timerStatusIndicator` running-state branch gained a real `Button` (red
+`stop.circle.fill`, `.accessibilityLabel("Stop Timer")`) next to the ring, wired through a new
+`onStopTimer: () -> Void` closure prop threaded in from `HomeView.habitRow(for:)` (`{ Task { await
+cancelTimer(for: habit) } }` — the exact same function the old tap-again convention already called;
+this button doesn't replace that convention, just gives it a visible affordance for the first time).
+The context-menu preview instance (`habitPreview(for:)`) passes a no-op closure — a context-menu
+preview is a static snapshot, no real tap ever reaches it.
+
+**A real, empirically-found bug along the way**: the first XCUITest for this (`testStopButtonStops
+RunningTimer`) failed with "Stop button never appeared," twice, for two different reasons:
+1. **First failure, a real test-timing issue, not a Stop-button bug**: "Timer Test Habit" (the existing
+   fixture, 3-second goal — deliberately short for the *other* timer test's own purposes) auto-completed
+   before this new test's extra find-and-tap steps could run, confirmed by the captured accessibility
+   dump showing `timerStatus.complete` already active. Fixed by seeding a second fixture,
+   "Stop Button Test Habit" (2-minute goal), specifically for this test.
+2. **Second failure, a genuine SwiftUI accessibility bug**: even with the longer-duration habit, the
+   Stop button still wasn't found. The captured accessibility-hierarchy dump (from the failing test's
+   own debug attachment, not guessed) showed the *actual* on-screen `Button` exposed with identifier
+   `timerStatus.running` — the wrapping `HStack`'s identifier — instead of the `timerStatus.stopButton`
+   this code explicitly sets on the `Button` itself. `.accessibilityIdentifier` applied to a *container*
+   was cascading down and overwriting each child's own individually-set identifier (the ring element
+   showed the same overwritten-to-`timerStatus.running` behavior). Fixed by moving
+   `.accessibilityIdentifier("timerStatus.running")` off the wrapping `HStack` and back onto
+   `HabitTimerRingView` directly (exactly where it lived before this feature added the wrapping
+   HStack) — each element now keeps its own distinct identifier, confirmed by the same test passing
+   cleanly afterward. Worth remembering for any future nested-interactive-control work in this file.
+
+### 2. Live Activity interactive Stop button
+
+New `StopTimerIntent` (`ForgeWidgets/StopTimerIntent.swift`), conforming to `LiveActivityIntent`
+(iOS 17+) rather than plain `AppIntent` — that specific protocol is what makes `perform()` run directly
+in the extension's own process when the button is tapped, never launching or foregrounding `Forge`,
+matching the request's explicit "without opening the app." Wired into both `HabitTimerLiveActivity`'s
+`lockScreenView` (a full-width red bordered button below the existing ring/title/icon row) and the
+Dynamic Island's new `.bottom` expanded region.
+
+**Two deliberately different halves of "stop," reflecting a real architectural constraint**:
+1. **Ends the `Activity` immediately, directly in the extension** — `Activity<HabitTimerAttributes>
+   .activities` (a static, cross-process-visible list; the same one `HabitTimerCoordinator
+   .reattachExistingActivities()` already reads from the main app's process) needs no App Group to
+   query. This is the half that's instant and needed no compromise.
+2. **The persisted `Completion.startedAt`** can't be mutated from the extension process directly —
+   `HabitRepository` is backed by a SwiftData `ModelContainer` owned by `ForgeApp.init()`, in the main
+   app's process, not reachable from `ForgeWidgets`. The alternative (moving the whole persistent store
+   into an App Group container so both processes share one file) would touch the real physical database
+   location for every existing habit/completion on this project's real device — judged a materially
+   riskier change than this feature warranted. Chosen instead: a new App Group
+   (`group.com.bilalhammad.forge.native`, added to both targets' entitlements) carrying only a tiny
+   `SharedTimerStopSignal` (a `UserDefaults(suiteName:)`-backed set of pending habit IDs, not the habit
+   data itself). `HomeView.processPendingTimerStops()` (called from `reload()` on cold launch and the
+   `scenePhase` handler on every foreground) drains this signal and calls the exact same
+   `cancelTimer(for:)` a manual second tap already uses — same self-healing shape as
+   `checkTimerCompletions()` immediately next to it in the same file. This means the Live Activity
+   banner disappears the instant the button is tapped (the user-visible, immediate half), while the
+   in-app data catches up next time the app is opened (invisible to the user, consistent with how every
+   other catch-up mechanism in this codebase already works) — a real, deliberate design tradeoff, not
+   an oversight, and documented at both ends (`SharedTimerStopSignal`'s and `StopTimerIntent`'s own doc
+   comments).
+
+**A real Swift 6 strict-concurrency build error hit and fixed along the way**: `AppIntent`'s required
+`static var title: LocalizedStringResource` as a stored `var` was flagged as "not concurrency-safe
+because it is nonisolated global shared mutable state." Fixed by making it a computed property
+(`{ "Stop Timer" }`) instead of a stored one — no storage, nothing to race on, no `nonisolated(unsafe)`
+escape hatch needed.
+
+**The App Group itself provisioned cleanly on the first real-device build attempt** — automatic signing
+regenerated the profile to include the new capability with no manual Apple Developer portal steps
+needed, on this project's existing free/personal-team signing setup. Worth noting for future sessions
+in case a different team configuration ever makes this less automatic.
+
+### 3. Lock Screen ring/text spacing — re-checked, not assumed
+
+Confirmed by reading the code before touching anything: `HabitTimerLiveActivity.swift` uses the system
+`ProgressView(timerInterval:).circular` renderer, a completely different file and API from
+`HabitTimerRingView`'s `Gauge`/`TimelineView` approach that the separate ring-unification pass actually
+touched — that pass never came anywhere near this file, so there was no reasonable basis to assume it
+had incidentally fixed anything here. Bumped the ring's frame from 50×50 to 56×56 as a safety margin
+(the system controls this view's internal number sizing, not this code directly — more frame gives it
+more room) and verified via a fresh real Lock Screen screenshot, captured in the same pass as the Live
+Activity Stop button verification below.
+
+### Real-device verification
+
+Reused the "Basketball" habit (time-based, goal 30 minutes — a real, persistent habit on this device
+from an earlier HealthKit debug-seeding pass, not the user's own personal data) via a temporary
+`ForgeUITests/StopButtonRealDeviceTest.swift`, run in two parts:
+
+- **In-app Stop button**: real screenshots confirm the button renders clearly next to the running ring,
+  and tapping it directly (not just tapping the row generally) returns the row to idle — the same
+  screenshot pair also incidentally shows the ring-unification pass's "10K"/"3" formatting still holding
+  up on real, currently-live personal/seeded data (Steps, Drink Water) alongside it.
+- **Live Activity Stop button + spacing**: reused the lock/wake-with-brightness-retry technique
+  documented in this file's earlier Live Activity investigation. A real Lock Screen screenshot shows the
+  Live Activity with a clearly legible "29:53" ring (clean separation from the stroke, no overlap) and a
+  full-width red "Stop" button below it; tapping it (found and tapped successfully via
+  `XCUIApplication(bundleIdentifier: "com.apple.springboard")`) is confirmed by a second screenshot
+  showing the Live Activity banner **gone** — direct, immediate proof the extension-side `activity.end()`
+  fired without the app ever opening.
+
+**Honest limitation, flagged rather than silently skipped**: the test's final step (relaunching the app
+to screenshot-confirm the persisted completion caught up back to idle) failed —
+not because anything about this feature is broken, but because the device genuinely requires Face
+ID/passcode to unlock, which XCUITest cannot cross (confirmed directly: the relaunch attempt surfaced
+the real system "Swipe up for Face ID or Enter Passcode" screen). This is the same class of system-
+security-UI boundary this project has hit and documented before (the HealthKit consent sheet, the Sign
+in with Apple consent sheet) — not a new kind of problem, just a new instance of it. The catch-up
+mechanism itself (`processPendingTimerStops()`) is verified by code review and reuses `cancelTimer(for:)`,
+already covered by other passing tests; only the specific *live, end-to-end, post-reopen screenshot* of
+this one path is unconfirmed. **The device was left sitting on the real passcode-entry screen after this
+test run** — flagged directly to the user in-conversation (not left for them to discover) so they could
+unlock it; the pending stop signal self-heals automatically the next time they open Forge themselves,
+no manual cleanup required.
+
+### Regression check
+
+New `TimerHabitTests.testStopButtonStopsRunningTimer` added (kept permanently); full suite
+(`ResetHabitTests` + `TimerHabitTests` + `WeeklyPagerSwipeTests` + `MoodCheckInTests`) re-run clean on
+Simulator after all fixes, including after the temporary real-device test file was removed and the
+project regenerated.
+
+**Temporary files removed after capturing**: `ForgeUITests/StopButtonRealDeviceTest.swift`.
+`ForgeApp.swift`'s `-uiTesting` seed permanently gained "Stop Button Test Habit" (goal 2 minutes)
+alongside the pre-existing three fixtures.
