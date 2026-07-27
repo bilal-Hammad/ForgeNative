@@ -829,3 +829,75 @@ not just a shared modifier chain:
 file from a prior pass's edit (the intended text was correctly placed earlier, in the Live Activity
 entry above — this was a stray second copy with no surrounding context). Removed; not related to this
 pass's actual feature work, just a documentation-file cleanup noticed while appending this entry.
+
+---
+
+## 2026-07-27 — Unified quantity/timer ring badge sizing and legibility
+
+**Context**: explicit request with real-device screenshots showing two related but distinct bugs —
+`quantityProgressIndicator`'s number truncating (visible on "Steps," a real multi-digit HealthKit
+count) at its old 34×34 frame with `.caption.weight(.bold)` text, and `HabitTimerRingView`'s countdown
+shrinking as far as **4.5pt** (its 9pt base font's `minimumScaleFactor(0.5)` floor) inside a 44×44
+frame — both real legibility failures, not cosmetic nitpicks, and inconsistent with each other despite
+being the same conceptual "circular progress badge" design language.
+
+**Fix**: both rings standardized on **44×44**, `lineWidth: 4` stroke (up from the quantity ring's old
+3, to stay proportional at the larger size — the timer ring's `Gauge(.accessoryCircularCapacity)`
+stroke is system-rendered and scales with frame size on its own, not independently settable), and
+identical text treatment: `.system(size: 12, weight: .semibold).monospacedDigit()`,
+`minimumScaleFactor` kept only as a genuine safety net (0.6, not the primary sizing lever — the fix's
+core point was to stop *relying* on scale-down to reach legibility). `HabitTimerRingView.swift`'s
+frame was already correct (44×44); only its font size (9→12) and inner text frame (36→38pt wide)
+changed. `quantityProgressIndicator` (`HomeView.swift`) got the frame bump (34→44), the stroke bump,
+and the same font spec.
+
+**Large-number handling, a real judgment call**: the quantity ring shows a raw `Text("\(Int(count))")`
+with no unit suffix — a real HealthKit-linked habit like Steps can genuinely reach 4-5 digits, which
+has no room to fit legibly in a fixed 44px ring at any reasonable font size. Added
+`HabitCardRow.formattedQuantityCount(_:)`: plain integer under 1000 (the overwhelming majority of
+quantity habits — reps, glasses, handwashing count), Foundation's `.number.notation(.compactName)`
+(precision capped to 0–1 fraction digits) at or above that — "10000" renders as "10K," "11234" would
+render as "11.2K." The requirement was "the number must never truncate," and a fixed-size ring has no
+room to grow the way inline text could, so compact notation (not just a smaller
+`minimumScaleFactor` floor) was the actual fix here, not merely a stylistic choice.
+
+**Verification — real device, not Simulator** (temporary `ForgeUITests/RingSizeVerificationTest.swift`,
+reusing `HealthKitRealDeviceTests.swift`'s existing `navigateToDebugHealthKitScreen` pattern and the
+already-real, already-HealthKit-authorized debug test habits from this project's earlier P0 HealthKit
+pass — not the user's own personal habits):
+- **Large real number**: "Steps" (real device step count, already at/above its 10,000 goal) rendered
+  as **"10K"** — fully legible, no truncation, confirming the compact-notation fallback fires correctly
+  on genuine multi-digit HealthKit data, not just a synthetic test value.
+- **Small number**: "Drink Water" (goal 8), incremented by 2 taps from a pre-existing count of 1 to
+  **"3"** — the exact "3/8"-style case named in the request, clearly legible at the new size.
+- **Running timer**: "Basketball" (goal 30 minutes, time-based), tapped to start — rendered
+  **"29:59"**, cleanly legible, no shrinking, same visual weight/size as the two quantity rings above
+  it in the same screenshot.
+- All three rings visually confirmed as the same design language at the same size in a single
+  screenshot (Steps/Drink Water/Basketball all visible in-frame together) — same 44×44 dimensions,
+  same stroke color-derivation (habit's own accent color vs. `Color(.systemGray4)` track), same font
+  treatment, not just coincidentally matching numbers.
+- Cleanup: both interacted-with habits (Drink Water, Basketball) were reset via the long-press context
+  menu's "Reset" item at the end of the same test run — confirmed from the raw XCUITest log (`Tap
+  "Reset" Button` appears twice, once per habit), not just assumed from the test passing.
+
+**A real, reusable environment finding hit along the way**: the first two real-device XCUITest attempts
+both failed identically with `Timed out while enabling automation mode` — a different failure mode
+from every previously-documented real-device flakiness in this file (which was always about a specific
+element not being found, never a full automation-session-setup failure). `devicectl device info
+lockState` confirmed the device wasn't passcode-locked (`unlockedSinceBoot: true`), ruling out the
+obvious explanation. What worked: `xcrun devicectl device process launch` (a plain app launch, which
+wakes the display) run **immediately** before the `xcodebuild test` invocation — the third attempt,
+run right after a fresh wake, succeeded cleanly. Root cause not conclusively isolated (most likely the
+device's display had simply timed out/dimmed between this session's earlier device-install task and
+this one), but the fix — wake the device via a real launch right before starting a real-device XCUITest
+run, not just before installing — is a real, reusable technique for future real-device sessions in
+this project, distinct from the already-documented "reinstalls fresh every invocation" cold-launch
+latency.
+
+**Regression check**: neither `ResetHabitTests` nor `TimerHabitTests` asserts on frame size or font
+metrics (both only use `accessibilityIdentifier`/`accessibilityLabel`, confirmed by re-reading both
+files before starting), so no test changes were needed. Both suites re-run clean on Simulator after the
+change.
+
+**Temporary files removed after capturing**: `ForgeUITests/RingSizeVerificationTest.swift`.

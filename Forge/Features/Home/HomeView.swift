@@ -890,6 +890,18 @@ private struct HabitCardRow: View {
 
     private var isComplete: Bool { completion?.isComplete == true }
 
+    /// Plain integer under 1000 (the overwhelming majority of quantity
+    /// habits — a step count, a glass count, a rep count); compact notation
+    /// ("11.2K") above that, so a real HealthKit-linked habit with a large
+    /// real count (Steps can easily be 4+ digits) never truncates inside
+    /// the fixed-width ring — the number must never truncate, per this
+    /// feature's own requirement, and a fixed-size ring has no room to grow
+    /// to fit an arbitrarily long integer the way inline text could.
+    private static func formattedQuantityCount(_ count: Double) -> String {
+        guard count >= 1000 else { return "\(Int(count))" }
+        return count.formatted(.number.notation(.compactName).precision(.fractionLength(0...1)))
+    }
+
     /// Short, snappy, slightly overshooting spring for the transition
     /// *into* completion — Apple's own checkbox/toggle timing, not a slow
     /// ease. `.animation(_:value:)` picks the animation based on the
@@ -1015,6 +1027,16 @@ private struct HabitCardRow: View {
     /// number gets its own light scale-bounce pulse, skipped specifically
     /// on the crossing tap (case #3) so that tap reads as the bigger card
     /// completion moment instead of "one more increment."
+    ///
+    /// Sizing/text treatment (frame, stroke width, font size/weight,
+    /// monospaced digits, `minimumScaleFactor` as a safety net rather than
+    /// the primary strategy) is deliberately identical to
+    /// `HabitTimerRingView`'s — real device screenshots previously showed
+    /// this ring's number truncating (e.g. "Steps") at the old 34×34/
+    /// `.caption` sizing, and the timer ring's own text shrinking as far as
+    /// 4.5pt to fit its old 9pt-base/36pt-wide box. Both are now the same
+    /// design language at the same size, not just coincidentally matching
+    /// dimensions.
     private var quantityProgressIndicator: some View {
         let count = completion?.count ?? 0
         let goal = max(habit.goal, 1)
@@ -1022,19 +1044,23 @@ private struct HabitCardRow: View {
 
         return ZStack {
             Circle()
-                .stroke(Color(.systemGray4), lineWidth: 3)
+                .stroke(Color(.systemGray4), lineWidth: 4)
             Circle()
                 .trim(from: 0, to: progress)
-                .stroke(habit.color.color, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(habit.color.color, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                 .rotationEffect(.degrees(-90))
                 .animation(reduceMotion ? .easeInOut(duration: 0.2) : .easeOut(duration: 0.3), value: progress)
-            Text("\(Int(count))")
-                .font(.caption.weight(.bold))
+            Text(Self.formattedQuantityCount(count))
+                .font(.system(size: 12, weight: .semibold))
+                .monospacedDigit()
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+                .frame(width: 38)
                 .foregroundStyle(isComplete ? habit.color.color : .primary)
                 .contentTransition(.numericText())
                 .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.25, dampingFraction: 0.7), value: count)
         }
-        .frame(width: 34, height: 34)
+        .frame(width: 44, height: 44)
         .scaleEffect(countBounceScale)
         // Test seam for `ResetHabitTests` (and any future quantity-habit
         // test) — reads the exact count/goal without needing to parse

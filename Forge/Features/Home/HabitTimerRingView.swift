@@ -63,12 +63,20 @@ struct HabitTimerRingView: View {
                 .tint(tint)
             }
 
+            // 12pt is the primary sizing strategy, not `minimumScaleFactor`
+            // — a real-device screenshot with the original 9pt base showed
+            // it shrinking as far as 4.5pt (illegible) for anything past a
+            // couple digits. 12pt fits a "mm:ss"-length string cleanly in
+            // this frame on its own; `minimumScaleFactor` stays only as a
+            // safety net for genuine edge cases (e.g. Dynamic Type), same
+            // legibility class as `quantityProgressIndicator`'s text below,
+            // which this view's frame/stroke width now also matches.
             Text(timerInterval: start...end, countsDown: true)
-                .font(.system(size: 9, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .monospacedDigit()
-                .minimumScaleFactor(0.5)
+                .minimumScaleFactor(0.6)
                 .lineLimit(1)
-                .frame(width: 36)
+                .frame(width: 38)
         }
         .frame(width: 44, height: 44)
     }

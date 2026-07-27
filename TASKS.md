@@ -101,6 +101,21 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       `.confirmationDialog`'s); full 7-test regression suite re-run clean. See RESULTS.md for the full
       account.
 
+- [x] **Unify quantity/timer ring badge sizing and legibility**. FIXED this pass, per explicit
+      request with real-device screenshots showing a truncated Steps number and illegible sub-5pt
+      timer digits. Both `HabitTimerRingView` and `HomeView`'s `quantityProgressIndicator` now share
+      the same 44×44 frame, 4pt stroke, and `.system(size: 12, weight: .semibold).monospacedDigit()`
+      text treatment (`minimumScaleFactor` kept only as a safety net, not the primary sizing
+      strategy — the old 9pt timer base was shrinking as far as 4.5pt on real device). Large quantity
+      counts (a real HealthKit-linked habit like Steps) use compact notation ("10K") above 1000 so the
+      number never truncates inside the fixed-width ring. Verified on the real device (not Simulator):
+      screenshots of a large-number habit (Steps, "10K"), a small-number habit (Drink Water, "3"), and
+      a running timer (Basketball, "29:59") all confirm legible, uniformly-sized, visually consistent
+      rings. `ResetHabitTests`/`TimerHabitTests` needed no changes (neither asserts on frame/font
+      metrics) and both re-ran clean. See RESULTS.md for the full account, including a real-device
+      XCUITest flakiness finding (automation-mode init timing out until the device screen was freshly
+      woken immediately before the run).
+
 ---
 
 ## P1 — Genuinely missing features (spec claims done or doesn't flag as missing; code has nothing)
