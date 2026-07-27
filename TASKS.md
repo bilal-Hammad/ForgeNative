@@ -86,6 +86,21 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       proven `HKHealthStore.save`/`delete` APIs already verified elsewhere in this file's HealthKit
       history). See RESULTS.md for the full account.
 
+- [x] **Long-press Complete/Reset: native `.contextMenu` instead of `.confirmationDialog`**. FOLLOW-UP
+      pass, per explicit user request with a reference screenshot (native Contacts app long-press
+      menu). The partial/complete long-press affordance above now uses real
+      `.contextMenu(menuItems:preview:)` — lifted-card preview (reusing `HabitCardRow` itself, no
+      bespoke preview view), grouped `Label(_:systemImage:)` menu rows, "Reset" as `role: .destructive`
+      (renders red automatically, matching Contacts' "Delete Contact"). System Liquid Glass
+      background/blur is automatic — no manual material modifiers added. No-progress long-press is
+      unchanged (still the composed `LongPressGesture.exclusively(before:)` gesture, since a context
+      menu isn't the right affordance for an instant one-way action with nothing to choose between).
+      Verified: real Simulator screenshots for both the two-option and one-option cases visually match
+      the reference; all 3 `ResetHabitTests` pass unmodified against the new UI (its `app.buttons["Complete"/"Reset"]`
+      queries work identically against `.contextMenu`'s accessibility surface as they did against
+      `.confirmationDialog`'s); full 7-test regression suite re-run clean. See RESULTS.md for the full
+      account.
+
 ---
 
 ## P1 — Genuinely missing features (spec claims done or doesn't flag as missing; code has nothing)

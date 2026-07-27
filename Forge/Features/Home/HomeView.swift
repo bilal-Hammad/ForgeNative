@@ -32,13 +32,19 @@ import UIKit
 ///   then Archive.
 /// - Long press → context-aware on the habit's current progress for the
 ///   day, not a blind force-complete: no progress yet → instantly completes
-///   (the original behavior, unchanged); partial progress (a quantity
-///   habit's `count` above 0 but below goal, or a running timer that hasn't
-///   reached goal) → a confirmation dialog offering "Complete" (jump to
-///   goal, same as the no-progress case) or "Reset" (zero the day back out
-///   — see `resetHabit`); already complete → the same dialog with only
-///   "Reset" offered. The dialog itself is the confirmation for Reset — no
-///   second "are you sure."
+///   (the original behavior, unchanged, via a custom `LongPressGesture`);
+///   partial progress (a quantity habit's `count` above 0 but below goal,
+///   or a running timer that hasn't reached goal) → a native
+///   `.contextMenu(menuItems:preview:)` — the card lifts with its own real
+///   content as the preview (system-rendered Liquid Glass background, no
+///   manual material/blur added), offering "Complete" (jump to goal, same
+///   as the no-progress case) and a red/destructive "Reset" (zero the day
+///   back out — see `resetHabit`); already complete → the same menu with
+///   only "Reset". Picking an item is itself the confirmation for Reset —
+///   no second "are you sure." (An earlier version of this used
+///   `.confirmationDialog` instead of a real context menu — replaced per
+///   explicit request to match native iOS's own long-press-menu affordance,
+///   e.g. Contacts' "Delete Contact.")
 /// - Tap → depends on the habit's type:
 ///   - Time-based (`timeMode != .none`, checked first): records "started at
 ///     now" — doesn't toggle completion at all.
@@ -94,12 +100,6 @@ struct HomeView: View {
     /// action arms this rather than calling `delete(_:)` directly, so an
     /// `.alert` can confirm first.
     @State private var habitPendingDelete: Habit?
-    /// Arms the long-press confirmation dialog for a habit with partial or
-    /// complete progress — see `body`'s `.confirmationDialog` and
-    /// `longPressState(for:completion:)`. `nil` habit with no progress at
-    /// all skips this dialog entirely (handled directly in
-    /// `handleLongPressGesture`).
-    @State private var habitPendingLongPressChoice: Habit?
 
     private var isViewingToday: Bool {
         Calendar.current.isDate(selectedDate, inSameDayAs: .now)
@@ -133,61 +133,7 @@ struct HomeView: View {
                 }
 
                 ForEach(visibleHabits) { habit in
-                    HabitCardRow(
-                        habit: habit,
-                        completion: selectedDayCompletions[habit.id],
-                        isHealthKitConnected: healthKitConnectionStatus[habit.id] ?? false,
-                        referenceDate: selectedDate,
-                        interactionToken: lastInteraction
-                    )
-                        .contentShape(Rectangle())
-                        // A real, previously-latent bug found and fixed
-                        // this pass: `.onTapGesture` +
-                        // `.onLongPressGesture(minimumDuration:)` attached
-                        // independently (two separate modifier calls) is a
-                        // genuine SwiftUI ambiguous-gesture anti-pattern —
-                        // confirmed via XCUITest's `.press(forDuration:)`
-                        // consistently registering as a plain tap only,
-                        // never invoking the long-press closure at all,
-                        // even at 0.6s (well past the 0.5s minimum). This
-                        // wasn't just a test-synthesis quirk: nothing about
-                        // `.onLongPressGesture`'s own recognition depends
-                        // on how the touch was generated, so the same
-                        // ambiguity applies to a real finger press too —
-                        // the previous long-press feature's own "passing"
-                        // test was a false positive (a disguised tap
-                        // started the timer, which then completed on its
-                        // own within the test's wait window, coincidentally
-                        // producing the expected end state without the
-                        // long-press path ever actually running).
-                        //
-                        // Fixed by composing both into one `ExclusiveGesture`
-                        // via `.exclusively(before:)` — but the *order*
-                        // matters and isn't the intuitive one: `TapGesture`
-                        // has no duration cap of its own, so listing it
-                        // first still always "wins" on release regardless
-                        // of how long the touch was held (confirmed by
-                        // testing that exact ordering — same bug,
-                        // unchanged). `LongPressGesture` genuinely fails if
-                        // released before `minimumDuration`, which is what
-                        // `.exclusively(before:)` needs to fall through to
-                        // the second gesture at all (per its own docs: the
-                        // second gesture isn't evaluated "until the first
-                        // gesture fails") — so `LongPressGesture` has to be
-                        // the *first* gesture listed, not the second.
-                        .gesture(
-                            LongPressGesture(minimumDuration: 0.5)
-                                .exclusively(before: TapGesture())
-                                .onEnded { result in
-                                    guard isViewingToday else { return }
-                                    switch result {
-                                    case .first:
-                                        handleLongPressGesture(habit)
-                                    case .second:
-                                        Task { await handleTap(habit) }
-                                    }
-                                }
-                        )
+                    habitRow(for: habit)
                         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
@@ -300,31 +246,105 @@ struct HomeView: View {
             } message: { habit in
                 Text("\"\(habit.title)\" and all of its completion history will be permanently deleted. This can't be undone.")
             }
-            // The dialog itself is the confirmation for "Reset" — no
-            // second alert after picking it. "Complete" only appears when
-            // there's real partial progress to jump past (re-checked here,
-            // not just at arm-time, so the options stay correct if
-            // something else changed the completion in the meantime).
-            .confirmationDialog(
-                habitPendingLongPressChoice?.title ?? "",
-                isPresented: Binding(
-                    get: { habitPendingLongPressChoice != nil },
-                    set: { isPresented in if !isPresented { habitPendingLongPressChoice = nil } }
-                ),
-                titleVisibility: .visible,
-                presenting: habitPendingLongPressChoice
-            ) { habit in
-                if longPressState(for: habit, completion: selectedDayCompletions[habit.id]) == .partial {
-                    Button("Complete") {
-                        Task { await handleLongPress(habit) }
+        }
+    }
+
+    /// Builds one habit's row, including its long-press affordance — split
+    /// out of `body` since the affordance itself depends on
+    /// `longPressState`, not just a static modifier chain.
+    ///
+    /// Not viewing today: the plain card, no gesture/menu attached at all —
+    /// matches every other interaction on a historical day being withheld
+    /// outright (see the type's doc comment), not just guarded inside an
+    /// action closure.
+    ///
+    /// Viewing today, no progress: unchanged from before this feature
+    /// existed — a composed `LongPressGesture(...).exclusively(before:
+    /// TapGesture())` (see the doc comment where this was introduced, right
+    /// above, for why the ordering and the single composed `.gesture(...)`
+    /// — not two independent `.onTapGesture`/`.onLongPressGesture`
+    /// modifiers — are both load-bearing).
+    ///
+    /// Viewing today, partial/complete progress: a real `.contextMenu`
+    /// instead of that composed gesture — `UIContextMenuInteraction` is its
+    /// own separate long-press recognizer from SwiftUI's `Gesture` system,
+    /// so it coexists cleanly with a plain `.onTapGesture` for the tap-to-
+    /// increment/toggle behavior alongside it (the same pattern Apple's own
+    /// apps use for "tap opens, long-press previews/menus" rows — e.g.
+    /// Mail, Files). `preview:` reuses `HabitCardRow` itself (its own real
+    /// content, `.frame(maxWidth: .infinity)` so it fills the same width as
+    /// the list row) rather than a bespoke preview view — the system
+    /// supplies the lift/shadow/Liquid Glass chrome automatically.
+    @ViewBuilder
+    private func habitRow(for habit: Habit) -> some View {
+        let card = HabitCardRow(
+            habit: habit,
+            completion: selectedDayCompletions[habit.id],
+            isHealthKitConnected: healthKitConnectionStatus[habit.id] ?? false,
+            referenceDate: selectedDate,
+            interactionToken: lastInteraction
+        )
+        .contentShape(Rectangle())
+
+        if !isViewingToday {
+            card
+        } else {
+            switch longPressState(for: habit, completion: selectedDayCompletions[habit.id]) {
+            case .noProgress:
+                card.gesture(
+                    LongPressGesture(minimumDuration: 0.5)
+                        .exclusively(before: TapGesture())
+                        .onEnded { result in
+                            switch result {
+                            case .first:
+                                Task { await handleLongPress(habit) }
+                            case .second:
+                                Task { await handleTap(habit) }
+                            }
+                        }
+                )
+            case .partial:
+                card
+                    .onTapGesture { Task { await handleTap(habit) } }
+                    .contextMenu {
+                        Button {
+                            Task { await handleLongPress(habit) }
+                        } label: {
+                            Label("Complete", systemImage: "checkmark.circle")
+                        }
+                        Button(role: .destructive) {
+                            Task { await resetHabit(habit) }
+                        } label: {
+                            Label("Reset", systemImage: "arrow.counterclockwise")
+                        }
+                    } preview: {
+                        habitPreview(for: habit)
                     }
-                }
-                Button("Reset", role: .destructive) {
-                    Task { await resetHabit(habit) }
-                }
-                Button("Cancel", role: .cancel) {}
+            case .complete:
+                card
+                    .onTapGesture { Task { await handleTap(habit) } }
+                    .contextMenu {
+                        Button(role: .destructive) {
+                            Task { await resetHabit(habit) }
+                        } label: {
+                            Label("Reset", systemImage: "arrow.counterclockwise")
+                        }
+                    } preview: {
+                        habitPreview(for: habit)
+                    }
             }
         }
+    }
+
+    private func habitPreview(for habit: Habit) -> some View {
+        HabitCardRow(
+            habit: habit,
+            completion: selectedDayCompletions[habit.id],
+            isHealthKitConnected: healthKitConnectionStatus[habit.id] ?? false,
+            referenceDate: selectedDate,
+            interactionToken: nil
+        )
+        .frame(maxWidth: .infinity)
     }
 
     private func reload() async {
@@ -605,11 +625,10 @@ struct HomeView: View {
     }
 
     /// Three states a habit's selected-day progress can be in, driving
-    /// which long-press options make sense — see `body`'s
-    /// `.confirmationDialog` and `handleLongPressGesture`.
+    /// which long-press affordance `habitRow(for:)` attaches.
     private enum LongPressState {
         /// Count is 0 (or, for a timer habit, never started) — long-press
-        /// instantly completes, no dialog, exactly the original behavior.
+        /// instantly completes, no menu, exactly the original behavior.
         case noProgress
         /// A quantity habit's `count` is above 0 but below goal, or a
         /// timer habit's `startedAt` is set but goal isn't reached yet.
@@ -629,23 +648,9 @@ struct HomeView: View {
         return .noProgress
     }
 
-    /// Only ever called while viewing today (guarded at the gesture in
-    /// `body`) — `selectedDate == .now` whenever this runs. Dispatches on
-    /// `longPressState`: no progress at all skips the dialog entirely and
-    /// instantly completes, exactly as before this feature existed;
-    /// anything else arms the confirmation dialog in `body`.
-    private func handleLongPressGesture(_ habit: Habit) {
-        switch longPressState(for: habit, completion: selectedDayCompletions[habit.id]) {
-        case .noProgress:
-            Task { await handleLongPress(habit) }
-        case .partial, .complete:
-            habitPendingLongPressChoice = habit
-        }
-    }
-
     /// Instant force-complete — the "no progress" long-press case, and the
-    /// dialog's "Complete" option for a partial-progress habit. Unchanged
-    /// from this feature's original single behavior.
+    /// context menu's "Complete" item for a partial-progress habit.
+    /// Unchanged from this feature's original single behavior.
     private func handleLongPress(_ habit: Habit) async {
         var completion = selectedDayCompletions[habit.id] ?? Completion(habitID: habit.id, date: .now)
         let previousCount = completion.count
@@ -684,8 +689,8 @@ struct HomeView: View {
 
     /// Zeros the selected day's progress back out, cascading through every
     /// system that reads from it — not just the visible count/timer.
-    /// Reachable only from the long-press dialog's "Reset" option (partial
-    /// or already-complete progress; see `handleLongPressGesture`).
+    /// Reachable only from the long-press context menu's "Reset" item
+    /// (partial or already-complete progress; see `habitRow(for:)`).
     ///
     /// **What this does and doesn't touch, explicitly**:
     /// - The completion record itself: `count`/`startedAt` back to their

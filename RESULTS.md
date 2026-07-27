@@ -764,4 +764,68 @@ the `countBasketballWorkoutsToday()` debug function and its UI section in
 `DebugSeedHealthKitView.swift`, and the temporary "HK Reset Test Habit" seed in `ForgeApp.swift`'s
 `-uiTesting` block. `ForgeApp.swift`'s `-uiTesting` seed permanently gained "Quantity Test Habit"
 (goal 3, for `ResetHabitTests`) alongside the pre-existing "Pager Test Habit"/"Timer Test Habit".
-  flagged as a possible small future addition, not done here).
+
+---
+
+## 2026-07-27 — Long-press Complete/Reset: native `.contextMenu` replacing `.confirmationDialog`
+
+**Context**: follow-up to the reset-cascade work above, per explicit request with a reference
+screenshot of the native Contacts app's long-press row menu (lifted row, grouped icon+label menu
+below it, destructive item in red, system Liquid Glass material) — asking for `HabitCardRow`'s
+partial/complete long-press affordance to use real `.contextMenu(menuItems:preview:)` instead of the
+`.confirmationDialog` sheet shipped in the previous pass, since that's the actual native API behind
+exactly this rendering.
+
+**Implementation** (`HomeView.swift`): the `ForEach` row-building logic moved into a new
+`habitRow(for:)` `@ViewBuilder` method, since the long-press affordance itself now varies by branch,
+not just a shared modifier chain:
+- **Not viewing today**: the plain card, no gesture or menu attached at all (matches every other
+  interaction on a historical day being withheld outright, not just guarded inside an action).
+- **No progress**: unchanged — the same composed `LongPressGesture(minimumDuration: 0.5)
+  .exclusively(before: TapGesture())` from the previous pass. A context menu isn't the right
+  affordance here (there's nothing to choose between; long-press should still just instantly
+  complete), so this branch deliberately keeps the custom gesture rather than switching to `.contextMenu`
+  with a single item.
+- **Partial / complete**: a real `.contextMenu`, with a separate plain `.onTapGesture` alongside it for
+  tap-to-increment/toggle. `UIContextMenuInteraction` (what `.contextMenu` is backed by) is a distinct
+  long-press recognizer from SwiftUI's own `Gesture` system, so it coexists cleanly with a plain tap
+  gesture on the same view without reproducing the earlier ambiguous-gesture bug (that one was
+  specifically about two competing `Gesture`-protocol recognizers on the same view; a system context
+  menu interaction and a `TapGesture` aren't in that same competition) — this is the same "tap opens,
+  long-press shows a menu" pattern Apple's own Mail/Files rows use. `preview:` reuses `HabitCardRow`
+  itself (`.frame(maxWidth: .infinity)` so it fills the row's width) rather than a bespoke preview
+  view — the system supplies the lift/shadow/Liquid Glass chrome automatically, matching the reference
+  screenshot's rendering with zero manual styling. "Reset" uses `Button(role: .destructive)`, which is
+  what renders it red automatically (matching "Delete Contact" in the reference) — no explicit
+  `.foregroundStyle(.red)` needed or added.
+- Removed: `habitPendingLongPressChoice` state, the `.confirmationDialog` block, and
+  `handleLongPressGesture` (its dispatch logic folded directly into `habitRow(for:)`'s `switch`).
+  `longPressState`/`LongPressState`, `resetHabit`, and `handleLongPress` are unchanged — this was a
+  presentation-layer swap, not a behavior-logic change.
+
+**Verification**:
+- All 3 `ResetHabitTests` pass **unmodified** against the new UI — their `app.buttons["Complete"]`/
+  `app.buttons["Reset"]` queries resolve identically against `.contextMenu`'s accessibility surface as
+  they did against `.confirmationDialog`'s, confirming UIMenu-based context menu items expose the same
+  `XCUIElementTypeButton` accessibility shape as alert/dialog actions in this environment — a real,
+  reusable finding for future context-menu test-writing in this project. Full 7-test regression suite
+  (`ResetHabitTests` + `TimerHabitTests` + `WeeklyPagerSwipeTests` + `MoodCheckInTests`) re-run clean
+  after the change.
+- **Real Simulator screenshots** (temporary `ContextMenuScreenshotTest.swift`, two fresh-launch test
+  methods — an initial single-test version tried dismissing the menu via a coordinate tap between the
+  two captures to reuse one launch, but that tap didn't reliably dismiss `UIContextMenuInteraction`'s
+  backdrop in this environment; switching to a fresh launch per screenshot sidestepped the issue rather
+  than chasing the dismiss mechanism further) confirm the visual match to the Contacts reference for
+  both cases: partial progress (2 of 3) shows a lifted white card with "Complete" (checkmark icon,
+  neutral color) and "Reset" (counterclockwise-arrow icon, red) grouped below it on a dimmed backdrop;
+  already-complete (3 of 3) shows the same lifted-card treatment with only the red "Reset" item. No
+  manual blur/material modifiers were added anywhere — the Liquid Glass background is genuinely
+  automatic system behavior on this SDK, confirmed by its presence with zero styling code.
+
+**Temporary files removed after capturing**: `ForgeUITests/ContextMenuScreenshotTest.swift`.
+
+**Also fixed in passing**: a leftover, disconnected duplicate sentence fragment
+("flagged as a possible small future addition, not done here).") had ended up at the true end of this
+file from a prior pass's edit (the intended text was correctly placed earlier, in the Live Activity
+entry above — this was a stray second copy with no surrounding context). Removed; not related to this
+pass's actual feature work, just a documentation-file cleanup noticed while appending this entry.
