@@ -51,6 +51,12 @@ final class HabitModel {
     /// to existing installs without a manual migration plan — added after
     /// `HabitModel` already shipped, unlike every field above it.
     var weeklyReflectionEnabled: Bool = true
+    /// See `Habit.calendarEventIdentifier`/`.reminderIdentifiers` — same
+    /// migration-safe property-declaration-default treatment as
+    /// `weeklyReflectionEnabled` above, added in the same later pass as
+    /// real Calendar/Reminders sync.
+    var calendarEventIdentifier: String? = nil
+    var reminderIdentifiers: [String]? = nil
 
     /// Cascade delete: removing a habit removes all its completion history
     /// with it — no orphaned rows left behind pointing at a deleted habit.
@@ -76,7 +82,9 @@ final class HabitModel {
         remindersAppSyncEnabled: Bool,
         calendarSyncEnabled: Bool,
         isArchived: Bool,
-        weeklyReflectionEnabled: Bool = true
+        weeklyReflectionEnabled: Bool = true,
+        calendarEventIdentifier: String? = nil,
+        reminderIdentifiers: [String]? = nil
     ) {
         self.id = id
         self.title = title
@@ -97,6 +105,8 @@ final class HabitModel {
         self.calendarSyncEnabled = calendarSyncEnabled
         self.isArchived = isArchived
         self.weeklyReflectionEnabled = weeklyReflectionEnabled
+        self.calendarEventIdentifier = calendarEventIdentifier
+        self.reminderIdentifiers = reminderIdentifiers
     }
 }
 
@@ -121,7 +131,9 @@ extension HabitModel {
             remindersAppSyncEnabled: habit.remindersAppSyncEnabled,
             calendarSyncEnabled: habit.calendarSyncEnabled,
             isArchived: habit.isArchived,
-            weeklyReflectionEnabled: habit.weeklyReflectionEnabled
+            weeklyReflectionEnabled: habit.weeklyReflectionEnabled,
+            calendarEventIdentifier: habit.calendarEventIdentifier,
+            reminderIdentifiers: habit.reminderIdentifiers
         )
     }
 
@@ -143,6 +155,8 @@ extension HabitModel {
         calendarSyncEnabled = habit.calendarSyncEnabled
         isArchived = habit.isArchived
         weeklyReflectionEnabled = habit.weeklyReflectionEnabled
+        calendarEventIdentifier = habit.calendarEventIdentifier
+        reminderIdentifiers = habit.reminderIdentifiers
     }
 
     func toHabit() -> Habit {
@@ -166,6 +180,8 @@ extension HabitModel {
             notificationsEnabled: notificationsEnabled,
             remindersAppSyncEnabled: remindersAppSyncEnabled,
             calendarSyncEnabled: calendarSyncEnabled,
+            calendarEventIdentifier: calendarEventIdentifier,
+            reminderIdentifiers: reminderIdentifiers,
             weeklyReflectionEnabled: weeklyReflectionEnabled,
             isArchived: isArchived
         )

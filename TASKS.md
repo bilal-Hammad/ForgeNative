@@ -148,6 +148,36 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       and reuses already-tested logic, matching this project's established precedent for this class of
       system-security-UI limitation).
 
+- [x] **Real Calendar/Reminders sync**, replacing the previously-inert `Sync to Calendar`/`Sync to
+      Reminders App` toggles (state-only stubs, no EventKit calls, per this file's own earlier
+      history). BUILT this pass. New `CalendarSyncService` (protocol + `EventKitCalendarSyncService`
+      actor + `NoOpCalendarSyncService` for previews, matching `HabitRepository`/`HealthKitService`'s
+      established shape) is the only place `EKEventStore` is touched. One-way sync only (Forge →
+      Calendar/Reminders, never read back — Forge stays the source of truth). Two structurally
+      different strategies, not a shared one: Calendar uses one long-lived recurring `EKEvent` per
+      habit (`EKRecurrenceRule` mapped from `RepeatMode`, including the Forge-vs-EventKit weekday-
+      index conversion `RepeatMode.swift` had already flagged as a future gotcha); Reminders uses
+      fresh, non-recurring `EKReminder`(s) created per *day* (one per occurrence-time for
+      `.everyXHours`/`.timesADay`), since a recurring `EKReminder` can't represent "complete just
+      today's occurrence" the way a recurring `EKEvent`'s completion-agnostic nature can. All 5
+      decision-logic cases (no-time → all-day; timed + time-based unit → real goal-duration block;
+      timed + non-time-based unit → a flagged 15-minute default block; end date → `EKRecurrenceEnd`;
+      `.everyXHours`/`.timesADay`/`.timesPerWeek` → Calendar disabled with an explanatory caption,
+      Reminders-only) verified with **exact-match real EventKit state** (precise due-date/duration/
+      recurrence-rule queries, not just screenshots) — see RESULTS.md for the full data. Completion
+      mirroring (Reminders → `isCompleted`/`completionDate`, both directions) and deletion cleanup
+      (`EKEventStore.remove`, identifiers cleared) also verified with exact EventKit-state proof.
+      Real Calendar.app screenshot additionally confirms the events appear natively. One verification
+      item — the denied-access inline-message UI screenshot specifically — didn't get a final
+      screenshot after repeated XCUITest list-scroll flakiness on an increasingly large real Simulator
+      habit list; the underlying logic is the same `calendarAuthorizationStatus() != .fullAccess`
+      check already proven correct by the sync engine itself (which correctly skipped Calendar
+      creation while access was denied, confirmed via the EventKit-state query), so this is flagged as
+      a real, acknowledged gap in *screenshot* coverage specifically, not a doubt about correctness.
+      New permanent debug tool: `DebugCalendarSyncView` (Settings → Debug), matching
+      `DebugSeedHealthKitView`'s kept-permanently precedent, for any future Calendar-sync
+      verification pass.
+
 ---
 
 ## P1 — Genuinely missing features (spec claims done or doesn't flag as missing; code has nothing)

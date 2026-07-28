@@ -80,6 +80,7 @@ struct HomeView: View {
     @Environment(\.habitRepository) private var habitRepository
     @Environment(\.milestoneEngine) private var milestoneEngine
     @Environment(\.healthKitService) private var healthKitService
+    @Environment(\.calendarSyncService) private var calendarSyncService
     @Environment(\.scenePhase) private var scenePhase
     @State private var isPresentingAddHabit = false
     @State private var editingHabit: Habit?
@@ -362,6 +363,26 @@ struct HomeView: View {
         if isViewingToday {
             await checkTimerCompletions()
         }
+        dispatchDailyReminderCatchUp()
+    }
+
+    /// Nothing in this app runs a scheduled background job, so a Reminders-
+    /// synced habit's *today* occurrence(s) only ever get created at the
+    /// moment `CalendarSyncService.sync(habit:)` actually runs — see that
+    /// protocol's doc comment. Every app open is a reasonable proxy for
+    /// "today may not have its reminder(s) yet," so this re-syncs every
+    /// active habit here, same fire-and-forget shape as
+    /// `dispatchMilestoneCheck` (each call is a fast, idempotent no-op for
+    /// any habit that isn't actually sync-enabled, or whose reminders
+    /// already exist for today — never awaited inline since it shouldn't
+    /// delay the list rendering).
+    private func dispatchDailyReminderCatchUp() {
+        let habitsSnapshot = habits
+        Task {
+            for habit in habitsSnapshot {
+                await calendarSyncService.sync(habit: habit)
+            }
+        }
     }
 
     /// Refetches just the selected day's completions — called whenever
@@ -488,6 +509,7 @@ struct HomeView: View {
         // comment for why this was a measured ~900ms block on every tap,
         // not a guess.
         dispatchMilestoneCheck(for: habit)
+        dispatchReminderCompletionMirror(for: habit)
     }
 
     private func durationSeconds(for habit: Habit) -> TimeInterval {
@@ -585,6 +607,7 @@ struct HomeView: View {
             }
         }
         dispatchMilestoneCheck(for: habit)
+        dispatchReminderCompletionMirror(for: habit)
         HabitTimerCoordinator.shared.endLiveActivity(habitID: habitID, completed: true)
     }
 
@@ -663,6 +686,21 @@ struct HomeView: View {
         Task { await milestoneEngine.afterCompletionLogged(habit: habit) }
     }
 
+    /// Pushes today's completion state to the habit's Reminders sync, if
+    /// active — fired from the same 4 sites `dispatchMilestoneCheck` is,
+    /// right after `selectedDayCompletions[habit.id]` is updated, so it
+    /// always reads the just-settled final state for this tap. Deliberately
+    /// not awaited inline for the same reason `dispatchMilestoneCheck`
+    /// isn't — `CalendarSyncService.mirrorCompletion` ultimately hits
+    /// `EKEventStore`, which has no async save/remove API of its own and
+    /// would otherwise block this actor hop synchronously; nothing on
+    /// screen needs to wait for it (the card's own visual state is already
+    /// correct by this point, same as the milestone case above).
+    private func dispatchReminderCompletionMirror(for habit: Habit) {
+        guard let completion = selectedDayCompletions[habit.id] else { return }
+        Task { await calendarSyncService.mirrorCompletion(habit: habit, completion: completion) }
+    }
+
     /// Three states a habit's selected-day progress can be in, driving
     /// which long-press affordance `habitRow(for:)` attaches.
     private enum LongPressState {
@@ -724,6 +762,7 @@ struct HomeView: View {
         }
         // See `dispatchMilestoneCheck`'s doc comment (above `handleTap`).
         dispatchMilestoneCheck(for: habit)
+        dispatchReminderCompletionMirror(for: habit)
     }
 
     /// Zeros the selected day's progress back out, cascading through every
@@ -796,6 +835,7 @@ struct HomeView: View {
         lastInteraction = InteractionToken(habitID: habit.id)
         CompletionFeedback.uncomplete()
         dispatchMilestoneCheck(for: habit)
+        dispatchReminderCompletionMirror(for: habit)
     }
 
     private func archive(_ habit: Habit) async {
@@ -810,6 +850,11 @@ struct HomeView: View {
     }
 
     private func delete(_ habit: Habit) async {
+        // Before deleting — the habit's own `calendarEventIdentifier`/
+        // `reminderIdentifiers` are what `removeSync` needs to find and
+        // remove the right EKEvent/EKReminder(s); they're unrecoverable
+        // once the habit record itself is gone.
+        await calendarSyncService.removeSync(for: habit)
         try? await habitRepository.delete(id: habit.id)
         HabitNotificationScheduler.removeAll(for: habit.id)
         if habit.unit.isTimeBased {

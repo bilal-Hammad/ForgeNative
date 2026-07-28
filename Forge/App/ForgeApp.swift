@@ -10,6 +10,7 @@ struct ForgeApp: App {
     private let milestoneRepository: MilestoneRepository
     private let milestoneEngine: MilestoneEngine
     private let healthKitService: HealthKitService
+    private let calendarSyncService: CalendarSyncService
     private let moodRepository: MoodRepository
     private let entitlementService: EntitlementService
     private let authService: AuthService
@@ -89,6 +90,7 @@ struct ForgeApp: App {
         milestoneRepository = SwiftDataMilestoneRepository(modelContainer: modelContainer)
         milestoneEngine = MilestoneEngine(habitRepository: habitRepository, milestoneRepository: milestoneRepository)
         healthKitService = HealthKitService(habitRepository: habitRepository, milestoneEngine: milestoneEngine)
+        calendarSyncService = EventKitCalendarSyncService(habitRepository: habitRepository)
         moodRepository = SwiftDataMoodRepository(modelContainer: modelContainer)
         entitlementService = StubEntitlementService()
         // `-uiTesting` gets the always-signed-out stand-in, matching the
@@ -145,6 +147,7 @@ struct ForgeApp: App {
                 .environment(\.milestoneRepository, milestoneRepository)
                 .environment(\.milestoneEngine, milestoneEngine)
                 .environment(\.healthKitService, healthKitService)
+                .environment(\.calendarSyncService, calendarSyncService)
                 .environment(\.moodRepository, moodRepository)
                 .environment(\.entitlementService, entitlementService)
                 .environment(\.authService, authService)

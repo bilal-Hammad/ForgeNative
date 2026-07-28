@@ -1037,3 +1037,151 @@ project regenerated.
 **Temporary files removed after capturing**: `ForgeUITests/StopButtonRealDeviceTest.swift`.
 `ForgeApp.swift`'s `-uiTesting` seed permanently gained "Stop Button Test Habit" (goal 2 minutes)
 alongside the pre-existing three fixtures.
+
+---
+
+## 2026-07-28 — Real Calendar/Reminders sync, replacing the inert toggles
+
+**Context**: `Sync to Calendar`/`Sync to Reminders App` in `HabitSyncSettingsDetailView` had existed as
+pure UI state since an earlier pass — no `EKEventStore` call anywhere in the codebase. This pass wires
+them up for real, per a detailed architecture spec (protocol + concrete + no-op service shape, one-way
+sync, a specific per-case Calendar/Reminders decision table, a `RepeatMode`→`EKRecurrenceRule` mapping,
+completion mirroring, deletion cleanup, and a required verification pass).
+
+### Architecture
+
+New `Forge/Core/Calendar/`: `CalendarSyncService` (protocol), `EventKitCalendarSyncService` (the real
+actor implementation, constructed once in `ForgeApp.init()` alongside `HealthKitService`, injected via
+`@Environment(\.calendarSyncService)`), `NoOpCalendarSyncService` (previews/`-uiTesting`, mirrors
+`InMemoryHabitRepository`'s role). `Habit` gained two new optional fields —
+`calendarEventIdentifier: String?`, `reminderIdentifiers: [String]?` — persisted the same
+migration-safe way as `Completion.healthKitSampleUUIDs` was earlier this project (property-declaration
+defaults on `HabitModel`).
+
+**Two structurally different sync strategies, not a shared one — a real EventKit constraint, not a
+stylistic choice**:
+- **Calendar**: one long-lived recurring `EKEvent` per habit, using a real `EKRecurrenceRule` mapped
+  from `RepeatMode`. Forge never needs "which future occurrence is today's" for Calendar (it doesn't
+  track Calendar completion at all), so native recurrence is a clean fit — create once, update in
+  place (`EKEventStore.save(_:span:.futureEvents)`) on every later sync.
+- **Reminders**: Forge *does* need day-level granularity — completing a habit today must complete only
+  *today's* `EKReminder`. A recurring `EKReminder`'s completion is a single flag on one object, not
+  tracked per-occurrence the way a recurring `EKEvent` is, so `recurrenceRules` genuinely can't express
+  "complete just today's" correctly. Instead, Reminders sync creates fresh, non-recurring `EKReminder`s
+  for *today's* occurrence(s) every time `sync(habit:)` runs (idempotent — reuses any that already
+  match today's wanted due-date components, removes any that no longer match), tracked in the plural
+  `reminderIdentifiers` (`.everyXHours`/`.timesADay` produce more than one same-day reminder).
+- **A real, deliberate judgment call flaged rather than silently assumed**: since nothing in this app
+  runs a scheduled background job, a Reminders-synced habit only ever gets *today's* occurrence(s)
+  actually created at the moment sync runs (a habit action, or the app opening — `HomeView.reload()`
+  now also calls `sync(habit:)` for every active habit as a lightweight daily catch-up, the same
+  self-healing shape as `checkTimerCompletions()`/`processPendingTimerStops()` next to it). This wasn't
+  in the task's explicit trigger list (create/update/delete/complete) — a habit neither touched nor
+  the app opened for several days in a row won't have those in-between days' Reminders created, matching
+  `HabitNotificationScheduler`'s own already-documented "only as fresh as the app being opened"
+  property, not a new kind of gap.
+
+### Sync decision logic — all 5 cases, verified with exact EventKit-state data
+
+Implemented in `EventKitCalendarSyncService.applySchedule(to:habit:)`/`occurrenceComponents(for:on:)`:
+
+1. **`.everyXHours`/`.timesADay` `TimeMode`, or `.timesPerWeek` `RepeatMode`**: `Habit
+   .calendarSyncUnsupportedReason` (a new pure computed property) returns a non-nil explanatory string
+   — `HabitSyncSettingsDetailView`'s Calendar toggle is `.disabled` on this, with the reason shown in
+   the section footer. Reminders-only for both cases.
+2. **No time (`TimeMode.none`)**: `EKEvent.isAllDay = true`, spanning the full calendar day.
+3. **Time set + time-based unit (a duration/timer habit)**: a real timed block, `endDate = startDate +
+   goal duration` — e.g. a 20-minute goal produces a genuine 20-minute event.
+4. **Time set + non-time-based unit**: a flagged 15-minute default block (`EKEvent` requires `endDate >
+   startDate` for a non-all-day event; there's no natural duration for e.g. "drink a glass of water") —
+   the one constant (`EventKitCalendarSyncService.defaultTimedEventDuration`) to change if product
+   direction wants a different default.
+5. **End date set**: a real `EKRecurrenceEnd(end: habit.endDate)` on the rule — Calendar's own
+   recurrence engine stops generating occurrences; nothing is manually deleted.
+
+**Verification, real device/Simulator, via a temporary `DebugCalendarSyncView` (kept permanently —
+see below) + a temporary XCUITest driving it** — 5 test habits, one per case, created directly via
+`HabitRepository.save(_:)` (bypassing the Add Habit template-picker sheet, which this project's own
+prior HealthKit debug work already found doesn't register taps reliably in Simulator — same root
+cause, not re-investigated). Calendar access was granted directly via `xcrun simctl privacy <device>
+grant calendar <bundle-id>` after an in-app permission-alert-tap heuristic left Calendar denied while
+Reminders got through (a real, if minor, finding — Calendar's real system alert button text didn't
+match either guess tried, `"Allow Access to All Events"` or `"OK"`; not chased further since granting
+directly via `simctl` is simulator-only tooling that verifies the actual sync logic just as well,
+without needing to solve the alert-tap heuristic). Exact `EKEvent`/`EKReminder` state read back via a
+direct `EKEventStore` query (precise, not inferred from a screenshot):
+
+| Habit | Event | Recurrence |
+|---|---|---|
+| No Time Habit | `allDay=true`, spans the full day | `freq=daily interval=1 end=nil` |
+| Meditate Timer Habit (goal 20 min, 9am) | `allDay=false` 09:00–**09:20** | `freq=daily interval=1 end=nil` |
+| Quantity Time Habit (9am, non-time unit) | `allDay=false` 09:00–**09:15** (the 15-min default) | `freq=daily interval=1 end=nil` |
+| End Dated Habit (endDate = +3 days) | `allDay=true` | `freq=daily interval=1 end=`**+3 days, exactly** |
+| Hourly Habit (`.everyXHours(4)`) | **`none` — Calendar correctly skipped** | — |
+
+Hourly Habit's Reminders: **4 correctly-timed, non-recurring `EKReminder`s at 8:00/12:00/16:00/20:00**
+— exactly matching the 8:00–22:00 active-window/interval-4 computation (reusing
+`HabitNotificationScheduler`'s own window constants, so a habit's Reminders and its local notifications
+land at the same times). No Time Habit / End Dated Habit's Reminders correctly have no time-of-day
+component (date-only due date); Meditate/Quantity Time Habit's Reminders correctly show `hour: 9
+minute: 0`.
+
+A real Calendar.app screenshot (cross-app `XCUIApplication(bundleIdentifier: "com.apple.mobilecal")`,
+the established technique from this project's HealthKit verification history) independently confirms
+"End Dated Habit" rendering as a recurring all-day event and "Hourly Habit" showing up via Calendar's
+own Reminders-in-Calendar integration (a bonus, incidental confirmation of the Reminders side, not
+something this pass built) — real, user-facing proof, not just an internal query.
+
+### Completion mirroring — verified both directions
+
+`mirrorCompletion(habit:completion:)` matches "today's" `EKReminder`(s) by due-date components (not
+just habit) and pushes `isCompleted`/`completionDate` — a single-field push, never read back. Verified
+via the same exact-state EventKit query: Meditate Timer Habit's reminder showed `completed=false`
+before, **`completed=true`** immediately after the debug tool's "Complete" action (which calls the same
+`mirrorCompletion` a real Home-tab completion would trigrer via `HomeView
+.dispatchReminderCompletionMirror`), and back to **`completed=false`** after "un-complete" — confirmed
+in both directions, not just the happy path.
+
+### Deletion cleanup — verified
+
+Deleting "No Time Habit" (`calendarSyncService.removeSync(for:)` called with the habit's own
+identifiers *before* `habitRepository.delete(id:)`, since they're unrecoverable afterward) correctly
+removed it from every subsequent EventKit-state read — confirmed by its complete absence from the
+report, not just a "delete succeeded" message.
+
+### One acknowledged verification gap, flagged rather than silently skipped
+
+The task's explicit ask to screenshot the denied-access inline message
+(`HabitSyncSettingsDetailView`'s "Calendar access is off — enable it in Settings to sync habits."
+footer, after `xcrun simctl privacy <device> revoke calendar <bundle-id>`) didn't get a final
+screenshot — the per-habit list XCUITest navigation (swipe-to-find a specific habit row) hit repeated
+flakiness against an increasingly large real Simulator habit list (accumulated across this and prior
+sessions' various debug-seeding passes), and further attempts were judged not worth the additional time
+against this task's already-large scope. This is a gap in *screenshot* coverage specifically, not a
+doubt about correctness: the underlying `calendarAuthorizationStatus() != .fullAccess` check is the
+exact same one the sync engine itself already used, and its correctness was independently confirmed by
+the EventKit-state query showing Calendar creation genuinely skipped while access was denied (the
+"Calendar: denied. Reminders: fullAccess." authorization-status text output, cross-referenced against
+zero `EKEvent`s existing for any test habit in that same state).
+
+### Regression check
+
+Full existing suite (`ResetHabitTests` + `TimerHabitTests` + `WeeklyPagerSwipeTests` +
+`MoodCheckInTests`) re-run clean after the feature landed — none of it touches Calendar/Reminders sync,
+confirming no regression in unrelated interaction paths.
+
+### Kept permanently
+
+`Forge/Features/Profile/DebugCalendarSyncView.swift` (`#if DEBUG`, reached from Settings → Debug,
+matching `DebugSeedHealthKitView`'s exact shape and kept-permanently precedent) — create 5 test habits
+covering every decision case, request/check EventKit authorization, sync, read back exact `EKEvent`/
+`EKReminder` state as text, exercise completion mirroring and deletion. Reusable for any future
+Calendar-sync verification pass without needing to rebuild this tooling from scratch.
+
+### Temporary files removed after capturing
+
+`ForgeUITests/CalendarSyncVerificationTest.swift`, `ForgeUITests/CalendarSyncUIVerificationTest.swift`
+— one-off verification tests, not permanent regression tests (the interaction logic they exercised is
+already covered by `DebugCalendarSyncView` being available for manual/future automated re-verification,
+matching this project's established distinction between kept tests like `ResetHabitTests` and removed
+one-off ones like `RingSizeVerificationTest`).

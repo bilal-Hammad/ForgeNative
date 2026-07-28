@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		008DA8E43049170A899AC5D6 /* MilestoneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AEB420AFB865FEBD7D44650 /* MilestoneModel.swift */; };
 		01252BB84EA5B3EB48130CC3 /* MoodCheckInTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F66DC2541D078D6905E7A13 /* MoodCheckInTests.swift */; };
+		028935D54829AE758F2BAD91 /* CalendarSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 888EAC67558D686370D1CF88 /* CalendarSyncService.swift */; };
 		03CF060868D1F506085F3376 /* HabitTimerCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E9E3CDC175D93A5F1BB9754 /* HabitTimerCoordinator.swift */; };
 		03E772FBEF471A0EE7A4086A /* TemplateSectionConfigurationModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49050EC9E801D216DE2AF1CA /* TemplateSectionConfigurationModel.swift */; };
 		056BEB2EF498DABD48EFF13E /* CompletionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D2B276E5CD4FF30B23D83DB /* CompletionModel.swift */; };
@@ -22,6 +23,7 @@
 		1197559F758FEFA5883341AB /* SwiftDataHabitRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7237652DC04B4BFD6A4D09 /* SwiftDataHabitRepository.swift */; };
 		171A68A72592676B9C68D61E /* HabitDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 330C1B9266E34521CC428F5F /* HabitDetailView.swift */; };
 		17DE37310C9728953B781EEC /* Milestone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 746A87217726DBA2E1846157 /* Milestone.swift */; };
+		18CB3AC2CEA99A2CC772DF68 /* CalendarSyncServiceEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DD42B2927F8D0DA16A09DBE /* CalendarSyncServiceEnvironment.swift */; };
 		19CBA570F000C158B6A832A9 /* MilestoneEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC4984B59FDD409822A6632 /* MilestoneEngine.swift */; };
 		1F6A2E3FDDFF1250BD2AE6BD /* AuthUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9717C1EEA4C0ADA0751D6F72 /* AuthUser.swift */; };
 		20611B2D79CBE113E61B9393 /* BestDayTimeStreakDistributionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 827CCA0E998C638D1C3A7992 /* BestDayTimeStreakDistributionCard.swift */; };
@@ -43,6 +45,7 @@
 		471F971BD54E11C47805790D /* AddSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B188FF827204DDB10B2751 /* AddSectionView.swift */; };
 		480953116186E2EE245FF6BF /* MilestoneBadgePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C4DA27050BFE34A39374491 /* MilestoneBadgePreview.swift */; };
 		48BB658E2E1B743B449F5B8E /* PointsLedgerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41884147DAE3AD6646B3D5B7 /* PointsLedgerModel.swift */; };
+		4955EA80AAE523C9EFB36C8E /* DebugCalendarSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A8CB7644B080301FECC426 /* DebugCalendarSyncView.swift */; };
 		4F5337F69C13EBC57DD40ACC /* HabitColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 412307AB57C455F20017C1C8 /* HabitColor.swift */; };
 		503CE12F1F30177C5E74FC26 /* CompletionFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4295D6EE380F992FC14F4BC /* CompletionFeedback.swift */; };
 		520CD8DBD81539E6D19C1290 /* HealthKitTypeMapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA6C49F676543583E44E88D0 /* HealthKitTypeMapping.swift */; };
@@ -57,6 +60,7 @@
 		63CB7CE8C640E988F336AE65 /* PointsLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535FF11F9F11E7F934A0B3E0 /* PointsLedger.swift */; };
 		66FD7E8F91DD085B9A192717 /* MoodCheckInRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EC63C385AD41C6C4E9E0F82 /* MoodCheckInRouter.swift */; };
 		6AC67C157675E33631011CF5 /* SharedTimerStopSignal.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80754CED57CB3CFA20D6678 /* SharedTimerStopSignal.swift */; };
+		6B2A3ADC34D06AD1C4376D77 /* NoOpCalendarSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1611E325834ECA3FDF9D0A4 /* NoOpCalendarSyncService.swift */; };
 		6ECA5B7D24955D896687A11E /* MoodNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90E056ABC0397BA133AA6FEB /* MoodNotificationScheduler.swift */; };
 		704F888215E75119B9F0139D /* Badge3DView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78B3FEACC547C0BC35BB3E59 /* Badge3DView.swift */; };
 		718F085437308A07DBCEBD2F /* WeeklyPagerSwipeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2F7E3AA2B3CD47505A0E877 /* WeeklyPagerSwipeTests.swift */; };
@@ -74,6 +78,7 @@
 		90926934F1B9AD8B9CE18F49 /* AuthServiceEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922D0BF85189F988261B7D29 /* AuthServiceEnvironment.swift */; };
 		916CB33F04B36C97E9C950BE /* WeeklyRingsPagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3A4D78AFD385DD3E494224A /* WeeklyRingsPagerView.swift */; };
 		91B3E80CD6ED07285654BFC8 /* EntitlementService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F405819F55143F5AAA23D633 /* EntitlementService.swift */; };
+		947CC17F61B1FAC37B2A8972 /* EventKitCalendarSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F729991EE5F18892158B34 /* EventKitCalendarSyncService.swift */; };
 		9944B32D8221D5D19FC2E340 /* WeeklyReflectionRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35CEFEDB1A64C69B9E67F953 /* WeeklyReflectionRouter.swift */; };
 		9B6F941F0786C2D70044FCF5 /* StreakLinesStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF86847E6D0665429ABF0BB9 /* StreakLinesStripView.swift */; };
 		9BBC12458FE8A65D8A561C5C /* SwiftDataMoodRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101713D0AFA98FD4534EDEF4 /* SwiftDataMoodRepository.swift */; };
@@ -167,6 +172,7 @@
 		2011D3E460734BFCA01A6F7D /* TemplateSectionConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSectionConfiguration.swift; sourceTree = "<group>"; };
 		2556327218A50F0CD12FF4B6 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		29AB0D25C8E6742B44F8D567 /* RepeatMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepeatMode.swift; sourceTree = "<group>"; };
+		2DD42B2927F8D0DA16A09DBE /* CalendarSyncServiceEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSyncServiceEnvironment.swift; sourceTree = "<group>"; };
 		2EB60CE24270AFE5C68343A7 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		2EC63C385AD41C6C4E9E0F82 /* MoodCheckInRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodCheckInRouter.swift; sourceTree = "<group>"; };
 		31685D47D31E3DDDC140AB5A /* ForgeUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ForgeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -185,6 +191,7 @@
 		495D3DF7046CC93FD79B629F /* EditSectionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditSectionDetailView.swift; sourceTree = "<group>"; };
 		4D2B276E5CD4FF30B23D83DB /* CompletionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionModel.swift; sourceTree = "<group>"; };
 		528A80329520F9914A990E6B /* HabitFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitFormView.swift; sourceTree = "<group>"; };
+		52F729991EE5F18892158B34 /* EventKitCalendarSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventKitCalendarSyncService.swift; sourceTree = "<group>"; };
 		535FF11F9F11E7F934A0B3E0 /* PointsLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointsLedger.swift; sourceTree = "<group>"; };
 		56EC53751E7F4C12054F6816 /* CategoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryDetailView.swift; sourceTree = "<group>"; };
 		585E7ABB8D32A97602D22353 /* ForgeWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeWidgetsBundle.swift; sourceTree = "<group>"; };
@@ -193,6 +200,7 @@
 		5EF8DCE6457041D274B3C2DA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		62894A0DEF98DD472A06BDA4 /* Habit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Habit.swift; sourceTree = "<group>"; };
 		635C61F86F05E11DF4B5BB93 /* MoodRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodRepository.swift; sourceTree = "<group>"; };
+		66A8CB7644B080301FECC426 /* DebugCalendarSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugCalendarSyncView.swift; sourceTree = "<group>"; };
 		66DCBD3510CFD7820D748944 /* TimerHabitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerHabitTests.swift; sourceTree = "<group>"; };
 		6A322B63CA07AF8006C6D79A /* TemplateSectionConfiguration+Resolve.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TemplateSectionConfiguration+Resolve.swift"; sourceTree = "<group>"; };
 		6AA276ABED8B83855BEBF4C6 /* HabitTimerAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitTimerAttributes.swift; sourceTree = "<group>"; };
@@ -209,6 +217,7 @@
 		80FE23758D24748FC07680FE /* ResetHabitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetHabitTests.swift; sourceTree = "<group>"; };
 		81D893609E49F11C4983CB1C /* HabitSyncSettingsDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitSyncSettingsDetailView.swift; sourceTree = "<group>"; };
 		827CCA0E998C638D1C3A7992 /* BestDayTimeStreakDistributionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BestDayTimeStreakDistributionCard.swift; sourceTree = "<group>"; };
+		888EAC67558D686370D1CF88 /* CalendarSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSyncService.swift; sourceTree = "<group>"; };
 		8AB60F6E62E32CD49FFA56B2 /* MilestoneRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneRepository.swift; sourceTree = "<group>"; };
 		8D60DBB18B5E7E96EAF98E6E /* InMemoryMoodRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryMoodRepository.swift; sourceTree = "<group>"; };
 		8ECB5365B291706A6611E298 /* SectionIndexStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionIndexStrip.swift; sourceTree = "<group>"; };
@@ -222,6 +231,7 @@
 		9AEB420AFB865FEBD7D44650 /* MilestoneModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneModel.swift; sourceTree = "<group>"; };
 		9CAF136A2212C7BAAD8461CD /* ForgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeApp.swift; sourceTree = "<group>"; };
 		9EE193FE89FAB98966A7CCE4 /* HealthKitBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitBadgeView.swift; sourceTree = "<group>"; };
+		A1611E325834ECA3FDF9D0A4 /* NoOpCalendarSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoOpCalendarSyncService.swift; sourceTree = "<group>"; };
 		A5C72C32E098E83C726E5A76 /* MilestoneDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneDetailView.swift; sourceTree = "<group>"; };
 		A5EBDE919B369BA7ACBE2B66 /* AppNotificationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNotificationDelegate.swift; sourceTree = "<group>"; };
 		A7B188FF827204DDB10B2751 /* AddSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSectionView.swift; sourceTree = "<group>"; };
@@ -290,6 +300,17 @@
 				D4295D6EE380F992FC14F4BC /* CompletionFeedback.swift */,
 			);
 			path = Feedback;
+			sourceTree = "<group>";
+		};
+		29EBC3383255F37153A82A68 /* Calendar */ = {
+			isa = PBXGroup;
+			children = (
+				888EAC67558D686370D1CF88 /* CalendarSyncService.swift */,
+				2DD42B2927F8D0DA16A09DBE /* CalendarSyncServiceEnvironment.swift */,
+				52F729991EE5F18892158B34 /* EventKitCalendarSyncService.swift */,
+				A1611E325834ECA3FDF9D0A4 /* NoOpCalendarSyncService.swift */,
+			);
+			path = Calendar;
 			sourceTree = "<group>";
 		};
 		2A9E642F87F5DAC3A7A6E76E /* ForgeWidgets */ = {
@@ -366,6 +387,7 @@
 			isa = PBXGroup;
 			children = (
 				152FAB7871ABA3203CEDEB69 /* Auth */,
+				29EBC3383255F37153A82A68 /* Calendar */,
 				8714E6B38E699447359F308A /* Data */,
 				9B9A0D034716FC48C4B4FD86 /* Entitlements */,
 				26B9DD2CDD4DF36C82F7E839 /* Feedback */,
@@ -513,6 +535,7 @@
 			isa = PBXGroup;
 			children = (
 				427AAE5C01BA77D4A32B4CDA /* ArchivedHabitsView.swift */,
+				66A8CB7644B080301FECC426 /* DebugCalendarSyncView.swift */,
 				D4BAC5DF16DA4E154D5A801A /* DebugSeedHealthKitView.swift */,
 				D8CD3AA1284CB0B4A509C797 /* DebugSeedHistoryView.swift */,
 				81D893609E49F11C4983CB1C /* HabitSyncSettingsDetailView.swift */,
@@ -696,18 +719,22 @@
 				1F6A2E3FDDFF1250BD2AE6BD /* AuthUser.swift in Sources */,
 				704F888215E75119B9F0139D /* Badge3DView.swift in Sources */,
 				20611B2D79CBE113E61B9393 /* BestDayTimeStreakDistributionCard.swift in Sources */,
+				028935D54829AE758F2BAD91 /* CalendarSyncService.swift in Sources */,
+				18CB3AC2CEA99A2CC772DF68 /* CalendarSyncServiceEnvironment.swift in Sources */,
 				2772719859D72764DC4BEE95 /* CategoryDetailView.swift in Sources */,
 				CE0D06D176C1317CBEF9DAA0 /* CategoryPickerView.swift in Sources */,
 				87EED502E2817A0A36968818 /* Completion.swift in Sources */,
 				503CE12F1F30177C5E74FC26 /* CompletionFeedback.swift in Sources */,
 				056BEB2EF498DABD48EFF13E /* CompletionModel.swift in Sources */,
 				7A262FD66DA6E4AEBF44C05A /* ConsistencyHeatmapCard.swift in Sources */,
+				4955EA80AAE523C9EFB36C8E /* DebugCalendarSyncView.swift in Sources */,
 				05E99D153907B04EE9E806C8 /* DebugSeedHealthKitView.swift in Sources */,
 				B602ABDFDB21C9FA6A82ED1E /* DebugSeedHistoryView.swift in Sources */,
 				A0216CB85455EF18091BA1CE /* EditSectionDetailView.swift in Sources */,
 				BFA7499EB1DFEC0BA0D63D45 /* EditSectionsView.swift in Sources */,
 				91B3E80CD6ED07285654BFC8 /* EntitlementService.swift in Sources */,
 				CF3DBA248E1C43B0B5526BA6 /* EntitlementServiceEnvironment.swift in Sources */,
+				947CC17F61B1FAC37B2A8972 /* EventKitCalendarSyncService.swift in Sources */,
 				23C454AB11A7E777C571ED1D /* ForgeApp.swift in Sources */,
 				D506B0238329699E4BA79283 /* Habit.swift in Sources */,
 				5FEEDD19108800DEA99EAB63 /* HabitCategory.swift in Sources */,
@@ -752,6 +779,7 @@
 				6ECA5B7D24955D896687A11E /* MoodNotificationScheduler.swift in Sources */,
 				7A82452E35B00C32BFC66E03 /* MoodRepository.swift in Sources */,
 				F4F4C86F82479240FA0A83B0 /* MoodRepositoryEnvironment.swift in Sources */,
+				6B2A3ADC34D06AD1C4376D77 /* NoOpCalendarSyncService.swift in Sources */,
 				63CB7CE8C640E988F336AE65 /* PointsLedger.swift in Sources */,
 				48BB658E2E1B743B449F5B8E /* PointsLedgerModel.swift in Sources */,
 				F7EFB4283CD093333B5E95C9 /* ProfileView.swift in Sources */,
@@ -848,8 +876,10 @@
 				CODE_SIGN_ENTITLEMENTS = Forge/Forge.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Forge creates and updates Calendar events for habits you choose to sync, so they show up alongside the rest of your schedule.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Forge reads Health data to automatically mark HealthKit-tracked habits (like water intake, workouts, and sleep) complete when your data already meets your goal.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Forge writes to Health when you manually log a HealthKit-tracked habit, so your data stays in sync in both directions.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Forge creates and completes Reminders for habits you choose to sync, so you can track them from the Reminders app too.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -975,8 +1005,10 @@
 				CODE_SIGN_ENTITLEMENTS = Forge/Forge.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Forge creates and updates Calendar events for habits you choose to sync, so they show up alongside the rest of your schedule.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Forge reads Health data to automatically mark HealthKit-tracked habits (like water intake, workouts, and sleep) complete when your data already meets your goal.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Forge writes to Health when you manually log a HealthKit-tracked habit, so your data stays in sync in both directions.";
+				INFOPLIST_KEY_NSRemindersFullAccessUsageDescription = "Forge creates and completes Reminders for habits you choose to sync, so you can track them from the Reminders app too.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (

@@ -56,6 +56,7 @@ struct HabitFormView: View {
 
     @Environment(\.habitRepository) private var habitRepository
     @Environment(\.healthKitService) private var healthKitService
+    @Environment(\.calendarSyncService) private var calendarSyncService
     @Environment(\.dismiss) private var dismiss
 
     private let habitID: UUID
@@ -554,6 +555,15 @@ struct HabitFormView: View {
         if isNewHealthKitHabit {
             await healthKitService.requestAuthorization(for: habit)
         }
+        // Re-syncs an already-enabled Calendar/Reminders habit whenever
+        // this form changes something the sync depends on (time, repeat
+        // days, goal/unit, an end date) even though this form has no sync
+        // toggles of its own (those live in `HabitSyncSettingsDetailView`)
+        // — not awaited inline, same reasoning as `HomeView
+        // .dispatchReminderCompletionMirror`: EKEventStore's save/remove
+        // calls have no async variant and shouldn't delay dismissing this
+        // sheet.
+        Task { await calendarSyncService.sync(habit: habit) }
         onSave()
     }
 }

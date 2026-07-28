@@ -218,6 +218,9 @@ struct SettingsView: View {
                 NavigationLink("Seed HealthKit Data") {
                     DebugSeedHealthKitView()
                 }
+                NavigationLink("Debug Calendar Sync") {
+                    DebugCalendarSyncView()
+                }
             } header: {
                 Text("Debug")
             } footer: {

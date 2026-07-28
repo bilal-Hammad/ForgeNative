@@ -54,6 +54,22 @@ struct Habit: Identifiable, Codable, Equatable {
     var notificationsEnabled: Bool
     var remindersAppSyncEnabled: Bool
     var calendarSyncEnabled: Bool
+    /// The `EKEvent.eventIdentifier` `CalendarSyncService` created for this
+    /// habit (a single recurring event, per `RepeatMode` — see that type's
+    /// doc comment for the EventKit recurrence mapping), so a later
+    /// sync/edit/delete targets the same object instead of creating a
+    /// duplicate. `nil` whenever Calendar sync isn't currently active for
+    /// this habit (toggle off, unsupported repeat/time mode, or never
+    /// synced yet).
+    var calendarEventIdentifier: String?
+    /// Every `EKReminder.calendarItemIdentifier` `CalendarSyncService` most
+    /// recently created for this habit's *current* day — plural because a
+    /// `.everyXHours`/`.timesADay` habit gets one Reminder per occurrence
+    /// time, each independently completable (see that service's doc
+    /// comment for why Reminders sync uses fresh, non-recurring objects per
+    /// day rather than a single recurring `EKReminder`, unlike Calendar).
+    /// `nil` whenever Reminders sync isn't currently active for this habit.
+    var reminderIdentifiers: [String]?
 
     /// §13: per-habit mute for the weekly reflection notification (the
     /// global toggle lives in `SettingsView`/`WeeklyReflectionScheduler`) —
@@ -85,6 +101,8 @@ struct Habit: Identifiable, Codable, Equatable {
         notificationsEnabled: Bool = true,
         remindersAppSyncEnabled: Bool = false,
         calendarSyncEnabled: Bool = false,
+        calendarEventIdentifier: String? = nil,
+        reminderIdentifiers: [String]? = nil,
         weeklyReflectionEnabled: Bool = true,
         isArchived: Bool = false
     ) {
@@ -105,6 +123,8 @@ struct Habit: Identifiable, Codable, Equatable {
         self.notificationsEnabled = notificationsEnabled
         self.remindersAppSyncEnabled = remindersAppSyncEnabled
         self.calendarSyncEnabled = calendarSyncEnabled
+        self.calendarEventIdentifier = calendarEventIdentifier
+        self.reminderIdentifiers = reminderIdentifiers
         self.weeklyReflectionEnabled = weeklyReflectionEnabled
         self.isArchived = isArchived
     }

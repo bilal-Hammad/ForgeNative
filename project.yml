@@ -40,6 +40,14 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Forge/Forge.entitlements
         INFOPLIST_KEY_NSHealthShareUsageDescription: "Forge reads Health data to automatically mark HealthKit-tracked habits (like water intake, workouts, and sleep) complete when your data already meets your goal."
         INFOPLIST_KEY_NSHealthUpdateUsageDescription: "Forge writes to Health when you manually log a HealthKit-tracked habit, so your data stays in sync in both directions."
+        # Required for EKEventStore.requestFullAccessToEvents()/
+        # requestFullAccessToReminders() to succeed at all — the real
+        # Calendar/Reminders sync feature. Only the iOS 17+ "full access"
+        # keys are needed (not the legacy NSCalendarsUsageDescription/
+        # NSRemindersUsageDescription) since this project's deployment
+        # target (26.0) never calls the deprecated pre-iOS-17 API.
+        INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: "Forge creates and updates Calendar events for habits you choose to sync, so they show up alongside the rest of your schedule."
+        INFOPLIST_KEY_NSRemindersFullAccessUsageDescription: "Forge creates and completes Reminders for habits you choose to sync, so you can track them from the Reminders app too."
         # Required for `Activity.request` to succeed at all — the timer
         # feature's Live Activity/Dynamic Island presentation.
         INFOPLIST_KEY_NSSupportsLiveActivities: YES

@@ -7,15 +7,23 @@ import UIKit
 /// on (see `SettingsView`). This is the single place these three change
 /// after a habit is created; `HabitFormView` no longer has any UI for them.
 ///
-/// `Notifications` is the one of the three actually wired to something real
-/// (`HabitNotificationScheduler`); `Sync to Calendar`/`Sync to Reminders
-/// App` remain state-only stubs — no EventKit calls exist anywhere in this
-/// app yet. Moving them here didn't change that, it just relocated where
-/// the (still-inert) preference is recorded.
+/// All three are real now: `Notifications` via `HabitNotificationScheduler`,
+/// `Sync to Calendar`/`Sync to Reminders App` via `CalendarSyncService`
+/// (`EventKitCalendarSyncService` in production). Turning either sync
+/// toggle on requests the relevant EventKit permission lazily, right here
+/// — never proactively on launch — and, once granted, dispatches a real
+/// sync (creates/updates the habit's `EKEvent`/`EKReminder`(s)); turning
+/// either off removes whatever was created. A denied permission snaps the
+/// toggle back off and shows an inline message rather than silently
+/// leaving it "on" with nothing actually synced — same failure-visibility
+/// principle `SettingsView`'s own master-notifications toggle already
+/// established.
 struct HabitSyncSettingsDetailView: View {
     let habit: Habit
 
     @Environment(\.habitRepository) private var habitRepository
+    @Environment(\.calendarSyncService) private var calendarSyncService
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("notificationsEnabledGlobal") private var globalNotificationsEnabled: Bool = false
     @AppStorage("weeklyReflectionEnabled") private var weeklyReflectionEnabledGlobal: Bool = false
     @AppStorage("weeklyReflectionWeekday") private var weeklyReflectionWeekday: Int = 1
@@ -26,6 +34,8 @@ struct HabitSyncSettingsDetailView: View {
     @State private var remindersAppSyncEnabled: Bool
     @State private var weeklyReflectionEnabled: Bool
     @State private var notificationPermissionDenied = false
+    @State private var calendarAccessDenied = false
+    @State private var remindersAccessDenied = false
 
     init(habit: Habit) {
         self.habit = habit
@@ -40,8 +50,9 @@ struct HabitSyncSettingsDetailView: View {
             Section {
                 Toggle("Notifications", isOn: $notificationsEnabled)
                 Toggle("Sync to Calendar", isOn: $calendarSyncEnabled)
+                    .disabled(!habit.isCalendarSyncSupported)
                 Toggle("Sync to Reminders App", isOn: $remindersAppSyncEnabled)
-                if notificationPermissionDenied {
+                if notificationPermissionDenied || calendarAccessDenied || remindersAccessDenied {
                     Button("Open iOS Settings") {
                         if let url = URL(string: UIApplication.openSettingsURLString) {
                             UIApplication.shared.open(url)
@@ -49,11 +60,7 @@ struct HabitSyncSettingsDetailView: View {
                     }
                 }
             } footer: {
-                if notificationPermissionDenied {
-                    Text("Notifications permission was denied — enable it in iOS Settings for this habit's reminders to actually fire.")
-                } else {
-                    Text("Notifications use this habit's Time mode (set in its editor) for when they fire. Calendar/Reminders sync aren't wired up to real EventKit data yet — these just record your preference for when that lands.")
-                }
+                syncFooter
             }
 
             if weeklyReflectionEnabledGlobal {
@@ -67,26 +74,87 @@ struct HabitSyncSettingsDetailView: View {
         .navigationTitle(habit.title)
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            notificationPermissionDenied = await HabitNotificationScheduler.currentAuthorizationStatus() == .denied
+            await refreshPermissionStatus()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            // Catches a permission revoked in iOS Settings while this
+            // screen was already on-screen and simply backgrounded/
+            // foregrounded (not pushed/popped, which `.task` above already
+            // covers via NavigationStack destroying/recreating the view).
+            guard newPhase == .active else { return }
+            Task { await refreshPermissionStatus() }
         }
         .onChange(of: notificationsEnabled) { _, isOn in
             Task { await handleNotificationsToggleChange(isOn) }
         }
-        .onChange(of: calendarSyncEnabled) { _, _ in
-            Task { await persist() }
+        .onChange(of: calendarSyncEnabled) { _, isOn in
+            Task { await handleCalendarToggleChange(isOn) }
         }
-        .onChange(of: remindersAppSyncEnabled) { _, _ in
-            Task { await persist() }
+        .onChange(of: remindersAppSyncEnabled) { _, isOn in
+            Task { await handleRemindersToggleChange(isOn) }
         }
         .onChange(of: weeklyReflectionEnabled) { _, _ in
             Task { await persist() }
         }
     }
 
+    @ViewBuilder
+    private var syncFooter: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let reason = habit.calendarSyncUnsupportedReason {
+                Text(reason)
+            }
+            if notificationPermissionDenied {
+                Text("Notifications permission was denied — enable it in iOS Settings for this habit's reminders to actually fire.")
+            }
+            if calendarAccessDenied {
+                Text("Calendar access is off — enable it in Settings to sync habits.")
+            }
+            if remindersAccessDenied {
+                Text("Reminders access is off — enable it in Settings to sync habits.")
+            }
+            if habit.calendarSyncUnsupportedReason == nil, !notificationPermissionDenied, !calendarAccessDenied, !remindersAccessDenied {
+                Text("Notifications use this habit's Time mode (set in its editor) for when they fire. Calendar sync creates one recurring event; Reminders sync creates a completable reminder and mirrors this habit's daily completion.")
+            }
+        }
+    }
+
+    private func refreshPermissionStatus() async {
+        notificationPermissionDenied = await HabitNotificationScheduler.currentAuthorizationStatus() == .denied
+        calendarAccessDenied = calendarSyncEnabled && calendarSyncService.calendarAuthorizationStatus() != .fullAccess
+        remindersAccessDenied = remindersAppSyncEnabled && calendarSyncService.remindersAuthorizationStatus() != .fullAccess
+    }
+
     private func handleNotificationsToggleChange(_ isOn: Bool) async {
         if isOn {
             let granted = await HabitNotificationScheduler.requestAuthorizationIfNeeded()
             notificationPermissionDenied = !granted
+        }
+        await persist()
+    }
+
+    private func handleCalendarToggleChange(_ isOn: Bool) async {
+        if isOn {
+            let granted = await calendarSyncService.requestCalendarAccessIfNeeded()
+            calendarAccessDenied = !granted
+            if !granted {
+                calendarSyncEnabled = false
+            }
+        } else {
+            calendarAccessDenied = false
+        }
+        await persist()
+    }
+
+    private func handleRemindersToggleChange(_ isOn: Bool) async {
+        if isOn {
+            let granted = await calendarSyncService.requestRemindersAccessIfNeeded()
+            remindersAccessDenied = !granted
+            if !granted {
+                remindersAppSyncEnabled = false
+            }
+        } else {
+            remindersAccessDenied = false
         }
         await persist()
     }
@@ -111,6 +179,13 @@ struct HabitSyncSettingsDetailView: View {
                 minute: weeklyReflectionMinute
             )
         }
+        // Awaited inline (not detached) — matches this function's existing
+        // `HabitNotificationScheduler.reschedule` call right above, and
+        // this is a deliberate, infrequent Settings-screen toggle action,
+        // not the hot tap-to-complete path the "never awaited inline"
+        // guidance is really about (see `HomeView
+        // .dispatchReminderCompletionMirror`'s doc comment for that path).
+        await calendarSyncService.sync(habit: updated)
     }
 }
 
