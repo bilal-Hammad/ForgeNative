@@ -188,7 +188,13 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       before any backend call starts; `calendarSyncService.removeSync`, the repository delete, and
       `reload()` all move to a fire-and-forget `Task` (matching `dispatchMilestoneCheck`'s established
       shape), with the repository delete's failure now logged rather than silently swallowed. New
-      permanent regression test: `ForgeUITests/DeleteHabitAnimationTests.swift`.
+      permanent regression test: `ForgeUITests/DeleteHabitAnimationTests.swift`. **Real-device
+      verification (2026-07-29, closes the cfee169 open caveat)**: user-recorded 60fps screen capture
+      of two real deletes, analyzed via per-frame pixel-diff (ffmpeg frame extraction + Python/PIL,
+      same methodology as the original diagnosis) — confirm-tap to fully-settled totaled ~725ms and
+      ~808ms across the two deletes (vs. the original ~2.467s dead delay), and both showed a genuine
+      multi-frame fade-out for the row removal, not an instant cut. Fix confirmed holding on real
+      hardware. See RESULTS.md for the full frame-by-frame breakdown.
 
 ---
 

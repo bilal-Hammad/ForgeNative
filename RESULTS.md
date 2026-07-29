@@ -1320,3 +1320,89 @@ surviving changes). `ForgeUITests/DeleteTimingCaptureTest.swift` (the temporary 
 diagnostic test, later superseded by the Simulator pivot) deleted outright. The two Simulator seed
 habits (`ForgeApp.swift`) were **kept**, since the new permanent `DeleteHabitAnimationTests` depends on
 them by name.
+
+---
+
+## 2026-07-29 — Delete-habit fix (cfee169): real-device verification, closes the open caveat
+
+The prior entry above shipped the optimistic-removal fix but explicitly flagged its effect on the
+original real-device ~2.467s delay as unverified — real-device XCUITest automation was blocked all 4
+attempts that round. This round, the user recorded a real screen capture on the actual iPhone
+(`deleteTest.MP4`, confirmed on disk before use: 8.8s, 1284×2778, HEVC, ~417 frames, variable ~47fps)
+of two live habit deletions, since automated real-device testing was still unavailable.
+
+### Methodology
+
+Same frame-analysis discipline as the original diagnosis, refined: rather than eyeballing all 417
+frames, extracted every original frame (`ffmpeg -vsync 0`, preserving the source's true variable frame
+timing) alongside each frame's exact `pts_time` (`ffprobe -show_entries frame=pts_time`), then computed
+a per-frame grayscale pixel-difference score (Python/PIL, downsampled for speed) across the whole
+sequence. This turned "step through 417 frames by hand" into "read off the handful of timestamps where
+the diff score actually moves," then confirmed each transition visually by reading the specific frames
+at those boundaries. One methodology note worth keeping for next time: an early reading of one batch of
+frames was mis-tracked (attributed frame_0400's content to frame_0375, and vice versa) — caught and
+corrected by re-reading the specific file in question and cross-checking against the numeric diff
+profile (frame_0400 vs frame_0410 showed a near-zero pixel diff, which was the tell that something was
+mislabeled, since the two frames were assumed to be visually very different). Lesson: when a numeric
+diff contradicts a visual read, re-verify the read — the video ended up containing **two** full
+delete flows (a "Cycling" habit, then a "Listen to Music" habit), which is what created the
+mislabeling opportunity in the first place.
+
+### Real numbers, both flows
+
+**Flow 1 — "Listen to Music"** (the later, cleaner of the two):
+- t=7.550s: last frame with the confirmation alert fully static/untouched (Delete button not
+  highlighted) — the tap lands essentially here.
+- t=7.567s: first visible response — the alert's own dismiss animation begins (confirmed visually: the
+  "+" Add-Habit FAB becomes visible through the alert as its opacity drops). **Tap → first visible
+  response: ~17ms — one frame, i.e., no perceptible delay**, versus the original bug's ~2.467s of
+  nothing happening.
+- t≈7.817s: alert dismiss animation fully settled (~250ms, a normal native alert-dismiss duration, not
+  app logic).
+- t≈7.817–8.000s: a small ~183ms visual gap — alert fully gone, row not yet visibly reacting.
+- t=8.000s: the "Listen to Music" row itself begins fading — confirmed visually across frame_0381
+  (t=8.033, row fully solid) → frame_0386 (t=8.133, visibly translucent, background fading) →
+  frame_0390 (t=8.200, nearly gone) — a genuine smooth multi-frame opacity transition, not a cut.
+- t≈8.267–8.283s: row fade fully settled, list resettled to empty state.
+- **Confirm-tap → fully settled: ~725ms total.**
+
+**Flow 2 — "Cycling"** (corroborating, earlier in the same recording):
+- Tap ≈ t=4.742–4.750s → alert dismiss ≈267ms (settles ~5.017s) → ~200ms gap → row's own fade animation
+  ≈333ms (t≈5.217–5.55s, same smooth-decay signature confirmed via the diff profile, not re-verified
+  visually since Flow 1's visual confirmation already established the pattern).
+- **Confirm-tap → fully settled: ~808ms total.**
+
+Both flows show the identical three-phase shape (near-instant first response → native alert dismiss →
+short gap → real row-fade animation) and land well under 900ms total, fully consistent with each other.
+
+### Verdict: the cfee169 fix holds on real hardware
+
+**Both halves of the original bug are confirmed fixed, not just on Simulator:**
+1. **The delay is gone.** ~725–808ms confirm-tap-to-settled (including two full native/app animation
+   phases) versus the original ~2.467s of dead time before any visual change at all. The first visible
+   response now happens within a single frame of the tap.
+2. **The animation is real.** Both deletes show a genuine multi-frame fade-out for the row (confirmed
+   both numerically via the gradual multi-frame decay in the diff profile, and visually via direct frame
+   inspection mid-transition), not the original instant single-frame cut.
+
+One minor, non-blocking observation for the record: there's a small ~183–200ms visual gap between the
+native alert finishing its dismiss animation and the row's own fade beginning. This is the alert's
+system-driven dismiss transition and the app's `withAnimation`-wrapped row removal being two independent
+animation timelines that aren't explicitly synchronized — not a regression of the original bug (total
+time is still under 1s with a real animation throughout), and not something this round's instructions
+called for fixing blind. Flagged as a possible future polish item, not a defect.
+
+Note on how this reconciles with the Simulator numbers from the prior entry: the ~299ms Simulator figure
+measured the *backend* `Task` duration (`removeSync` + repository delete + `reload()`), which is
+invisible to the user now that it's fire-and-forget. This round's ~725–808ms measures a *different*
+thing — the *visual* transition's own wall-clock duration (native alert dismiss + row fade) — which was
+never visible to Step 1's log-based instrumentation. Both numbers are healthy on their own terms and
+aren't in tension with each other.
+
+### Temporary files removed after capturing
+
+`deleteTest.MP4` was left in place at the user's own path (`~/deleteTest.MP4`, outside the repo — never
+copied into it). All extracted frames and the diff-profile CSV (`/tmp/delete_test_frames/`) were deleted
+after analysis, per this project's convention of not leaving temporary diagnostic artifacts around. No
+code changes were made this round — the video confirmed the existing fix works; per explicit instruction,
+verification-only rounds don't patch code that isn't shown to be broken.
