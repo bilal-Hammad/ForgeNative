@@ -147,11 +147,25 @@ struct HomeView: View {
                         .listRowSeparator(.hidden)
                         .swipeActions(edge: .trailing) {
                             if isViewingToday {
-                                Button(role: .destructive) {
+                                // Deliberately NOT `role: .destructive`: List
+                                // treats a destructive-role swipe action as
+                                // "invoking this removes the row" and pre-plays
+                                // its built-in removal transition on tap (red
+                                // background expanding to full row width, rows
+                                // below reflowing up) — but this action only
+                                // arms the confirmation alert, so the List then
+                                // snapped everything back, a visible flash
+                                // confirmed frame-by-frame on real device and
+                                // Simulator (see RESULTS.md). `.tint(.red)`
+                                // keeps the standard destructive look; the
+                                // alert's own Delete button keeps the real
+                                // destructive role since it genuinely deletes.
+                                Button {
                                     habitPendingDelete = habit
                                 } label: {
                                     Label("Delete", systemImage: "trash")
                                 }
+                                .tint(.red)
                                 Button {
                                     Task { await archive(habit) }
                                 } label: {

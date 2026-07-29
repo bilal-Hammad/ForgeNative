@@ -1406,3 +1406,96 @@ copied into it). All extracted frames and the diff-profile CSV (`/tmp/delete_tes
 after analysis, per this project's convention of not leaving temporary diagnostic artifacts around. No
 code changes were made this round — the video confirmed the existing fix works; per explicit instruction,
 verification-only rounds don't patch code that isn't shown to be broken.
+
+---
+
+## 2026-07-29 — Pre-confirmation swipe-delete tap glitch (fixed)
+
+### The bug
+
+Reported by the user (real device), distinct from the delete-animation bug fixed in cfee169 (that one
+was about what happens *after* confirming the alert; this one happens *before* it): swiping a habit
+card to reveal the Delete button and tapping it produced a fraction-of-a-second glitch — the red
+button background expanded across the card's full width, the row below simultaneously shifted upward
+as if the row had already been removed, the swiped card was briefly covered by the collapse — then
+everything snapped back and the confirmation alert appeared normally. Confirming the alert deleted
+correctly with no further issue.
+
+### Evidence — real device, before any code was read
+
+The user's earlier recording (`~/deleteTest.MP4`, the same one used for cfee169's real-device
+verification) happened to contain two full swipe→tap→alert sequences, so no new capture was needed.
+Re-extracted all 417 frames and stepped through both tap moments:
+
+- **"Cycling" delete** — frame_0183 (t≈3.533s): card background red/pink across its full width;
+  frame_0185 (t≈3.567s): red persists and the "Listen to Music" row below has visibly shifted up,
+  tucking under the collapsing row; frame_0187 (t≈3.617s): "Listen to Music" half-clipped/covered by
+  the collapsing space (the wrong-layering moment the user described); frames 0190–0197: everything
+  reverts, alert finishes appearing.
+- **"Listen to Music" delete** — frames 0308/0311: identical signature (full-width red, content below
+  shifted up, red receding as the alert fades in).
+
+2-for-2 reproduction, two different rows, two different list configurations — exactly as reported.
+
+### Root cause — found by code reading, confirmed by controlled before/after capture
+
+`Forge/Features/Home/HomeView.swift`, the trailing `.swipeActions` block (line 150 pre-fix):
+`Button(role: .destructive) { habitPendingDelete = habit }`. SwiftUI's `List` treats a
+destructive-role swipe action as a declaration that invoking it **removes the row**, and pre-plays its
+built-in removal transition on tap — red button background expanding to fill the row, row collapsing,
+rows below reflowing upward — before/without any data mutation. This app's action closure only sets
+`habitPendingDelete` (which feeds the confirmation alert and nothing else — grep-confirmed: declared
+line 110, set at the button, read only by the alert binding at lines 248–251, so no app-state path
+could cause the symptom). With no actual removal following, the List snapped everything back while the
+alert presented. The user's own hypothesis ("leftover behavior from before a confirmation step
+existed") was right in spirit: something *was* still declaring "tapping delete removes the row
+immediately" — but it was the button's system role contract, not leftover app logic.
+
+### Before-fix Simulator reproduction (the control for the fix verification)
+
+Captured via `simctl recordVideo` + the new XCUITest driving swipe→tap→Cancel on the `-uiTesting`
+seed: bf_0427 (swipe actions open) → bf_0429 (tap: red background expanding leftward across the row)
+→ bf_0431 (red across most of the card width, "Pager Test Habit" below already reflowed upward into
+the collapsing space) → snap-back → alert. Identical three-part signature to the real device — the
+Simulator reproduces this bug 1:1, so a clean after-fix Simulator capture is valid verification.
+
+### The fix
+
+Drop `role: .destructive` from the swipe action's Delete button, keeping the standard destructive look
+via `.tint(.red)` (mirroring the Archive button's `.tint(.orange)` beside it). Without the role, the
+List treats it as a plain swipe action: tap → invoke action + close the swipe actions, no removal
+transition assumed. The confirmation alert's own Delete button keeps `role: .destructive` — that one
+genuinely deletes. A code comment at the site documents why the role is deliberately absent.
+
+### After-fix verification — Simulator, both rows, frame-by-frame
+
+Same record+test+frame-diff procedure, full test class:
+- Row 1 ("Delete Timing Habit"): af_0292 — swipe actions simply slide closed, no red anywhere, rows
+  below pixel-identical in position; af_0294–0296 — alert fades in over an unmoved list.
+- Row 2 ("Quantity Test Habit"): af_0448 — Delete button stays its normal small pill size as the alert
+  begins presenting (no expansion), rows below unmoved; af_0452 — actions slide closed cleanly.
+- Both tests passed, including `testDeletedRowDisappearsQuickly` — the post-confirmation optimistic
+  delete from cfee169 is unaffected by removing the role (no regression).
+
+### New permanent regression test + a test-infra finding
+
+`DeleteHabitAnimationTests.testDeleteButtonShowsConfirmationAndCancelKeepsRow`: for two different
+seeded rows, swipe → tap Delete → assert the confirmation alert appears → Cancel → assert the row is
+still present. XCUITest can't assert on a sub-second visual flash, so the frame recordings above carry
+the visual claim; the test regression-proofs the interaction contract around it.
+
+Test-infra finding worth keeping: a single `row.swipeLeft()` on this List intermittently fails to
+register at all in Simulator — one run's injected swipe produced zero visual change (confirmed by
+XCUITest's own auto-captured failure recording: the row never moved a pixel, and the failure-time
+hierarchy dump showed no swipe actions open) while the identical call passed twice the same day. Added
+`revealTrailingSwipeActions(on:revealing:)` — `swipeLeft(velocity: .slow)` with a bounded retry — now
+used by both tests in this class. Also noted: `simctl recordVideo` compresses static periods (pts do
+not preserve wall-clock gaps), so frame *order*, not timestamps, was used for sequencing all Simulator
+captures this round.
+
+### Temporary files removed after capturing
+
+All extracted frame directories (`/tmp/glitch_frames`, `/tmp/glitch_before_frames`,
+`/tmp/glitch_after_frames`, `/tmp/before_diag`, `/tmp/xcui_fail`) and the scratchpad recordings
+(`glitch_before.mp4`, `glitch_after.mp4`, logs, xcresult attachment exports) deleted after analysis.
+`~/deleteTest.MP4` again left untouched at the user's own path.

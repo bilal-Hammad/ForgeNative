@@ -23,6 +23,19 @@ final class DeleteHabitAnimationTests: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// A single `swipeLeft()` intermittently fails to register as a swipe
+    /// on this List in Simulator (observed directly: one run's injected
+    /// swipe produced zero visual change while the identical call passed
+    /// twice the same day — XCUITest's own failure recording confirmed the
+    /// row never moved a pixel). Slow velocity is recognized more reliably
+    /// than the default, and a bounded retry absorbs the residual flake.
+    private func revealTrailingSwipeActions(on row: XCUIElement, revealing button: XCUIElement) {
+        for _ in 0..<3 {
+            row.swipeLeft(velocity: .slow)
+            if button.waitForExistence(timeout: 2) { return }
+        }
+    }
+
     func testDeletedRowDisappearsQuickly() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting"]
@@ -31,9 +44,9 @@ final class DeleteHabitAnimationTests: XCTestCase {
         let row = app.staticTexts["Delete Timing Habit"]
         XCTAssertTrue(row.waitForExistence(timeout: 10), "seeded habit row never appeared")
 
-        row.swipeLeft()
         let deleteSwipeButton = app.buttons["Delete"]
-        XCTAssertTrue(deleteSwipeButton.waitForExistence(timeout: 5), "swipe-to-delete action never appeared")
+        revealTrailingSwipeActions(on: row, revealing: deleteSwipeButton)
+        XCTAssertTrue(deleteSwipeButton.exists, "swipe-to-delete action never appeared")
         deleteSwipeButton.tap()
 
         let alertDeleteButton = app.alerts.buttons["Delete"]
@@ -45,5 +58,46 @@ final class DeleteHabitAnimationTests: XCTestCase {
         // A real removal (optimistic + animated) should clear the
         // accessibility hierarchy well within this bound.
         XCTAssertTrue(row.waitForNonExistence(timeout: 2), "row did not disappear within 2s of confirming delete")
+    }
+
+    /// Regression test for the pre-confirmation tap glitch: the swipe
+    /// row's Delete button used to be `Button(role: .destructive)`, and
+    /// SwiftUI's List treats a destructive-role swipe action as "invoking
+    /// this removes the row" — so a tap pre-played the system's removal
+    /// transition (red background expanding to full row width, rows below
+    /// reflowing upward) before the app's confirmation alert had shown,
+    /// then snapped everything back when no data mutation followed.
+    /// Frame-by-frame real-device recording evidence in RESULTS.md. The
+    /// fix drops the role (keeping `.tint(.red)` for the same look), so
+    /// tapping Delete must now do nothing visually beyond presenting the
+    /// confirmation alert. XCUITest can't assert on a sub-second visual
+    /// flash — the recording evidence covers that — so this asserts the
+    /// interaction contract around it: alert appears, Cancel leaves the
+    /// row exactly where it was, on two different rows (the glitch was
+    /// reproduced on two different list positions).
+    func testDeleteButtonShowsConfirmationAndCancelKeepsRow() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting"]
+        app.launch()
+
+        for title in ["Delete Timing Habit", "Quantity Test Habit"] {
+            let row = app.staticTexts[title]
+            XCTAssertTrue(row.waitForExistence(timeout: 10), "seeded habit row \(title) never appeared")
+
+            let deleteSwipeButton = app.buttons["Delete"]
+            revealTrailingSwipeActions(on: row, revealing: deleteSwipeButton)
+            XCTAssertTrue(deleteSwipeButton.exists, "swipe-to-delete action never appeared for \(title)")
+            deleteSwipeButton.tap()
+
+            let cancelButton = app.alerts.buttons["Cancel"]
+            XCTAssertTrue(cancelButton.waitForExistence(timeout: 5), "confirmation alert never appeared for \(title)")
+            // Settle time so a concurrent screen recording captures the
+            // tap → alert window cleanly for frame analysis.
+            Thread.sleep(forTimeInterval: 1)
+            cancelButton.tap()
+
+            XCTAssertTrue(row.waitForExistence(timeout: 5), "row \(title) vanished after cancelling the delete confirmation")
+            Thread.sleep(forTimeInterval: 1)
+        }
     }
 }

@@ -195,6 +195,19 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       ~808ms across the two deletes (vs. the original ~2.467s dead delay), and both showed a genuine
       multi-frame fade-out for the row removal, not an instant cut. Fix confirmed holding on real
       hardware. See RESULTS.md for the full frame-by-frame breakdown.
+- [x] **Pre-confirmation swipe-delete tap glitch**. Reported by the user (real device), distinct from
+      the delete-animation bug above: tapping the revealed swipe Delete button — before the
+      confirmation alert — flashed the red button background across the card's full width, shifted the
+      row below upward as if the row were already removed, then snapped everything back as the alert
+      appeared. Root cause: `Button(role: .destructive)` in the trailing `.swipeActions`
+      (`HomeView.swift`) — SwiftUI's List pre-plays its built-in row-removal transition on tapping a
+      destructive-role swipe action, assuming the action removes the row; this app's action only arms
+      the confirmation alert, so the List had to revert. Confirmed frame-by-frame on the user's own
+      real-device recording (2/2 rows) AND reproduced identically on Simulator before the fix; fixed
+      by dropping the role (keeping `.tint(.red)`), verified clean on Simulator across two different
+      rows after the fix. New permanent regression test:
+      `DeleteHabitAnimationTests.testDeleteButtonShowsConfirmationAndCancelKeepsRow`. Full
+      frame-by-frame account in RESULTS.md.
 
 ---
 
