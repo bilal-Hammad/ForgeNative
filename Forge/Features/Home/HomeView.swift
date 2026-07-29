@@ -1,5 +1,12 @@
 import SwiftUI
 import UIKit
+import os
+
+/// Permanent — surfaces a failed post-optimistic-removal delete rather than
+/// swallowing it silently (Production Scaling Standard #8). See
+/// `HomeView.dispatchHabitDeletion(_:)`'s doc comment for why the actual
+/// repository delete can fail after the row is already gone from the list.
+private let habitDeletionLogger = Logger(subsystem: "com.bilalhammad.forge.native", category: "HabitDeletion")
 
 /// Home screen (APP_REDESIGN_SPEC.md §1, §3): the weekly rings strip is the
 /// top-most element — no "Home" nav title above it — and stays fixed while
@@ -245,7 +252,7 @@ struct HomeView: View {
             ) { habit in
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) {
-                    Task { await delete(habit) }
+                    delete(habit)
                 }
             } message: { habit in
                 Text("\"\(habit.title)\" and all of its completion history will be permanently deleted. This can't be undone.")
@@ -408,10 +415,14 @@ struct HomeView: View {
         for habit in habits where habit.isHealthKitTracked {
             let connected = await healthKitService.isConnected(habit)
             healthKitConnectionStatus[habit.id] = connected
-            guard connected, let hkState = await healthKitService.todayCompletionState(for: habit) else { continue }
+            guard connected, let hkState = await healthKitService.todayCompletionState(for: habit) else {
+                continue
+            }
 
             var completion = selectedDayCompletions[habit.id] ?? Completion(habitID: habit.id, date: .now)
-            guard completion.count != hkState.count || completion.isComplete != hkState.isComplete else { continue }
+            guard completion.count != hkState.count || completion.isComplete != hkState.isComplete else {
+                continue
+            }
             completion.count = hkState.count
             completion.isComplete = hkState.isComplete
             completion.loggedAt = .now
@@ -849,18 +860,66 @@ struct HomeView: View {
         await reload()
     }
 
-    private func delete(_ habit: Habit) async {
-        // Before deleting — the habit's own `calendarEventIdentifier`/
-        // `reminderIdentifiers` are what `removeSync` needs to find and
-        // remove the right EKEvent/EKReminder(s); they're unrecoverable
-        // once the habit record itself is gone.
-        await calendarSyncService.removeSync(for: habit)
-        try? await habitRepository.delete(id: habit.id)
+    /// Optimistic removal: the row leaves `habits`/`selectedDayCompletions`
+    /// immediately, animated, before any backend work starts. Measured (real
+    /// numbers, Simulator warm run — see RESULTS.md): with everything
+    /// awaited inline as this used to be, `removeSync` and
+    /// `reconcileHealthKitHabits` — this investigation's original two
+    /// suspects — were both cheap (single-digit ms), but the repository
+    /// delete itself (~136ms) and notification/Live Activity cleanup
+    /// (~84ms) were not, and stacked with `reload()`'s own cost (~74ms)
+    /// they added up to a real, avoidable ~300ms of dead time even on
+    /// Simulator — before accounting for the real device, which this
+    /// project's own prior investigations (CLAUDE.md's "MainActor
+    /// continuation-resumption latency" findings) have repeatedly measured
+    /// as materially slower than Simulator for this exact class of
+    /// actor-hop. Rather than pick a single "dominant" call to dispatch,
+    /// none of this backend work has any user-visible urgency at deletion
+    /// time — the row is already gone — so all of it moves off the
+    /// critical path together.
+    private func delete(_ habit: Habit) {
+        withAnimation {
+            habits.removeAll { $0.id == habit.id }
+            selectedDayCompletions.removeValue(forKey: habit.id)
+            healthKitConnectionStatus.removeValue(forKey: habit.id)
+        }
         HabitNotificationScheduler.removeAll(for: habit.id)
         if habit.unit.isTimeBased {
             HabitTimerCoordinator.shared.endLiveActivity(habitID: habit.id, completed: false)
         }
-        await reload()
+        dispatchHabitDeletion(habit)
+    }
+
+    /// Deliberately not awaited inline — see `delete(_:)`'s doc comment
+    /// above, and `dispatchMilestoneCheck`'s doc comment for the same
+    /// established shape elsewhere in this file. This plain `Task { }`
+    /// (not a view-lifecycle-bound `.task { }`) keeps running independent
+    /// of `HomeView`'s own lifecycle, so it isn't silently dropped if the
+    /// view disappears mid-cleanup (Production Scaling Standard #8). The
+    /// repository delete's failure is explicitly logged rather than
+    /// swallowed, since silently losing it would leave the row
+    /// optimistically gone from the UI while the underlying data survives —
+    /// reappearing, unexplained, on the next `reload()`. `removeSync`
+    /// itself isn't throwing (`CalendarSyncService`'s protocol signature,
+    /// unchanged by this fix) — an orphaned `EKEvent`/`EKReminder` from a
+    /// failed internal remove isn't newly introduced by dispatching this
+    /// off the critical path, and reworking that protocol to surface its
+    /// own internal errors is out of scope here.
+    private func dispatchHabitDeletion(_ habit: Habit) {
+        Task {
+            // Before the repository delete — the habit's own
+            // `calendarEventIdentifier`/`reminderIdentifiers` are what
+            // `removeSync` needs to find and remove the right
+            // EKEvent/EKReminder(s); they're unrecoverable once the habit
+            // record itself is gone.
+            await calendarSyncService.removeSync(for: habit)
+            do {
+                try await habitRepository.delete(id: habit.id)
+            } catch {
+                habitDeletionLogger.error("Failed to delete habit \(habit.id, privacy: .public) (\(habit.title, privacy: .public)): \(error, privacy: .public)")
+            }
+            await reload()
+        }
     }
 }
 

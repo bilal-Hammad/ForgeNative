@@ -177,6 +177,18 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       New permanent debug tool: `DebugCalendarSyncView` (Settings → Debug), matching
       `DebugSeedHealthKitView`'s kept-permanently precedent, for any future Calendar-sync
       verification pass.
+- [x] **Delete-habit delay + missing removal animation bug**. Reported directly by the user (real
+      device, not spec-derived): confirming "Delete" in the alert produced a multi-second dead pause,
+      then an instant unanimated cut instead of a real removal transition. Diagnosed via real-device
+      60fps recording + frame-hash analysis (~2.467s delay, confirmed), then real-timing instrumentation
+      isolated the cause — see RESULTS.md for the full account, including why the diagnosis pivoted to
+      Simulator after real-device XCUITest automation could not be established this round (4 consecutive
+      "Timed out while enabling automation mode" failures). Fixed by making `HomeView.delete(_:)`
+      optimistic: the row leaves `habits`/`selectedDayCompletions` immediately inside `withAnimation`,
+      before any backend call starts; `calendarSyncService.removeSync`, the repository delete, and
+      `reload()` all move to a fire-and-forget `Task` (matching `dispatchMilestoneCheck`'s established
+      shape), with the repository delete's failure now logged rather than silently swallowed. New
+      permanent regression test: `ForgeUITests/DeleteHabitAnimationTests.swift`.
 
 ---
 

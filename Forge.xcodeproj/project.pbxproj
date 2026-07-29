@@ -75,6 +75,7 @@
 		8A848402AC9796EC42259C42 /* MilestonesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4BDBA976019695A5CFA9CA9 /* MilestonesListView.swift */; };
 		8B2301F6DD4C892AA84C6F91 /* MilestoneRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AB60F6E62E32CD49FFA56B2 /* MilestoneRepository.swift */; };
 		8BDECEDBE928F19106CF148C /* HabitTimerLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB8814AD0BAAEF7CD6572E1D /* HabitTimerLiveActivity.swift */; };
+		8EBBAB87EE8B02B7E214EB26 /* DeleteHabitAnimationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 985585D8D01194E42FC2947A /* DeleteHabitAnimationTests.swift */; };
 		90926934F1B9AD8B9CE18F49 /* AuthServiceEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922D0BF85189F988261B7D29 /* AuthServiceEnvironment.swift */; };
 		916CB33F04B36C97E9C950BE /* WeeklyRingsPagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3A4D78AFD385DD3E494224A /* WeeklyRingsPagerView.swift */; };
 		91B3E80CD6ED07285654BFC8 /* EntitlementService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F405819F55143F5AAA23D633 /* EntitlementService.swift */; };
@@ -228,6 +229,7 @@
 		9395F0760C7FB2EF9BD68A41 /* InMemoryMilestoneRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryMilestoneRepository.swift; sourceTree = "<group>"; };
 		945C0ED6499DE1D14328DDED /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		9717C1EEA4C0ADA0751D6F72 /* AuthUser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthUser.swift; sourceTree = "<group>"; };
+		985585D8D01194E42FC2947A /* DeleteHabitAnimationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteHabitAnimationTests.swift; sourceTree = "<group>"; };
 		9AEB420AFB865FEBD7D44650 /* MilestoneModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneModel.swift; sourceTree = "<group>"; };
 		9CAF136A2212C7BAAD8461CD /* ForgeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeApp.swift; sourceTree = "<group>"; };
 		9EE193FE89FAB98966A7CCE4 /* HealthKitBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitBadgeView.swift; sourceTree = "<group>"; };
@@ -497,6 +499,7 @@
 		C31349E3F02EFC1031777538 /* ForgeUITests */ = {
 			isa = PBXGroup;
 			children = (
+				985585D8D01194E42FC2947A /* DeleteHabitAnimationTests.swift */,
 				374AD2D54777742738C4AF92 /* HealthKitRealDeviceTests.swift */,
 				7F66DC2541D078D6905E7A13 /* MoodCheckInTests.swift */,
 				80FE23758D24748FC07680FE /* ResetHabitTests.swift */,
@@ -828,6 +831,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8EBBAB87EE8B02B7E214EB26 /* DeleteHabitAnimationTests.swift in Sources */,
 				22F2437A72A872912929FAC4 /* HealthKitRealDeviceTests.swift in Sources */,
 				01252BB84EA5B3EB48130CC3 /* MoodCheckInTests.swift in Sources */,
 				9EEEF008C20C0E6A50341687 /* ResetHabitTests.swift in Sources */,

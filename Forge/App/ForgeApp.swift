@@ -83,6 +83,17 @@ struct ForgeApp: App {
             // Stop button bug — see RESULTS.md).
             let stopButtonTestHabit = Habit(title: "Stop Button Test Habit", category: .good, iconSystemName: "timer", goal: 2, unit: .minutes, startDate: eightWeeksAgo)
             context.insert(HabitModel(habit: stopButtonTestHabit))
+            // Seeded for `DeleteHabitAnimationTests` (permanent regression
+            // test for the delete-habit delay/missing-animation bug — real
+            // habits change unpredictably device-to-device, so this needs
+            // its own known, stable seed). "Delete Timing Habit" is the one
+            // the test actually deletes; "HK Timing Habit" survives so
+            // `reload()`'s `reconcileHealthKitHabits()` loop still has a
+            // HealthKit-tracked habit to iterate through during the test.
+            let deleteTimingHabit = Habit(title: "Delete Timing Habit", category: .good, iconSystemName: "trash", startDate: eightWeeksAgo)
+            context.insert(HabitModel(habit: deleteTimingHabit))
+            let hkTimingHabit = Habit(title: "HK Timing Habit", category: .good, isHealthKitTracked: true, iconSystemName: "heart", startDate: eightWeeksAgo)
+            context.insert(HabitModel(habit: hkTimingHabit))
             try? context.save()
         }
         habitRepository = SwiftDataHabitRepository(modelContainer: modelContainer)

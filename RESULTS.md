@@ -1185,3 +1185,138 @@ Calendar-sync verification pass without needing to rebuild this tooling from scr
 already covered by `DebugCalendarSyncView` being available for manual/future automated re-verification,
 matching this project's established distinction between kept tests like `ResetHabitTests` and removed
 one-off ones like `RingSizeVerificationTest`).
+
+---
+
+## 2026-07-29 — Delete-habit delay + missing removal animation (fixed)
+
+### The bug and its diagnosis
+
+Reported directly by the user (real device, not spec-derived): confirming "Delete" in the habit-row
+alert produced a multi-second dead pause, then an instant, completely unanimated single-frame
+disappearance instead of a real removal transition. A prior investigation-only pass this session
+confirmed the delay precisely via real-device 60fps screen recording + frame-hash analysis: **~2.467s**
+static delay between confirming delete and any visual change, then an instant cut with no slide/fade/
+collapse. That pass identified two candidate root causes by code review — the newly-added
+`calendarSyncService.removeSync(for:)` inline await in `delete(_ habit:)`, and the pre-existing
+`reconcileHealthKitHabits()` loop inside `reload()` — but explicitly did not isolate which dominated.
+
+### Real-device automation blocker this round
+
+This round's Step 1 required real timing instrumentation before changing any code. Real-device XCUITest
+automation could not be established: **4 consecutive failures**, all identical
+(`Error Domain=com.apple.dt.XCTest.XCTFuture Code=1000 "Timed out while enabling automation mode."`),
+despite trying genuinely different mitigations each time:
+1. The previously-reliable "wake the device via `devicectl device process launch`, then immediately run
+   `xcodebuild test`" fix (which worked in every earlier round this session) — failed.
+2. Combining the wake call and `xcodebuild test` into a single back-to-back shell command, to close any
+   gap — failed identically.
+3. Replacing `xcodebuild test` with `test-without-building` (skipping the full rebuild phase entirely,
+   confirmed via logs that "Running tests..." started within ~6 seconds of the wake call instead of
+   60+ seconds later) — failed identically, ruling out the build-phase timing gap as the cause.
+
+Also ruled out: stale/competing processes on the Mac holding the device connection (`ps aux` clean),
+and the device being locked or requiring a passcode (`devicectl device info lockState` reported
+`passcodeRequired: false`, `unlockedSinceBoot: true`). Real-device screenshot tooling
+(`idevicescreenshot`) also failed (`Could not start screenshotr service: Invalid service`) — this
+libimobiledevice-era tool needs an old-style mounted Developer Disk Image, incompatible with this
+device's modern trusted-tunnel model, so the device's actual on-screen state at the moment of the
+automation-mode handshake could not be directly inspected either. This was reported to the user as a
+confirmed hard blocker per CLAUDE.md's autonomous-operation policy, with a concrete offered
+workaround (manually trigger a delete on-device while a running `idevicesyslog` capture picked up the
+instrumentation) that wasn't taken up before the session continued.
+
+### Pivot to Simulator
+
+Given the real-device blocker, Step 1 pivoted to Simulator, using this project's existing `-uiTesting`
+in-memory-store seed pattern (`ForgeApp.swift`) rather than depending on whatever habits happen to exist
+on a real, actively-used device. Two habits were added to the seed: **"Delete Timing Habit"** (plain,
+no HealthKit/Calendar sync — the one actually deleted) and **"HK Timing Habit"** (`isHealthKitTracked:
+true`, survives the delete) so `reload()`'s `reconcileHealthKitHabits()` loop had a real HealthKit-
+tracked habit to iterate through. XCUITest gesture automation on Simulator itself has a strong
+precedent of working reliably in this exact project (`WeeklyPagerSwipeTests`, `MoodCheckInTests`) — and
+did work here on the first attempt, no automation-mode issues at all on Simulator.
+
+### Real numbers captured (`log stream`, subsystem `com.bilalhammad.forge.native`, category `DeleteTiming`)
+
+Cold, first-launch `reload()` (matches this project's own previously-documented `ModelContainer`
+cold-start cost):
+```
+RECONCILE_DETAIL HK Timing Habit:isConnected=141.1ms,skip=0.1ms
+COMPLETIONS_TIMING fetchCompletions=546.8ms reconcileHealthKitHabits=142.2ms
+RELOAD_TIMING fetchAll=952.4ms reloadSelectedDayCompletions=689.4ms pendingTimerStops=0.0ms checkTimerCompletions=0.1ms
+```
+
+Warm delete, real swipe-to-delete + alert-confirm via XCUITest:
+```
+RECONCILE_DETAIL HK Timing Habit:isConnected=6.8ms,skip=0.0ms
+COMPLETIONS_TIMING fetchCompletions=53.3ms reconcileHealthKitHabits=9.3ms
+RELOAD_TIMING fetchAll=10.7ms reloadSelectedDayCompletions=63.0ms pendingTimerStops=0.1ms checkTimerCompletions=0.1ms
+DELETE_TIMING habit=Delete Timing Habit removeSync=4.8ms repoDelete=136.0ms notifPlusLiveActivity=84.4ms reload=74.1ms TOTAL=299.2ms
+```
+
+**Neither originally-hypothesized candidate dominated.** `removeSync` (4.8ms) and
+`reconcileHealthKitHabits` (9.3ms, nested inside `reloadSelectedDayCompletions`'s 63.0ms) were both
+cheap. The two largest pieces were ones the original diagnosis hadn't flagged: the repository delete
+itself (`repoDelete`, 136.0ms) and notification/Live Activity cleanup (`notifPlusLiveActivity`, 84.4ms).
+
+**Important caveat, stated plainly**: this Simulator warm total (~299ms) is far below the real-device
+~2.467s delay this bug report started from. This data conclusively answers the narrow Step 1 question
+asked (which of the two original candidates dominates — answer: neither), but it does **not** claim to
+fully explain the real-device severity, which was never re-measured this round due to the automation
+blocker above. This project's own history has a standing precedent (the tap-to-select-day investigation)
+of Simulator-only findings not holding on real hardware.
+
+### The fix
+
+Given the ambiguity above — Simulator data doesn't clearly pin one dominant real-device cause — the fix
+applied is structural rather than picking one call to dispatch: **optimistic UI removal**.
+`HomeView.delete(_ habit:)` is now synchronous (no longer `async`) and, on the "Delete" alert
+confirmation:
+1. Immediately removes the habit from `habits`, `selectedDayCompletions`, and
+   `healthKitConnectionStatus`, wrapped in `withAnimation` — the row leaves the list with a real,
+   animated transition, with zero dependency on any backend call's latency.
+2. Runs `HabitNotificationScheduler.removeAll(for:)` and ends any running Live Activity synchronously
+   (both were already fast, un-instrumented, and have no async dependency).
+3. Calls `dispatchHabitDeletion(_:)`, which fires `calendarSyncService.removeSync`, the actual
+   repository delete, and a final `reload()` self-heal sweep inside a fire-and-forget `Task { }` —
+   matching `dispatchMilestoneCheck`'s established shape elsewhere in this file. The repository delete's
+   failure is now logged (new permanent `habitDeletionLogger`, `Logger(subsystem:
+   "com.bilalhammad.forge.native", category: "HabitDeletion")`) rather than silently swallowed by the
+   previous bare `try?` — a silent failure here would otherwise leave the row optimistically gone from
+   the UI while the underlying data survived, reappearing unexplained on the next reload.
+
+This is deliberately more robust than dispatching a single "dominant" call: since nothing on screen
+waits on `removeSync`, the repository delete, notification cleanup, or `reload()` anymore, the fix holds
+regardless of which of these turns out to be slow on real hardware — the row's removal is now
+structurally decoupled from all of that backend latency, not just from whichever piece Simulator
+happened to measure as largest.
+
+### Verified
+
+- Real Simulator numbers above, captured via `log stream` during an actual XCUITest-driven swipe-delete
+  (not simulated/assumed) — both before and after the fix.
+- **New permanent regression test**: `ForgeUITests/DeleteHabitAnimationTests.swift`
+  (`testDeletedRowDisappearsQuickly`) — swipes to delete the seeded "Delete Timing Habit", confirms the
+  alert, and asserts `row.waitForNonExistence(timeout: 2)`. Passed on Simulator
+  (`Test Case '-[ForgeUITests.DeleteHabitAnimationTests testDeletedRowDisappearsQuickly]' passed
+  (23.119 seconds)`) — the row left the accessibility hierarchy well within the 2-second bound, versus
+  the pre-fix ~2.467s dead delay alone (before any animation).
+- Clean `build-for-testing` and full app `build` both succeeded after every temporary instrumentation
+  line was removed from `HomeView.swift`.
+- **Not verified this round**: the fix's effect on a real device. The automation blocker above prevented
+  re-running the original real-device recording/frame-hash analysis against the fixed code. Recommended
+  follow-up: a manual real-device delete (ideally of a genuinely HealthKit-authorized habit, which
+  Simulator's seed can't fully reproduce) to confirm the animation and responsiveness feel correct
+  outside this session.
+
+### Temporary files removed after capturing
+
+The `deleteTimingLogger` `Logger` declaration and its doc comment block, and every `Date()`-checkpoint
+call in `reload()`, `reloadSelectedDayCompletions()`, and `reconcileHealthKitHabits()` — all removed
+from `HomeView.swift`, restoring those three functions to their pre-instrumentation shape (the new
+`delete(_:)`/`dispatchHabitDeletion(_:)` split and the permanent `habitDeletionLogger` are the only
+surviving changes). `ForgeUITests/DeleteTimingCaptureTest.swift` (the temporary real-device-oriented
+diagnostic test, later superseded by the Simulator pivot) deleted outright. The two Simulator seed
+habits (`ForgeApp.swift`) were **kept**, since the new permanent `DeleteHabitAnimationTests` depends on
+them by name.
