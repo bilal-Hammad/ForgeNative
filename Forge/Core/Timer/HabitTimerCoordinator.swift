@@ -53,10 +53,9 @@ final class HabitTimerCoordinator {
     func startLiveActivity(habitID: UUID, title: String, iconSystemName: String, color: HabitColor, goalDuration: TimeInterval, effectiveStart: Date, end: Date) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         let state = HabitTimerAttributes.ContentState(
-            isPaused: false,
             effectiveStartDate: effectiveStart,
             endDate: end,
-            pausedRemaining: max(0, end.timeIntervalSinceNow)
+            pausedAt: nil
         )
         if let existing = activities[habitID] {
             Task { await existing.update(ActivityContent(state: state, staleDate: end)) }

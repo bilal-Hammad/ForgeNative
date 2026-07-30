@@ -1997,3 +1997,65 @@ needs a tap. A ~30s total `idevicesyslog` capture across two windows caught no `
 definitive runtime cause the instant Bilal next taps pause (`log stream --predicate 'category ==
 "PauseIntent"'` or `idevicesyslog | grep PauseIntent`). The build is installed on his device. This is
 reported as an open, narrowed bug — not a repeat "fixed" claim.
+
+---
+
+## 2026-07-30 — Bug A (Live Activity pause) root cause FOUND via real-device logs, and fixed
+
+The previous rounds fixed the intent's target membership/registration but pause still didn't freeze the
+countdown. Bilal ran `idevicesyslog | grep …` while tapping pause on the Lock Screen and pasted the
+decisive lines from the strengthened `PauseIntent` logging:
+
+```
+Forge(Forge.debug.dylib)[29921] <Error>: perform() ENTERED process=Forge pid=29921 habitID=23EF0780-… activitiesVisible=1
+Forge(Forge.debug.dylib)[29921] <Error>: about to update Activity → isPaused=true remaining=1278.1
+Forge(Forge.debug.dylib)[29921] <Error>: Activity.update returned; signal recorded
+```
+
+Plus, from the system's own AppIntents logs the same tap: `Forge(AppIntents)[…] Invoking
+ToggleTimerPauseIntent.perform()` → `perform() finished`. So, conclusively:
+1. `perform()` **runs**, in the **Forge app process** — the both-targets fix works at runtime (this
+   validates the two prior rounds' structural work; it was necessary, just not sufficient).
+2. It **finds the activity** (`activitiesVisible=1`).
+3. `Activity.update` with the paused state **returns successfully**.
+
+…and yet the countdown kept ticking. So the bug was never "the intent doesn't run" (the whole prior
+theory) — it's that **the ContentState update landed but the view didn't repaint to the frozen state.**
+
+### Root cause
+
+The Live Activity view swapped between two *different* view types on the `isPaused` flag: a
+system-rendered ticking `Text(timerInterval:)` while running, and a hand-formatted static `Text` while
+paused. When the update flipped `isPaused` to true, the ContentState changed — but the system kept
+rendering the original ticking `Text(timerInterval:)` and never tore it down for the static
+replacement. A `Text(timerInterval:)` is drawn autonomously by the system (that's why it stays correct
+while the extension is suspended); swapping it out for a plain `Text` on a state change apparently
+doesn't force that system-drawn view to stop.
+
+### Fix — Apple's purpose-built pausable-timer API
+
+Use `Text(timerInterval: effectiveStartDate...endDate, pauseTime: pausedAt, countsDown: true)` — **one
+view in every state**. When `pauseTime` (`pausedAt`) is nil the system ticks it; when set, the system
+**freezes** it at that instant natively (and keeps it frozen-correct while suspended). No view-type
+swap, so nothing has to be torn down. `ContentState` now carries `pausedAt: Date?` (nil = running)
+instead of the old `isPaused` + `pausedRemaining`; `isPaused` is a computed convenience. The intent
+sets `pausedAt = now` on pause (timeline untouched — the system just stops advancing it) and rebuilds
+the timeline with `pausedAt = nil` on resume. The accumulated-elapsed signal to the app is recomputed
+consistently (banked = `now - effectiveStartDate` at pause). The button icon and the "Done"/`isFinished`
+detection read the computed `isPaused`/timeline as before.
+
+### Verification
+
+- Timer regression tests (`TimerHabitTests` + `TimerOptionsSheetTests`) all pass on Simulator — the
+  in-app row doesn't use `pauseTime`, so it's unaffected (one flaky *launch* failure that passed on
+  rerun, unrelated to this change).
+- Installed on Bilal's device (0.1.0/1).
+- **Honest status**: this is a *targeted root-cause fix of the proven mechanism* — the log evidence
+  established that the update arrives and the ticking-vs-static swap was the failure point, and
+  `pauseTime` is the documented API for exactly this. But I still cannot tap a Lock Screen Live
+  Activity from any tool here, so the final "the countdown visibly freezes and the button swaps to the
+  circular-arrow resume icon on tap" is Bilal's to eyeball-confirm. Not claiming it watched — but this
+  is no longer a guess: it's a fix aimed squarely at the mechanism the logs proved was broken. The
+  `PauseIntent` logging remains so his next tap re-confirms `perform()` runs (and, if it somehow still
+  doesn't freeze, that would point at ActivityKit's `pauseTime` rendering itself, a much narrower
+  remaining surface).

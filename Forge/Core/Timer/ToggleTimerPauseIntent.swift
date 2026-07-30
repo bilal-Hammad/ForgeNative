@@ -69,40 +69,36 @@ struct ToggleTimerPauseIntent: LiveActivityIntent {
 
         let newState: HabitTimerAttributes.ContentState
         let signalRunStartedAt: Date?
-        // Banked elapsed is the same value in both branches (it's the total
-        // elapsed at the moment of the tap); only whether a run segment is
-        // live differs.
+        // Banked elapsed is the same value in both branches (total elapsed at
+        // the moment of the tap); only whether a run segment is live differs.
         let bankedElapsed: TimeInterval
 
         if state.isPaused {
-            // Resume: rebuild the timeline so it ends `pausedRemaining` from
-            // now, and re-anchor `effectiveStartDate` so the ticking math
-            // still accounts for the banked time.
-            let remaining = max(0, state.pausedRemaining)
+            // Resume: rebuild the timeline so it ends `remaining` from now,
+            // re-anchoring `effectiveStartDate` back by the banked time, and
+            // clear `pausedAt` so the system ticks it again.
+            let remaining = max(0, state.endDate.timeIntervalSince(state.pausedAt ?? now))
             let newEnd = now.addingTimeInterval(remaining)
-            let newEffectiveStart = newEnd.addingTimeInterval(-goalDuration)
             newState = HabitTimerAttributes.ContentState(
-                isPaused: false,
-                effectiveStartDate: newEffectiveStart,
+                effectiveStartDate: newEnd.addingTimeInterval(-goalDuration),
                 endDate: newEnd,
-                pausedRemaining: remaining
+                pausedAt: nil
             )
             bankedElapsed = max(0, goalDuration - remaining)
             signalRunStartedAt = now
         } else {
-            // Pause: freeze the remaining value; stop the ticking view.
-            let remaining = max(0, state.endDate.timeIntervalSince(now))
+            // Pause: freeze the countdown at `now` via `pauseTime` — the
+            // timeline is untouched, the system just stops advancing it.
             newState = HabitTimerAttributes.ContentState(
-                isPaused: true,
                 effectiveStartDate: state.effectiveStartDate,
                 endDate: state.endDate,
-                pausedRemaining: remaining
+                pausedAt: now
             )
-            bankedElapsed = max(0, goalDuration - remaining)
+            bankedElapsed = max(0, now.timeIntervalSince(state.effectiveStartDate))
             signalRunStartedAt = nil
         }
 
-        pauseIntentLogger.error("about to update Activity → isPaused=\(newState.isPaused) remaining=\(newState.pausedRemaining, format: .fixed(precision: 1))")
+        pauseIntentLogger.error("about to update Activity → paused=\(newState.isPaused) banked=\(bankedElapsed, format: .fixed(precision: 1))")
         await activity.update(ActivityContent(state: newState, staleDate: newState.isPaused ? nil : newState.endDate))
         SharedTimerPauseSignal.record(habitID: habitID, accumulatedElapsed: bankedElapsed, runStartedAt: signalRunStartedAt)
         pauseIntentLogger.error("Activity.update returned; signal recorded")

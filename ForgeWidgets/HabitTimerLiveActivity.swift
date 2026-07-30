@@ -106,17 +106,19 @@ struct HabitTimerLiveActivity: Widget {
             .background(Circle().fill(context.attributes.color.color.opacity(0.22)))
     }
 
-    /// Ticking while running, frozen while paused, and a "Done" label once
-    /// the goal is reached — see the type and `isFinished` doc comments.
+    /// One `Text(timerInterval:pauseTime:)` for running *and* paused — the
+    /// system ticks it when `pausedAt` is nil and freezes it natively when
+    /// set (see the `ContentState` doc for why the old ticking-vs-static
+    /// swap didn't repaint). A "Done" label once the goal is reached.
     @ViewBuilder
     private func timerText(context: ActivityViewContext<HabitTimerAttributes>) -> some View {
         if isFinished(context) {
             Text("Done")
                 .foregroundStyle(context.attributes.color.color)
-        } else if context.state.isPaused {
-            Text(Self.paused(remaining: context.state.pausedRemaining))
         } else {
-            Text(timerInterval: context.state.effectiveStartDate...context.state.endDate, countsDown: true)
+            Text(timerInterval: context.state.effectiveStartDate...context.state.endDate,
+                 pauseTime: context.state.pausedAt,
+                 countsDown: true)
         }
     }
 
@@ -140,17 +142,5 @@ struct HabitTimerLiveActivity: Widget {
             }
             .buttonStyle(.plain)
         }
-    }
-
-    /// `mm:ss` (or `h:mm:ss`) for the frozen paused value — matches the
-    /// shape `Text(timerInterval:)` renders while running.
-    private static func paused(remaining: TimeInterval) -> String {
-        let total = max(0, Int(remaining.rounded()))
-        let hours = total / 3600
-        let minutes = (total % 3600) / 60
-        let seconds = total % 60
-        return hours > 0
-            ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
-            : String(format: "%d:%02d", minutes, seconds)
     }
 }

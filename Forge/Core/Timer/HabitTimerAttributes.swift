@@ -17,23 +17,27 @@ import Foundation
 /// seconds) so the widget/intent can recompute the timeline on resume
 /// without a round trip to the app.
 struct HabitTimerAttributes: ActivityAttributes, Sendable {
-    /// While **running** (`isPaused == false`): the view renders a ticking
-    /// `Text(timerInterval: effectiveStartDate...endDate, countsDown: true)`.
-    /// `effectiveStartDate` is shifted earlier than the real run-start by
-    /// the banked `accumulatedElapsed`, so the system's own ticking math
-    /// lines up with total elapsed. While **paused** (`isPaused == true`):
-    /// the view must render a *static* value (`pausedRemaining`) instead —
-    /// a `timerInterval` view keeps ticking regardless of app pause state,
-    /// since the system, not this extension, drives it.
+    /// The view renders one `Text(timerInterval: effectiveStartDate...endDate,
+    /// pauseTime: pausedAt, countsDown: true)` in every state. `pausedAt` is
+    /// the mechanism: `nil` while running (the system ticks it down), and the
+    /// pause instant while paused (the system *freezes* it there, natively,
+    /// staying correct while the extension is suspended). This replaced an
+    /// earlier design that swapped between a ticking `Text(timerInterval:)`
+    /// and a hand-formatted static `Text` on an `isPaused` flag — real-device
+    /// logs (2026-07-30) proved the `Activity.update` to the paused state
+    /// *did* arrive, but the system-rendered ticking text never repainted to
+    /// the static replacement, so the countdown kept ticking. `pauseTime` is
+    /// Apple's purpose-built API for a pausable timer and doesn't rely on a
+    /// view-type swap re-rendering. `effectiveStartDate` is the real run-start
+    /// shifted earlier by banked `accumulatedElapsed`, recomputed on resume.
     struct ContentState: Codable, Hashable, Sendable {
-        var isPaused: Bool
-        /// Real run-start minus banked elapsed — the anchor the ticking
-        /// countdown counts from. Recomputed on every resume.
         var effectiveStartDate: Date
         /// `effectiveStartDate + goalDuration` — when the countdown hits 0.
         var endDate: Date
-        /// Frozen seconds remaining, rendered statically while paused.
-        var pausedRemaining: TimeInterval
+        /// `nil` while running; the instant the timer was paused otherwise.
+        var pausedAt: Date?
+
+        var isPaused: Bool { pausedAt != nil }
     }
 
     let habitID: UUID

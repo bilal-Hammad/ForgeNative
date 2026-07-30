@@ -279,6 +279,23 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       process/pid/activitiesVisible at entry, before + after the update) so Bilal's next Lock Screen tap
       reveals which. **Not claiming Bug A fixed** — I cannot tap a Lock Screen Live Activity from any
       tool here; the runtime root cause is pending his tap evidence. See RESULTS.md.
+- [x] **Bug A root cause FOUND (real-device log evidence) + fixed.** Bilal's `idevicesyslog` capture
+      during a Lock Screen pause tap showed the decisive lines: `perform() ENTERED … activitiesVisible=1`,
+      `about to update Activity → isPaused=true`, `Activity.update returned`. So the intent runs (in the
+      Forge app process — the both-targets fix works), finds the activity, and the update **succeeds** —
+      yet the countdown kept ticking. Root cause: the view swapped between a system-rendered ticking
+      `Text(timerInterval:)` (running) and a hand-formatted static `Text` (paused) on an `isPaused` flag;
+      the ContentState update arrived but the system's ticking text never repainted to the static
+      replacement. **Fix**: use Apple's purpose-built `Text(timerInterval: … , pauseTime: pausedAt,
+      countsDown: true)` — one view in all states; the system freezes it natively when `pauseTime` is
+      set (and keeps it correct while suspended), no view-type swap. `ContentState` now carries
+      `pausedAt: Date?` (nil = running) instead of `isPaused`/`pausedRemaining`; the intent sets
+      `pausedAt = now` on pause and rebuilds the timeline with `pausedAt = nil` on resume. Timer
+      regression tests still green (the in-app row doesn't use `pauseTime`, unaffected). Installed on
+      device. **Honest status**: this is a targeted fix of the *proven* mechanism (not a guess — backed
+      by the log evidence above), but the final "countdown visibly freezes / button swaps to resume" is
+      Bilal's to eyeball-confirm since I can't tap a Lock Screen Live Activity; the `PauseIntent` logging
+      remains for his next tap. See RESULTS.md.
 - [x] **Delete-habit delay + missing removal animation bug**. Reported directly by the user (real
       device, not spec-derived): confirming "Delete" in the alert produced a multi-second dead pause,
       then an instant unanimated cut instead of a real removal transition. Diagnosed via real-device
