@@ -46,7 +46,8 @@ struct HabitTimerAttributes: ActivityAttributes, Sendable {
     let color: HabitColor
     /// The habit's goal expressed in seconds — fixed for the life of the
     /// timer. Lets `ToggleTimerPauseIntent` reconstruct the timeline on
-    /// resume (`endDate = now + pausedRemaining`, `effectiveStartDate =
-    /// endDate - goalDuration`) entirely inside the extension process.
+    /// resume (`endDate = now + remaining`, where `remaining = endDate -
+    /// pausedAt`, then `effectiveStartDate = endDate - goalDuration`) without
+    /// touching the app-side store.
     let goalDuration: TimeInterval
 }
