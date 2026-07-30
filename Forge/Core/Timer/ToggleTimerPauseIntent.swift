@@ -52,7 +52,10 @@ struct ToggleTimerPauseIntent: LiveActivityIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        pauseIntentLogger.log("perform() ran in \(ProcessInfo.processInfo.processName, privacy: .public) for habitID=\(habitIDString, privacy: .public)")
+        // `.error` level so idevicesyslog/log stream reliably capture it —
+        // the whole point is proving whether this runs at all when Bilal taps
+        // the Lock Screen pause button (an unobservable path otherwise).
+        pauseIntentLogger.error("perform() ENTERED process=\(ProcessInfo.processInfo.processName, privacy: .public) pid=\(ProcessInfo.processInfo.processIdentifier) habitID=\(habitIDString, privacy: .public) activitiesVisible=\(Activity<HabitTimerAttributes>.activities.count)")
         guard let habitID = UUID(uuidString: habitIDString),
               let activity = Activity<HabitTimerAttributes>.activities.first(where: { $0.attributes.habitID == habitID })
         else {
@@ -99,8 +102,10 @@ struct ToggleTimerPauseIntent: LiveActivityIntent {
             signalRunStartedAt = nil
         }
 
+        pauseIntentLogger.error("about to update Activity → isPaused=\(newState.isPaused) remaining=\(newState.pausedRemaining, format: .fixed(precision: 1))")
         await activity.update(ActivityContent(state: newState, staleDate: newState.isPaused ? nil : newState.endDate))
         SharedTimerPauseSignal.record(habitID: habitID, accumulatedElapsed: bankedElapsed, runStartedAt: signalRunStartedAt)
+        pauseIntentLogger.error("Activity.update returned; signal recorded")
         return .result()
     }
 }

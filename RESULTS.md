@@ -1923,3 +1923,77 @@ platform limitation, not a logic bug — reportable honestly rather than over-pr
   These need Bilal's physical test — the `PauseIntent` logger will record the process/habit on his
   next tap, giving runtime confirmation that the routing fix worked. The structural fix is as verified
   as it can be without a human at the device; the interactive confirmation is explicitly his to close.
+
+---
+
+## 2026-07-30 — Timer follow-up: Feature C built, Bug B fixed, Bug A narrowed to runtime (not yet fixed)
+
+Three-part round on the timer Live Activity work. Bug A (pause still broken) is the important one and is
+**not** closed — this entry states plainly what was and wasn't established.
+
+### Feature C — in-app running-timer options sheet (new, fully verified)
+
+Tapping a running timer's countdown ring (`timerStatus.running`, now a `Button`) opens a native
+`.confirmationDialog` titled "Timer" with three actions: **Complete Now** (instant completion, reusing
+the long-press force-complete path), **Restart Timer** (new `restartTimer` — clears `accumulatedElapsed`,
+starts a fresh run from zero), and **Stop Timer** (`role: .destructive`, red — cancels via the existing
+`cancelTimer`). The standalone red stop button was removed (its function is now the sheet's Stop).
+`handleTimerTap`'s running case became a no-op — the row tap no longer silently cancels; a running timer
+is managed only through the sheet (idle→start and paused→resume are unchanged). No manual Cancel is
+added — the dialog supplies its own dismiss.
+
+Verified on Simulator with real touch injection: new `TimerOptionsSheetTests` (shows all three options;
+Complete Now → `timerStatus.complete`; Restart → still running; dismiss-without-choosing → still
+running) plus the reworked `TimerHabitTests.testStopOptionStopsRunningTimer` (ring → Stop Timer → idle),
+all passing, and the unchanged timer tests (start/auto-complete, long-press-complete) still green.
+
+Two real XCUITest facts learned from a captured accessibility hierarchy (not guessed): on iOS 26 this
+`.confirmationDialog` (a) registers each action button **twice** in the tree (queries need
+`.firstMatch`), and (b) renders as an **anchored menu-style sheet with no labeled "Cancel"** — it
+dismisses by tapping outside. A test bug was also caught and fixed honestly: an early assertion that no
+`timerStatus.idle` existed after Restart was a false positive (the `-uiTesting` seed has a *second*,
+unrelated idle timer habit) — the meaningful assertion is just that the restarted habit is running.
+
+### Bug B — running vs. paused timer text weren't both centered (fixed in code; visual pending)
+
+`Text(timerInterval:)` reserves width for the widest format ("h:mm:ss") and left-aligns the current
+digits within that reserved block, so `.frame(maxWidth: .infinity)` alone left the running text
+visibly left-of-center while the static paused `Text` sat centered — exactly Bilal's screenshots.
+Added `.multilineTextAlignment(.center)` + explicit `.frame(maxWidth: .infinity, alignment: .center)`
+so both branches land on one center point. **Honest gap**: the Live Activity can't be rendered or
+screenshotted on Simulator, so the visual "both centered" confirmation needs Bilal's screenshot — the
+fix is reasoned and installed, not visually self-verified.
+
+### Bug A — pause STILL doesn't freeze the countdown (narrowed, NOT fixed)
+
+Bilal confirmed pause still fails **after** the `7940fb2` both-targets fix. So that fix, while
+necessary, was insufficient. This round's job was to dig deeper and not repeat an unverified claim.
+
+**What was exhaustively ruled out this round** (concrete evidence, not theory):
+- **Target membership**: the intent is in both binaries (`nm`, 99 symbols each — last round) AND, newly
+  confirmed, in **both** bundles' App Intents metadata (`Forge.app/Metadata.appintents/extract.actionsdata`
+  and `ForgeWidgets.appex/Metadata.appintents/extract.actionsdata`, 1 each). `ExtractAppIntentsMetadata`
+  ran cleanly for both targets. So the intent is fully registered and discoverable in both processes —
+  target-membership/registration is **definitively not** the remaining cause.
+- **App Group**: `group.com.bilalhammad.forge.native` is present and identical in both targets'
+  entitlements.
+- **Info.plist**: `NSSupportsLiveActivities` is set on the app (the extension doesn't need it).
+
+**What that leaves (the actual open question — a runtime one)**: does `ToggleTimerPauseIntent.perform()`
+actually run when the Lock Screen button is tapped, and if so, does `Activity.update()` propagate? The
+three live possibilities are (1) perform never fires (button not interactive in the tapped presentation,
+or a Lock-Screen-unlock requirement), (2) perform fires but `Activity<>.activities` is empty in that
+process so no update happens, (3) perform fires and updates but the render doesn't switch. Strengthened
+**error-level** `PauseIntent` logging is now installed to distinguish these precisely: it logs at
+`perform()` entry (process name, pid, `activitiesVisible` count), immediately before the
+`Activity.update` call, and immediately after it returns.
+
+**Honest status**: I cannot physically tap a Lock Screen Live Activity button from any tool available
+here (XCUITest can't reach the Lock Screen, real-device XCUITest automation is blocked anyway, Simulator
+can't render Live Activities, and there's no CLI to inject a Lock Screen tap). Starting a timer also
+needs a tap. A ~30s total `idevicesyslog` capture across two windows caught no `PauseIntent` lines
+(Bilal wasn't tapping during them). So Bug A is **not fixed and not verified** this round — it is
+*narrowed*: the structural layer is proven complete, and the strengthened logging will capture the
+definitive runtime cause the instant Bilal next taps pause (`log stream --predicate 'category ==
+"PauseIntent"'` or `idevicesyslog | grep PauseIntent`). The build is installed on his device. This is
+reported as an open, narrowed bug — not a repeat "fixed" claim.

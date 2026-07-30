@@ -256,6 +256,29 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       Lock Screen tap/observation — I cannot tap a Lock Screen Live Activity from any tool, and am not
       claiming to have watched it. A concise permanent `PauseIntent` logger was kept so his next tap
       produces evidence. See RESULTS.md.
+- [x] **Timer follow-up round — Feature C built, Bug B fixed, Bug A still runtime-open.** **Feature C
+      (in-app running-timer options sheet, new)**: tapping a running timer's countdown ring now opens a
+      native `.confirmationDialog` with Complete Now / Restart Timer / Stop Timer (destructive) — the
+      standalone red stop button was replaced by this. `handleTimerTap`'s running case is now a no-op
+      (row tap no longer silently cancels; management moved to the sheet); new `restartTimer` clears
+      `accumulatedElapsed` and starts a fresh run. New permanent `TimerOptionsSheetTests` (4 cases) +
+      the updated `TimerHabitTests.testStopOptionStopsRunningTimer`, all passing on Simulator (real
+      touch injection), plus the unchanged timer tests still green — no regression. (Note: iOS 26
+      rendered the `.confirmationDialog` as an anchored menu-style sheet that dismisses by tapping
+      outside rather than a labeled Cancel — the tests match that real behavior.) **Bug B (running vs.
+      paused timer text not both centered)**: `Text(timerInterval:)` reserves width for the widest
+      format and left-aligns within it; added `.multilineTextAlignment(.center)` + explicit center frame
+      so both branches share one center point — needs Bilal's screenshot to confirm visually (the Live
+      Activity can't be rendered/screenshotted on Simulator). **Bug A (pause still doesn't freeze,
+      confirmed by Bilal AFTER the 7940fb2 both-targets fix)**: this round exhaustively re-verified the
+      both-targets fix is structurally complete — the intent is in both binaries (`nm`, from last round)
+      AND both App Intents metadata bundles (`extract.actionsdata`, confirmed this round) — so
+      target-membership/registration is definitively NOT the remaining cause. The cause is at runtime
+      (whether `perform()` fires, whether `Activity<>.activities` is visible in that process, whether
+      `Activity.update` propagates). Strengthened error-level `PauseIntent` logging installed (logs
+      process/pid/activitiesVisible at entry, before + after the update) so Bilal's next Lock Screen tap
+      reveals which. **Not claiming Bug A fixed** — I cannot tap a Lock Screen Live Activity from any
+      tool here; the runtime root cause is pending his tap evidence. See RESULTS.md.
 - [x] **Delete-habit delay + missing removal animation bug**. Reported directly by the user (real
       device, not spec-derived): confirming "Delete" in the alert produced a multi-second dead pause,
       then an instant unanimated cut instead of a real removal transition. Diagnosed via real-device

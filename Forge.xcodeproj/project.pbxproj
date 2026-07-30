@@ -111,6 +111,7 @@
 		D0A380D790FA5291221B958D /* TimeMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA832DE5528D2FA0DC893F14 /* TimeMode.swift */; };
 		D506B0238329699E4BA79283 /* Habit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62894A0DEF98DD472A06BDA4 /* Habit.swift */; };
 		D5B9568952C475B562FB0E7A /* RepeatMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29AB0D25C8E6742B44F8D567 /* RepeatMode.swift */; };
+		DF826E61B862C144C3CEB6E5 /* TimerOptionsSheetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4C9EBD83792E6115F01125 /* TimerOptionsSheetTests.swift */; };
 		E078972AABE849A9D3C4EC67 /* InMemoryMilestoneRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9395F0760C7FB2EF9BD68A41 /* InMemoryMilestoneRepository.swift */; };
 		E2151A08582279120F5EB65A /* SectionIndexStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ECB5365B291706A6611E298 /* SectionIndexStrip.swift */; };
 		E7DA78F0306128A442C09EB2 /* MoodEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E8CCB651EE9A0CBD4F2B9F6 /* MoodEntry.swift */; };
@@ -225,6 +226,7 @@
 		888EAC67558D686370D1CF88 /* CalendarSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSyncService.swift; sourceTree = "<group>"; };
 		8AB60F6E62E32CD49FFA56B2 /* MilestoneRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneRepository.swift; sourceTree = "<group>"; };
 		8D60DBB18B5E7E96EAF98E6E /* InMemoryMoodRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryMoodRepository.swift; sourceTree = "<group>"; };
+		8E4C9EBD83792E6115F01125 /* TimerOptionsSheetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerOptionsSheetTests.swift; sourceTree = "<group>"; };
 		8ECB5365B291706A6611E298 /* SectionIndexStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionIndexStrip.swift; sourceTree = "<group>"; };
 		90E056ABC0397BA133AA6FEB /* MoodNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodNotificationScheduler.swift; sourceTree = "<group>"; };
 		922D0BF85189F988261B7D29 /* AuthServiceEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthServiceEnvironment.swift; sourceTree = "<group>"; };
@@ -509,6 +511,7 @@
 				7F66DC2541D078D6905E7A13 /* MoodCheckInTests.swift */,
 				80FE23758D24748FC07680FE /* ResetHabitTests.swift */,
 				66DCBD3510CFD7820D748944 /* TimerHabitTests.swift */,
+				8E4C9EBD83792E6115F01125 /* TimerOptionsSheetTests.swift */,
 				D2F7E3AA2B3CD47505A0E877 /* WeeklyPagerSwipeTests.swift */,
 			);
 			path = ForgeUITests;
@@ -844,6 +847,7 @@
 				01252BB84EA5B3EB48130CC3 /* MoodCheckInTests.swift in Sources */,
 				9EEEF008C20C0E6A50341687 /* ResetHabitTests.swift in Sources */,
 				59374863BF3F98754D6F0442 /* TimerHabitTests.swift in Sources */,
+				DF826E61B862C144C3CEB6E5 /* TimerOptionsSheetTests.swift in Sources */,
 				718F085437308A07DBCEBD2F /* WeeklyPagerSwipeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -61,11 +61,21 @@ struct HabitTimerLiveActivity: Widget {
         HStack(spacing: 14) {
             iconBadge(context: context, size: 44)
 
+            // `.multilineTextAlignment(.center)` is load-bearing, not
+            // decorative: `Text(timerInterval:)` reserves width for the
+            // widest format ("h:mm:ss") and left-aligns the current digits
+            // within that reserved block, so a `.frame(maxWidth: .infinity)`
+            // alone leaves the running text visibly left-of-center while the
+            // static paused `Text` (no reserved slack) sits centered — the
+            // exact mismatch Bilal's screenshots showed. Centering the text
+            // within its own bounds makes both branches land on the same
+            // center point (Bug B, 2026-07-30).
             timerText(context: context)
                 .font(.system(size: 40, weight: .semibold, design: .rounded).monospacedDigit())
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
-                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
 
             pauseResumeButton(context: context, size: 44)
         }

@@ -351,7 +351,9 @@ struct HomeView: View {
             isHealthKitConnected: healthKitConnectionStatus[habit.id] ?? false,
             referenceDate: selectedDate,
             interactionToken: lastInteraction,
-            onStopTimer: { Task { await cancelTimer(for: habit) } }
+            onStopTimer: { Task { await cancelTimer(for: habit) } },
+            onCompleteTimer: { Task { await handleLongPress(habit) } },
+            onRestartTimer: { Task { await restartTimer(for: habit) } }
         )
         .contentShape(Rectangle())
 
@@ -413,8 +415,10 @@ struct HomeView: View {
             referenceDate: selectedDate,
             interactionToken: nil,
             // A context-menu preview is a static snapshot, not a live
-            // interactive view — no real tap ever reaches this closure.
-            onStopTimer: {}
+            // interactive view — no real tap ever reaches these closures.
+            onStopTimer: {},
+            onCompleteTimer: {},
+            onRestartTimer: {}
         )
         .frame(maxWidth: .infinity)
     }
@@ -598,23 +602,32 @@ struct HomeView: View {
         habit.goal * habit.unit.secondsPerUnit
     }
 
-    /// Tap on a time-unit habit: starts the timer if idle, **resumes** it if
-    /// paused (banked time preserved — `startTimer` reuses `accumulatedElapsed`),
-    /// cancels it if actively running (a plain second tap as the escape
-    /// hatch), no-ops if already complete for today. Pause/resume proper is
-    /// driven from the Live Activity's pause button this round (see
-    /// `ToggleTimerPauseIntent`); the in-app row's own pause affordance and
-    /// paused-state visuals are a separate future round, so a paused timer
-    /// still reads as "idle" in the current in-app row — tapping it resumes
-    /// rather than restarts, which is the important correctness property here.
+    /// Tap on a time-unit habit's *row*: starts the timer if idle, **resumes**
+    /// it if paused (banked time preserved), no-ops if already complete. For a
+    /// *running* timer the row tap is now a no-op — managing a running timer
+    /// (Complete Now / Restart / Stop) moved to the options sheet opened by
+    /// tapping the countdown ring itself (`timerStatusIndicator`), so the row
+    /// tap no longer silently cancels. Pause/resume proper is the Live
+    /// Activity's job (`ToggleTimerPauseIntent`); a paused timer still reads
+    /// as "idle" in the current in-app row (visual redesign is a future
+    /// round) — tapping it resumes rather than restarts.
     private func handleTimerTap(_ habit: Habit) async {
         let completion = selectedDayCompletions[habit.id]
         guard completion?.isComplete != true else { return }
-        if completion?.isTimerRunning == true {
-            await cancelTimer(for: habit)
-        } else {
-            await startTimer(for: habit)
-        }
+        guard completion?.isTimerRunning != true else { return }
+        await startTimer(for: habit)
+    }
+
+    /// Restart Timer (options sheet): discard all progress and start a fresh
+    /// run from zero. Distinct from resume — clears `accumulatedElapsed`
+    /// rather than preserving it.
+    private func restartTimer(for habit: Habit) async {
+        var completion = selectedDayCompletions[habit.id] ?? Completion(habitID: habit.id, date: .now)
+        completion.startedAt = nil
+        completion.accumulatedElapsed = 0
+        completion.isComplete = false
+        selectedDayCompletions[habit.id] = completion
+        await startTimer(for: habit)
     }
 
     /// Starts a fresh timer, or resumes a paused one. A paused timer's
@@ -1153,14 +1166,14 @@ private struct HabitCardRow: View {
     /// this habit — see the type's doc comment. `nil`/unrelated most of the
     /// time; a day switch never touches this.
     let interactionToken: InteractionToken?
-    /// Invoked by the visible Stop button in `timerStatusIndicator`'s
-    /// running case — calls `HomeView.cancelTimer(for:)`, the exact same
-    /// logic a second tap on the row already triggered before this button
-    /// existed. That tap-again convention still works too (this button
-    /// doesn't replace it, just gives it a real visual affordance) — see
-    /// this property's use site for why a nested `Button` and the row's own
-    /// `.onTapGesture` don't conflict.
+    /// The three actions of the running-timer options sheet (see
+    /// `timerStatusIndicator`): stop (cancel entirely), complete now (instant
+    /// completion, the same path long-press uses), and restart (reset to zero
+    /// and start a fresh run). Wired to `HomeView.cancelTimer`/
+    /// `handleLongPress`/`restartTimer` respectively.
     let onStopTimer: () -> Void
+    let onCompleteTimer: () -> Void
+    let onRestartTimer: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
@@ -1172,6 +1185,8 @@ private struct HabitCardRow: View {
     /// routine increment (case #2) — skipped on the crossing tap itself
     /// (case #3), which gets the full card treatment instead.
     @State private var countBounceScale: CGFloat = 1
+    /// Drives the running-timer options `.confirmationDialog`.
+    @State private var showingTimerOptions = false
 
     private var isComplete: Bool { completion?.isComplete == true }
 
@@ -1284,53 +1299,36 @@ private struct HabitCardRow: View {
             simpleCompletionIcon
                 .accessibilityIdentifier("timerStatus.complete")
         } else if let startedAt = completion?.startedAt {
-            // A visible Stop control — previously, cancelling a running
-            // timer relied entirely on the invisible "tap the row again"
-            // convention, with no on-screen affordance hinting it exists.
-            // `Button` is a real nested interactive control here, not a
-            // second competing `Gesture` recognizer on the same view (the
-            // ambiguous-gesture bug this project hit and fixed elsewhere in
-            // this file was specifically about two independent `Gesture`-
-            // protocol modifiers on one view; a `Button`'s own built-in hit
-            // testing is a different, well-defined mechanism that already
-            // reliably coexists with an ancestor's `.onTapGesture`
-            // elsewhere in this app, e.g. `List` swipe-action buttons) —
-            // but this is still verified with a real XCUITest, not just
-            // assumed correct from that reasoning, matching this project's
-            // own standing bar for gesture/interaction work.
-            //
-            // A real, empirically-found finding worth keeping in mind for
-            // future work in this file: `.accessibilityIdentifier` applied
-            // to a *wrapping* `HStack` here was found (via a failing
-            // XCUITest and its captured accessibility-hierarchy dump, not
-            // guessed) to cascade down and overwrite each child's own
-            // individually-set identifier — the Button ended up exposed
-            // with identifier `timerStatus.running` (the parent's) instead
-            // of `timerStatus.stopButton` (its own), making it
-            // unfindable by the identifier this code actually sets on it.
-            // Fixed by putting the identifier on `HabitTimerRingView`
-            // directly (matching exactly where it lived before this
-            // feature added the wrapping HStack) rather than on the
-            // container — each element now keeps its own distinct
-            // identifier, no propagation.
-            HStack(spacing: 8) {
-                Button {
-                    onStopTimer()
-                } label: {
-                    Image(systemName: "stop.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.red)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Stop Timer")
-                .accessibilityIdentifier("timerStatus.stopButton")
-
+            // The running countdown ring is itself the control: tapping it
+            // opens a native options sheet (Complete Now / Restart / Stop).
+            // A real nested `Button`, not a competing `Gesture` recognizer —
+            // its own hit testing reliably coexists with the row's ancestor
+            // `.onTapGesture` (same well-defined mechanism as `List`
+            // swipe-action buttons), and the row's own tap is now a no-op
+            // for a running timer (management moved here), so there's no
+            // conflict. The `timerStatus.running` identifier stays on the
+            // Button so the running state is still findable in tests.
+            Button {
+                showingTimerOptions = true
+            } label: {
                 HabitTimerRingView(
                     start: startedAt,
                     end: startedAt.addingTimeInterval(habit.goal * habit.unit.secondsPerUnit),
                     tint: habit.color.color
                 )
-                .accessibilityIdentifier("timerStatus.running")
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("timerStatus.running")
+            .accessibilityLabel("Timer running — tap for options")
+            .confirmationDialog("Timer", isPresented: $showingTimerOptions, titleVisibility: .visible) {
+                Button("Complete Now") { onCompleteTimer() }
+                    .accessibilityIdentifier("timerOptions.complete")
+                Button("Restart Timer") { onRestartTimer() }
+                    .accessibilityIdentifier("timerOptions.restart")
+                // `.confirmationDialog` appends the native Cancel itself — no
+                // manual one (redundant, non-idiomatic).
+                Button("Stop Timer", role: .destructive) { onStopTimer() }
+                    .accessibilityIdentifier("timerOptions.stop")
             }
         } else {
             Image(systemName: "timer")
