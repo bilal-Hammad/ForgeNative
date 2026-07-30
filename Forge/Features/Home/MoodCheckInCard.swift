@@ -1,14 +1,23 @@
 import SwiftUI
+import UIKit
 
-/// APP_REDESIGN_SPEC.md §13's daily mood check-in — a small, always-optional
-/// card near the top of Home, adjacent to the weekly strip. Placed as the
-/// first row of Home's scrollable list content, immediately below the
-/// pinned `WeeklyRingsPagerView` (a judgment call: putting it *inside* that
-/// view's own `.safeAreaInset` would mean two unrelated things sharing one
-/// pinned bar, and that inset's height is deliberately tight-fit to just the
+/// APP_REDESIGN_SPEC.md §13's daily mood check-in — a small opt-in card near
+/// the top of Home, adjacent to the weekly strip. Placed as the first row of
+/// Home's scrollable list content, immediately below the pinned
+/// `WeeklyRingsPagerView` (a judgment call: putting it *inside* that view's
+/// own `.safeAreaInset` would mean two unrelated things sharing one pinned
+/// bar, and that inset's height is deliberately tight-fit to just the
 /// strip's own content — see `WeeklyRingsPagerView.body`'s `.frame(height:
 /// 58)` comment) — this still reads as "near the top, adjacent to the
 /// strip" without disturbing that tuning.
+///
+/// Visibility is fully opt-in and time-gated by `HomeView` (the "Mood
+/// Check-In" Settings toggle + its chosen time) — this card is only ever
+/// placed in the list once that toggle is on, the chosen time has passed
+/// today, and mood isn't logged yet. On a successful log it reports back via
+/// `onLogged` so `HomeView` can animate its removal; this card shows the
+/// picked mood for a brief beat first so the log feels acknowledged rather
+/// than snatched away.
 ///
 /// Single tap logs immediately — no confirmation step, no follow-up screen,
 /// matching §13's "faster to log, more consistent" intent and staying
@@ -27,6 +36,11 @@ import SwiftUI
 /// `MoodRepository`, kept that way specifically so mood logging can never
 /// accidentally affect points/streaks.
 struct MoodCheckInCard: View {
+    /// Called after a mood is successfully logged for today, once the brief
+    /// acknowledgement beat has elapsed — `HomeView` uses this to remove the
+    /// card from its list with an animated transition.
+    var onLogged: () -> Void = {}
+
     @Environment(\.moodRepository) private var moodRepository
     @State private var todayEntry: MoodEntry?
 
@@ -79,9 +93,18 @@ struct MoodCheckInCard: View {
     }
 
     private func log(_ level: MoodLevel) async {
+        // Ignore re-taps once logged — the card is mid-dismiss and about to
+        // be removed by `HomeView`; a second tap shouldn't re-fire `onLogged`.
+        guard todayEntry == nil else { return }
         let entry = MoodEntry(date: today, mood: level)
         todayEntry = entry
+        UISelectionFeedbackGenerator().selectionChanged()
         try? await moodRepository.upsertEntry(entry)
+        // Brief acknowledgement beat so the picked mood's highlight is
+        // visible before `HomeView` animates the card away — a hard cut on
+        // the same frame as the tap reads as the app eating the tap.
+        try? await Task.sleep(nanoseconds: 350_000_000)
+        onLogged()
     }
 }
 

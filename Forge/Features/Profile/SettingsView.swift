@@ -41,10 +41,16 @@ struct SettingsView: View {
     @AppStorage("vacationModeEnabled") private var vacationModeEnabled: Bool = false
     @AppStorage("vacationStart") private var vacationStartInterval: Double = Date.now.timeIntervalSince1970
     @AppStorage("vacationEnd") private var vacationEndInterval: Double = Date.now.addingTimeInterval(7 * 86400).timeIntervalSince1970
-    /// Independent of `notificationsEnabledGlobal` above — §13 asks for the
-    /// mood reminder to be separately togglable, not bundled into the
-    /// per-habit master switch (mood isn't a habit, and unlike that switch,
-    /// this is the only notification this toggle ever manages).
+    /// The single master switch for the whole Mood Check-In feature (§13):
+    /// gates the Home check-in card's visibility (`HomeView.shouldShowMoodCard`
+    /// reads these same keys), the daily reminder notification, and any
+    /// future mood surface in Progress. Consolidated from the former
+    /// "Mood Check-In Reminder" (notification-only) control — the card and
+    /// the reminder share one "when" (this chosen time), so a second toggle
+    /// would be redundant. Independent of `notificationsEnabledGlobal`
+    /// (mood isn't a habit). Default off — mood tracking is opt-in, never
+    /// assumed. Storage keys kept from the old control so an existing user
+    /// who had the reminder on keeps their setting (and now gets the card).
     @AppStorage("moodCheckInReminderEnabled") private var moodCheckInReminderEnabled: Bool = false
     @AppStorage("moodCheckInReminderHour") private var moodCheckInReminderHour: Int = 20
     @AppStorage("moodCheckInReminderMinute") private var moodCheckInReminderMinute: Int = 0
@@ -163,12 +169,12 @@ struct SettingsView: View {
             }
 
             Section {
-                Toggle("Mood Check-In Reminder", isOn: $moodCheckInReminderEnabled)
+                Toggle("Mood Check-In", isOn: $moodCheckInReminderEnabled)
                 if moodCheckInReminderEnabled {
                     DatePicker("Time", selection: moodCheckInReminderTime, displayedComponents: .hourAndMinute)
                 }
             } footer: {
-                Text("A once-a-day nudge to log how you're feeling — always optional, never required, and separate from habit reminders above.")
+                Text("Off by default. When on, a mood check-in card appears at the top of Home each day from this time until you log how you're feeling, and a gentle reminder fires then too. Always optional — never affects streaks or points.")
             }
 
             Section {

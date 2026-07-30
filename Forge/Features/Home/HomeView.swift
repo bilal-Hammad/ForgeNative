@@ -88,7 +88,25 @@ struct HomeView: View {
     @Environment(\.milestoneEngine) private var milestoneEngine
     @Environment(\.healthKitService) private var healthKitService
     @Environment(\.calendarSyncService) private var calendarSyncService
+    @Environment(\.moodRepository) private var moodRepository
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// The single "Mood Check-In" Settings toggle (default off — mood
+    /// tracking is opt-in, §13). When on, its chosen time is both when the
+    /// daily reminder fires and the earliest the check-in card appears on
+    /// Home each day. Reused storage keys from the pre-consolidation
+    /// "Mood Check-In Reminder" control — see `SettingsView` and RESULTS.md
+    /// (2026-07-30) for the consolidation rationale.
+    @AppStorage("moodCheckInReminderEnabled") private var moodCheckInEnabled = false
+    @AppStorage("moodCheckInReminderHour") private var moodCheckInHour = 20
+    @AppStorage("moodCheckInReminderMinute") private var moodCheckInMinute = 0
+    /// Whether today's mood is already logged — loaded from `MoodRepository`
+    /// on reload/foreground so the card can hide once answered and stay
+    /// hidden across app opens for the rest of the day (not a one-shot tied
+    /// to the notification tap). Reset naturally at the start of a new day
+    /// since the fetch is keyed to *today*.
+    @State private var moodLoggedToday = false
     @State private var isPresentingAddHabit = false
     @State private var editingHabit: Habit?
     /// Stable, non-archived — the full active-habit list, used as-is for
@@ -118,6 +136,19 @@ struct HomeView: View {
         return habits.filter { Calendar.current.startOfDay(for: $0.startDate) <= day }
     }
 
+    /// Card shows only when: viewing today, the feature is enabled, the
+    /// chosen time has passed today, and mood isn't logged yet. Re-evaluated
+    /// on every `body` pass — the time check reads `.now`, so foregrounding
+    /// or any state change at/after the chosen time reveals it without a
+    /// dedicated timer (the reminder notification covers the "app closed at
+    /// that exact minute" case).
+    private var shouldShowMoodCard: Bool {
+        guard isViewingToday, moodCheckInEnabled, !moodLoggedToday else { return false }
+        let now = Date.now
+        let target = Calendar.current.date(bySettingHour: moodCheckInHour, minute: moodCheckInMinute, second: 0, of: now) ?? now
+        return now >= target
+    }
+
     /// A fresh token per genuine tap (not per data change) — lets
     /// `HabitCardRow` distinguish "I was just tapped" from "my completion
     /// data changed because the user switched to a different day," which
@@ -129,15 +160,23 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             List {
-                // Always reflects *today*, never `selectedDate` — showing it
-                // while browsing a past day would silently mix "today's mood"
-                // into an otherwise fully-read-only historical view, so it's
-                // gated the same way the Add Habit button already is below.
-                if isViewingToday {
-                    MoodCheckInCard()
+                // Opt-in + time-gated (see `shouldShowMoodCard`); also only
+                // ever for *today*, never `selectedDate` — showing it while
+                // browsing a past day would mix "today's mood" into an
+                // otherwise read-only historical view, same gating as the
+                // Add Habit button below. Logging animates it away via
+                // `onLogged` → `moodLoggedToday`, with a scale+fade transition
+                // matching this app's completion-feedback motion language.
+                if shouldShowMoodCard {
+                    MoodCheckInCard(onLogged: {
+                        withAnimation(reduceMotion ? .easeInOut(duration: 0.25) : .spring(response: 0.4, dampingFraction: 0.8)) {
+                            moodLoggedToday = true
+                        }
+                    })
                         .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                         .listRowBackground(Color.clear)
                         .listRowSeparator(.hidden)
+                        .transition(.scale(scale: 0.85).combined(with: .opacity))
                 }
 
                 ForEach(visibleHabits) { habit in
@@ -242,6 +281,10 @@ struct HomeView: View {
                 Task {
                     await processPendingTimerStops()
                     await checkTimerCompletions()
+                    // Re-evaluate mood card visibility on foreground: covers a
+                    // new day started while backgrounded, and the chosen time
+                    // having passed since the app was last active.
+                    await refreshMoodLoggedToday()
                 }
             }
             .sheet(isPresented: $isPresentingAddHabit) {
@@ -384,7 +427,21 @@ struct HomeView: View {
         if isViewingToday {
             await checkTimerCompletions()
         }
+        await refreshMoodLoggedToday()
         dispatchDailyReminderCatchUp()
+    }
+
+    /// Refetches whether *today's* mood is logged. Cheap single-key lookup —
+    /// called on reload and on foreground so the card correctly re-hides if
+    /// mood was logged elsewhere, and re-appears for a new day (the fetch is
+    /// keyed to today, so yesterday's entry never keeps it hidden).
+    private func refreshMoodLoggedToday() async {
+        guard moodCheckInEnabled else {
+            moodLoggedToday = false
+            return
+        }
+        let today = Calendar.current.startOfDay(for: .now)
+        moodLoggedToday = (try? await moodRepository.fetchEntry(for: today)) != nil
     }
 
     /// Nothing in this app runs a scheduled background job, so a Reminders-

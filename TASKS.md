@@ -209,6 +209,19 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       (`idevicescreenshot` needs a DDI mount incompatible with the modern tunnel) — flagged for Bilal to
       confirm visually. All temporary DIAG instrumentation removed; the permanent `CalendarSync` error
       logging added in `5df80e9` stays. See RESULTS.md for the full log evidence.
+- [x] **Mood Check-In becomes fully opt-in (Settings toggle + time-gated card).** Was always-visible
+      at Home's top (§13 original); now the `MoodCheckInCard` only appears when the consolidated
+      "Mood Check-In" Settings toggle is on (default OFF — opt-in, no assumed consent) AND its chosen
+      time has passed today AND mood isn't logged yet. Stays visible across app opens until answered
+      (persist-until-answered, not a one-shot tied to the notification tap), then animates away with a
+      scale+fade transition, resetting for the new day at midnight automatically. Consolidated the
+      former "Mood Check-In Reminder" (notification-only) control into this single master switch,
+      reusing its storage keys — card and reminder share one chosen time, so a second toggle would be
+      redundant. Notification path (`MoodNotificationScheduler`/`MoodCheckInRouter`/
+      `AppNotificationDelegate` → Home tab) unchanged. No Progress mood section exists yet, so
+      "hide on toggle off" there is a documented no-op — the toggle is the hook for when §13's
+      correlation card is built. New permanent regression tests (`MoodCheckInTests`, 4 cases, all
+      passing); dismiss animation confirmed via real recording + frame analysis. See RESULTS.md.
 - [x] **Delete-habit delay + missing removal animation bug**. Reported directly by the user (real
       device, not spec-derived): confirming "Delete" in the alert produced a multi-second dead pause,
       then an instant unanimated cut instead of a real removal transition. Diagnosed via real-device

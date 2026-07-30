@@ -1694,3 +1694,67 @@ Reminders toggled off, or a non-default view), not the app's sync code.
 Clean build (identical to committed `5df80e9`, no code change — all DIAG instrumentation removed)
 reinstalled on Bilal's iPhone, version 0.1.0 (1) confirmed on-device. Installing it also fired the sync
 that created the reminder. Permanent `CalendarSync` error logging retained for any future occurrence.
+
+---
+
+## 2026-07-30 — Mood Check-In becomes fully opt-in (Settings toggle + time-gated Home card)
+
+Changed the §13 mood check-in from always-visible at the top of Home to a fully opt-in, time-gated
+feature controlled by a Settings toggle.
+
+### What was built
+
+- **Settings — one consolidated "Mood Check-In" master toggle** (`SettingsView`). The pre-existing
+  "Mood Check-In Reminder" control (a toggle + `.hourAndMinute` `DatePicker`, `moodCheckInReminderEnabled`
+  default `false`) previously governed *only* the notification while the card was always shown. It's
+  now renamed "Mood Check-In" and is the master switch for the whole feature — card visibility, the
+  daily reminder, and (when built) any Progress mood surface. Footer updated to explain the card +
+  reminder behavior. Storage keys (`moodCheckInReminderEnabled`/`Hour`/`Minute`) reused unchanged.
+- **Home card gating** (`HomeView.shouldShowMoodCard`): the card is placed in the list only when
+  `isViewingToday && moodCheckInEnabled && chosenTimeHasPassedToday && !moodLoggedToday`. The
+  time check reads `.now` each `body` pass; `moodLoggedToday` is loaded from `MoodRepository` in
+  `reload()` and refreshed on `scenePhase == .active`.
+- **Persist-until-answered + animated dismiss**: `MoodCheckInCard` gained an `onLogged` callback.
+  Logging shows the picked mood's highlight for a ~0.35s acknowledgement beat, fires a selection
+  haptic, persists, then calls `onLogged`, which flips `HomeView.moodLoggedToday` inside
+  `withAnimation` (a completion-feedback-style spring, `.spring(response: 0.4, dampingFraction: 0.8)`,
+  with a `reduceMotion` ease fallback). The row leaves via `.transition(.scale(scale: 0.85).combined(
+  with: .opacity))`.
+
+### Verification
+
+- **Real recording + frame analysis** of the dismiss (`simctl recordVideo` around
+  `testLoggingMoodDismissesCard`, ffmpeg frame extraction): frame 306 — card present, "Good"
+  selected (the beat); 313 — card scaling down + fading as the habit rows slide up to fill; 318 —
+  near-gone ghost; 326 — fully gone, list resettled. A genuine smooth scale+opacity transition, not a
+  hard cut. Matches this app's completion-feedback motion language.
+- **New permanent regression tests** (`ForgeUITests/MoodCheckInTests`, replacing the obsolete
+  always-visible/overwrite test — that behavior no longer exists since the card dismisses on log). Four
+  cases, all passing, driving the toggle + time via `@AppStorage` launch-argument overrides
+  (`-moodCheckInReminderEnabled`/`-moodCheckInReminderHour`/`-Minute` land in `UserDefaults`' argument
+  domain): `testCardHiddenWhenFeatureDisabled` (default off → no card), `testCardVisibleWhenEnabledAndTimePassed`
+  (enabled + 00:00 → card shows), `testCardHiddenBeforeChosenTime` (enabled + 23:59 → hidden; the only
+  ~1-minute-per-day edge is if the test itself runs at 23:59, documented), `testLoggingMoodDismissesCard`
+  (tap Good → card leaves within the window).
+
+### Judgment calls
+
+- **Consolidation vs. a separate toggle**: consolidated into one master switch rather than adding a
+  second control. The card's appear-time and the reminder's fire-time are the same "when," so a
+  separate toggle would be redundant; the existing Settings row already paired exactly this toggle +
+  time. Storage keys kept so an existing user who had the reminder on keeps their setting (and now
+  also gets the card).
+- **Default OFF**: mood tracking is opt-in — fresh installs and existing users start with the card
+  hidden and no reminder, no assumed consent. (`moodCheckInReminderEnabled` already defaulted false.)
+- **Persist-until-answered, not one-shot**: the card shows on *every* app open at/after the chosen
+  time until a mood is logged, driven by re-evaluating `moodLoggedToday`/time on reload + foreground —
+  so a user who misses the notification's exact moment can still log any time later that day. Not tied
+  to the notification tap.
+- **Historical data on toggle-off = hide regardless**: turning the feature off hides every mood
+  surface even if the user has prior mood entries — simplest, most consistent. Currently there's no
+  Progress/Analysis mood section to hide (§13's correlation card is unbuilt — confirmed by grep: no
+  mood usage anywhere in `Features/` outside `MoodCheckInCard`), so this is a documented no-op today;
+  the master toggle is the hook that card must read when it's built.
+- **0.35s acknowledgement beat** before dismiss: a deliberate small delay so the picked mood's
+  highlight is visible before the card animates away — a same-frame removal reads as the app eating
+  the tap. Re-taps during the beat are ignored (the card guards on `todayEntry != nil`).
