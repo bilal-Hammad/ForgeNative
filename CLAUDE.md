@@ -1085,8 +1085,38 @@ introduced it.
    still open about that specific task. Never overwrite prior entries.
 3. Commit the code change and the `TASKS.md`/`RESULTS.md` updates together.
 4. Push.
-5. Move to the next item immediately — don't idle waiting for acknowledgment
+5. **If "Bilal iPhone" is connected, install the freshly-built app onto it**
+   (see "Install to real device on close-out" below) so Bilal always has the
+   latest build in hand without plugging in and building himself. If the
+   device isn't connected, skip this and carry on — it's an extra step when
+   the device is available, never a blocker.
+6. Move to the next item immediately — don't idle waiting for acknowledgment
    on routine progress.
+
+**Install to real device on close-out** (standing rule, added per explicit
+instruction 2026-07-30 — do this automatically, don't wait to be asked):
+whenever a fix/feature round is being closed out and the iPhone is connected,
+install the build onto the real device as part of closing out that task.
+- Verify the device is actually connected first, live —
+  `xcrun devicectl list devices` should show "Bilal iPhone" as `connected`
+  (UDID `62AB4A14-06B4-5C28-ADB2-2F1D53B414C5`, transport `wired`). Don't
+  assume from a previous check; the phone gets unplugged.
+- Build for the device and install:
+  ```
+  xcodebuild -project Forge.xcodeproj -scheme Forge \
+    -destination "id=62AB4A14-06B4-5C28-ADB2-2F1D53B414C5" -configuration Debug build
+  xcrun devicectl device install app --device 62AB4A14-06B4-5C28-ADB2-2F1D53B414C5 \
+    <DerivedData>/Build/Products/Debug-iphoneos/Forge.app
+  ```
+- Confirm the install concretely, not from a zero exit code:
+  `xcrun devicectl device info apps --device 62AB4A14-06B4-5C28-ADB2-2F1D53B414C5`
+  and check `com.bilalhammad.forge.native`'s version/build matches what was
+  just built (bump/compare `CFBundleVersion`, or at minimum confirm the app
+  is present and freshly dated).
+- Real-device XCUITest automation is frequently blocked in this environment
+  (see the delete-animation rounds' history); a plain `install` does **not**
+  need automation mode, so this step works even when device *testing*
+  doesn't. Don't conflate the two.
 
 ## Engineering standards
 
