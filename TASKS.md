@@ -195,6 +195,20 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       current persisted state; permanent `CalendarSync` `Logger` on every EventKit failure + a nil-
       default-Reminders-list warning with a writable-list fallback. Verified with real Calendar.app +
       Reminders.app screenshots and EventKit ground truth — see RESULTS.md.
+- [x] **Reminders "still don't show up" — real-device follow-up (NOT a code defect).** Bilal reported
+      that after `5df80e9`, synced habits still didn't appear in Reminders.app on his real iPhone.
+      Diagnosed on the actual device (temporary `CalendarSync` DIAG logging + `idevicesyslog` capture,
+      no Simulator): Reminders permission **is** granted (`remindersAuth=3`/fullAccess), `syncReminders`
+      runs, and the reminder is created + persists — direct post-commit EventKit re-resolution returned
+      `ok(list:Reminders:completed:false:due:today)` in the default iCloud "Reminders" list. So the sync
+      code works correctly on-device; nothing to fix in it. The telling detail: the habit's
+      `storedReminderIDs` was **0** on the first sync today, i.e. the reminder had never actually been
+      created until a sync fired now — Bilal's observation predated the fixed build completing a real
+      sync (the reminder is created on Home-appear sync, not at install). Clean build reinstalled on his
+      device (which created the reminder). Could not screenshot his Reminders.app directly
+      (`idevicescreenshot` needs a DDI mount incompatible with the modern tunnel) — flagged for Bilal to
+      confirm visually. All temporary DIAG instrumentation removed; the permanent `CalendarSync` error
+      logging added in `5df80e9` stays. See RESULTS.md for the full log evidence.
 - [x] **Delete-habit delay + missing removal animation bug**. Reported directly by the user (real
       device, not spec-derived): confirming "Delete" in the alert produced a multi-second dead pause,
       then an instant unanimated cut instead of a real removal transition. Diagnosed via real-device

@@ -1619,3 +1619,78 @@ both throwaway XCUITests (`CalendarDupDiagnosisTest`, `SyncScreenshotTest`) — 
 investigation, not permanent regression tests (this feature's interaction logic is exercised through
 `DebugCalendarSyncView` for future manual/automated re-verification, matching the removed-one-off
 precedent from the original sync work).
+
+---
+
+## 2026-07-30 — Reminders "still don't show up" on real device (diagnosed: not a code defect)
+
+Bilal reported that after the Bug 2 fix (`5df80e9`, verified on Simulator), synced habits still didn't
+appear in Reminders.app on his actual iPhone. Per instruction, diagnosed on the **real device**, not
+Simulator — the Simulator fix passing does not prove the device behaves the same.
+
+### Method — real-device logging, no guessing
+
+The permanent `CalendarSync` logger (`subsystem com.bilalhammad.forge.native, category CalendarSync`,
+added in `5df80e9`) only fires on an EventKit *failure*. But a permission-denied habit skips
+`syncReminders` entirely via a guard, producing **silence**, not an error — so silence alone wouldn't
+distinguish "permission denied" from "created but invisible." Added temporary `DIAG` log lines that
+report, unconditionally: the actual authorization statuses, the guard inputs, the resolved Reminders
+list, and — after commit — a synchronous re-resolution of every created reminder's identifier (proving
+whether it actually persisted in the store, not just that save/commit returned without throwing).
+Captured via `idevicesyslog -u 00008110-001A19343E86801E` while launching the app on-device
+(`devicectl device process launch`), which fires `HomeView.dispatchDailyReminderCatchUp` → `sync` for
+every habit. No UI automation needed (and real-device XCUITest automation is blocked here anyway).
+
+### Real-device evidence (Bilal's iPhone, iPhone 13 Pro Max, iOS 26.5.2)
+
+```
+DIAG sync habit=Take a Cold Shower remindersEnabled=true calEnabled=true remindersAuth=3 calAuth=3 storedReminderIDs=0   ← first run
+DIAG syncReminders ENTERED habit=Take a Cold Shower wantedOccurrences=1 defaultList=Reminders reminderCalCount=1 cals=[Reminders:src=iCloud:mod=true]
+DIAG syncReminders RESULT  habit=Take a Cold Shower returnedIDs=1 reResolved=[EB523C=ok(list:Reminders:completed:false:due:2026-7-30@allday:0)]
+```
+
+Every candidate cause ruled out with real data:
+- **Permission** — `remindersAuth=3` (fullAccess). Not the cause. (`.event` and `.reminder` are
+  distinct EventKit permissions; both are granted on-device.)
+- **Nil / non-writable Reminders list** — `defaultList=Reminders`, `reminderCalCount=1`,
+  `cals=[Reminders:src=iCloud:mod=true]`. A valid, writable, default iCloud list. Not the cause.
+- **Save/commit silently failing** — no `Reminder save failed` / `commit failed` lines; the created
+  reminder **re-resolves after commit** as `ok`. It genuinely persisted in the store.
+- **Created-but-hidden (completed)** — `completed:false`. Reminders.app hides completed reminders, but
+  this one isn't completed, so that's not it either.
+- **Created-but-not-due / wrong list** — `due:2026-7-30@allday:0` (all-day, due today) in the default
+  `Reminders` list — a fully visible-eligible reminder.
+- **A later sync removing it** — instrumented `removeReminders`; it was never called.
+
+### Conclusion — the sync code works on-device; this is not a code bug
+
+Direct EventKit re-resolution proves the reminder for "Take a Cold Shower" is created, persisted,
+not-completed, due today, in the default iCloud Reminders list. The sync is functioning correctly on
+the real device — there is nothing in the sync code to fix, and (per the instruction to report plainly
+rather than overstate a fix) no code change was made.
+
+The most likely explanation for Bilal's report: on the **first** sync captured today, the habit's
+`storedReminderIDs` was **0** — i.e. the reminder had *never actually been created* until a sync fired
+now. The reminder is created on a Home-appear sync (`dispatchDailyReminderCatchUp`), not at install, so
+his observation predated the fixed build completing a real sync for this habit (e.g. he enabled sync on
+the older buggy build where it silently failed, and hadn't re-triggered a full Home sync on the fixed
+build before checking). By the second/third capture, `storedReminderIDs=1` — it's now created and
+stable.
+
+### Honest limitation
+
+Could **not** capture a Reminders.app screenshot on Bilal's device to visually confirm — the modern
+tunnel model doesn't support `idevicescreenshot` (needs a Developer Disk Image mount that isn't
+available), and real-device XCUITest automation is blocked in this environment (see the delete-animation
+rounds' history). EventKit ground-truth re-resolution is strictly stronger evidence than a screenshot
+for "does the object exist in the store," but the final "is it visually on his Reminders.app screen"
+check needs Bilal to look. Flagged to him: open Reminders.app → the **Reminders** list (or Scheduled →
+Today); "Take a Cold Shower" (all-day, today) should be there. If it still isn't despite existing in
+EventKit, that points to an iCloud account/source-visibility setting on his device (e.g. iCloud
+Reminders toggled off, or a non-default view), not the app's sync code.
+
+### Close-out
+
+Clean build (identical to committed `5df80e9`, no code change — all DIAG instrumentation removed)
+reinstalled on Bilal's iPhone, version 0.1.0 (1) confirmed on-device. Installing it also fired the sync
+that created the reminder. Permanent `CalendarSync` error logging retained for any future occurrence.
