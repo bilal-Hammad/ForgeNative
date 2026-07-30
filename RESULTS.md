@@ -1851,3 +1851,75 @@ without reaching the (extension-unreachable) SwiftData store.
   round) — but tapping it *resumes* (banked time preserved) rather than restarting, and the coordinator
   updates an existing Activity instead of spawning a second one, so the data/behavior stay correct even
   though the in-app visual doesn't yet distinguish paused from idle.
+
+---
+
+## 2026-07-30 — Timer Live Activity: two real-device bugs from Bilal's testing of af41012 (root-caused + fixed)
+
+Bilal tested af41012 on his real iPhone and reported two bugs. Both root-caused with concrete evidence,
+not guessed.
+
+### Bug 1 — tapping pause did nothing (countdown kept ticking)
+
+**Root cause (structural, proven at the binary level)**: `ToggleTimerPauseIntent` is a
+`LiveActivityIntent`, and a LiveActivityIntent's `perform()` is routed by the system to the **owning
+app's process** — not the widget extension's. But the intent was declared in `ForgeWidgets/` and the
+`Forge` app target only sources `path: Forge`, so the intent was compiled **only into the extension,
+never into the app binary**. An app process that doesn't contain the intent type can't perform it, so
+the tap silently did nothing — no state change, no freeze. This is Apple's documented requirement
+("add the app intent to both your app and widget-extension targets"); the former `StopTimerIntent` had
+the same latent defect, never caught because its real-device tap was never confirmed either (last
+round honestly flagged pause/resume as unverified — Bilal's test is what surfaced it).
+
+**Proven, not assumed** — `nm` on the built Debug dylibs:
+- After moving `ToggleTimerPauseIntent.swift` to `Forge/Core/Timer/` and adding it to the ForgeWidgets
+  sources (it's already in the app target via `path: Forge`): the symbol appears in **both**
+  `Forge.app/Forge.debug.dylib` and `ForgeWidgets.appex/ForgeWidgets.debug.dylib` (99 occurrences
+  each). Before, the app dylib contained zero — that's the difference that makes the intent
+  performable from the app process.
+
+**Fix**: intent moved to the shared `Forge/Core/Timer/` location and compiled into both targets
+(matching `HabitTimerAttributes`/`SharedTimerPauseSignal`'s existing both-targets pattern). Compiling
+the same intent into both targets produces no duplicate-symbol error (separate modules) — the standard,
+Apple-sanctioned pattern. A concise permanent `PauseIntent` `Logger` was added at `perform()` entry
+(this path is genuinely unobservable via XCUITest/Simulator, and a silent failure here was the whole
+bug — same precedent as `habitDeletionLogger`/`CalendarSync`).
+
+### Bug 2 — nothing happened when the countdown reached 0:00
+
+**Root cause (real platform constraint)**: a Live Activity's widget extension is *not* running code —
+it only renders whatever `ContentState` it was last handed. Nothing in the extension can fire at the
+0:00 instant to transition the pill to a "done" state. The app's one-shot `scheduleCompletion` only
+fires while the app is alive; while the app is suspended (the normal Lock Screen case), the countdown
+just sat at 0:00 with no completion indication.
+
+**Fix**: derive completion in the *view* from the timeline rather than needing a callback —
+`isFinished = !isPaused && endDate <= Date.now`. When finished, the pill renders a "Done" label
+(habit-colored) in the center and a filled `checkmark.circle.fill` on the right (matching Apple's
+Workout Live Activity ending on a completion glyph rather than a live control). This works while the
+app is suspended because the running content's `staleDate` is set to `endDate`, so the system
+re-renders the Live Activity at the goal instant — at which point `Date.now >= endDate` and the
+finished branch shows. Belt-and-suspenders: when the app next foregrounds, `completeTimerHabit` →
+`endLiveActivity(completed: true)` ends the Activity on a 3-second linger, keeping the "Done" pill
+visible before dismissal.
+
+**Honest caveat**: `staleDate` is a system *hint* for when to refresh, not a hard guarantee of an
+exact-instant repaint while suspended. The completion shows reliably once the app foregrounds; the
+suspended-exact-moment repaint depends on the system honoring the stale refresh. If Bilal finds the
+"Done" state lags at 0:00 while the phone is locked and the app fully suspended, that would be this
+platform limitation, not a logic bug — reportable honestly rather than over-promised.
+
+### Verification — what is and isn't confirmed
+
+- **Confirmed**: both targets build; the both-targets membership of the intent is proven by `nm`
+  (the concrete Bug-1 fix); the completion-state view logic compiles and is timeline-derived; the
+  build is installed on Bilal's device (0.1.0/1).
+- **NOT self-verified (stated plainly, per the standing "don't claim what you didn't watch")**: the
+  interactive "tap pause → countdown visibly freezes → button swaps to the resume glyph → tap resume →
+  continues from the frozen value", and the "0:00 shows Done". I cannot physically tap a Lock Screen
+  Live Activity button from any tool available here (XCUITest can't reach it, Simulator can't render
+  it, and there's no CLI to inject a Lock Screen tap), and starting a timer also needs a tap. A 12s
+  `idevicesyslog` capture window caught no `PauseIntent` log lines (Bilal wasn't tapping during it).
+  These need Bilal's physical test — the `PauseIntent` logger will record the process/habit on his
+  next tap, giving runtime confirmation that the routing fix worked. The structural fix is as verified
+  as it can be without a human at the device; the interactive confirmation is explicitly his to close.

@@ -42,6 +42,7 @@
 		3DCB05625578936E4A2DA896 /* ForgeWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 928C411445F8527BBB3CF6B2 /* ForgeWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		3F7F62A701CF07EDCEF36349 /* HabitFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 528A80329520F9914A990E6B /* HabitFormView.swift */; };
 		4200CFB482029B3BC5B44CBE /* MoodEntryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EF132C9FA46A0A810337A21 /* MoodEntryModel.swift */; };
+		459FFAD1A600ECDC72862921 /* ToggleTimerPauseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD47285F2AB85FD492718B60 /* ToggleTimerPauseIntent.swift */; };
 		471F971BD54E11C47805790D /* AddSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B188FF827204DDB10B2751 /* AddSectionView.swift */; };
 		480953116186E2EE245FF6BF /* MilestoneBadgePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C4DA27050BFE34A39374491 /* MilestoneBadgePreview.swift */; };
 		48BB658E2E1B743B449F5B8E /* PointsLedgerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41884147DAE3AD6646B3D5B7 /* PointsLedgerModel.swift */; };
@@ -59,6 +60,7 @@
 		60F40BE5A955290F85C338B3 /* HealthKitServiceEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0757EA390D62EA27B15EE20D /* HealthKitServiceEnvironment.swift */; };
 		63CB7CE8C640E988F336AE65 /* PointsLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535FF11F9F11E7F934A0B3E0 /* PointsLedger.swift */; };
 		66FD7E8F91DD085B9A192717 /* MoodCheckInRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EC63C385AD41C6C4E9E0F82 /* MoodCheckInRouter.swift */; };
+		68CEF4EE224DBCEC9565685A /* ToggleTimerPauseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD47285F2AB85FD492718B60 /* ToggleTimerPauseIntent.swift */; };
 		6AC67C157675E33631011CF5 /* SharedTimerStopSignal.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80754CED57CB3CFA20D6678 /* SharedTimerStopSignal.swift */; };
 		6B2A3ADC34D06AD1C4376D77 /* NoOpCalendarSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1611E325834ECA3FDF9D0A4 /* NoOpCalendarSyncService.swift */; };
 		6ECA5B7D24955D896687A11E /* MoodNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90E056ABC0397BA133AA6FEB /* MoodNotificationScheduler.swift */; };
@@ -113,7 +115,6 @@
 		E2151A08582279120F5EB65A /* SectionIndexStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ECB5365B291706A6611E298 /* SectionIndexStrip.swift */; };
 		E7DA78F0306128A442C09EB2 /* MoodEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E8CCB651EE9A0CBD4F2B9F6 /* MoodEntry.swift */; };
 		EA3B2ED8D182C65A7D255D35 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EF8DCE6457041D274B3C2DA /* SettingsView.swift */; };
-		EC20C79F6B0F5FE49E882533 /* ToggleTimerPauseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB374B3E7BE79F7C315786C /* ToggleTimerPauseIntent.swift */; };
 		F08AAE9569910315BBA247AC /* HabitRepositoryEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E00AA58EC17458B87202A166 /* HabitRepositoryEnvironment.swift */; };
 		F3CCB10F12AF3D0F206976D9 /* RecentlyDeletedSectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E1B774779BBA00590D8E9D /* RecentlyDeletedSectionsView.swift */; };
 		F4B534D9BB531A40290457A6 /* AppTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4928F50DE255831E032B0C /* AppTabView.swift */; };
@@ -176,7 +177,6 @@
 		2556327218A50F0CD12FF4B6 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		29AB0D25C8E6742B44F8D567 /* RepeatMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepeatMode.swift; sourceTree = "<group>"; };
 		2DD42B2927F8D0DA16A09DBE /* CalendarSyncServiceEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSyncServiceEnvironment.swift; sourceTree = "<group>"; };
-		2EB374B3E7BE79F7C315786C /* ToggleTimerPauseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToggleTimerPauseIntent.swift; sourceTree = "<group>"; };
 		2EB60CE24270AFE5C68343A7 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		2EC63C385AD41C6C4E9E0F82 /* MoodCheckInRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodCheckInRouter.swift; sourceTree = "<group>"; };
 		31685D47D31E3DDDC140AB5A /* ForgeUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ForgeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -243,6 +243,7 @@
 		A7B188FF827204DDB10B2751 /* AddSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSectionView.swift; sourceTree = "<group>"; };
 		A974A03E706CD2185017D430 /* SwiftDataMilestoneRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataMilestoneRepository.swift; sourceTree = "<group>"; };
 		A9A8461332CF1132351706FC /* MilestoneKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneKind.swift; sourceTree = "<group>"; };
+		AD47285F2AB85FD492718B60 /* ToggleTimerPauseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToggleTimerPauseIntent.swift; sourceTree = "<group>"; };
 		AF86847E6D0665429ABF0BB9 /* StreakLinesStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakLinesStripView.swift; sourceTree = "<group>"; };
 		B032223927D6733174F1A1DE /* ForgeIconv1.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = ForgeIconv1.icon; sourceTree = "<group>"; };
 		B1F709B02A6743B4BF03AB27 /* ForgeWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ForgeWidgets.entitlements; sourceTree = "<group>"; };
@@ -325,7 +326,6 @@
 				585E7ABB8D32A97602D22353 /* ForgeWidgetsBundle.swift */,
 				DB8814AD0BAAEF7CD6572E1D /* HabitTimerLiveActivity.swift */,
 				39113B1569704859C394F49F /* Info.plist */,
-				2EB374B3E7BE79F7C315786C /* ToggleTimerPauseIntent.swift */,
 			);
 			path = ForgeWidgets;
 			sourceTree = "<group>";
@@ -468,6 +468,7 @@
 				6E9E3CDC175D93A5F1BB9754 /* HabitTimerCoordinator.swift */,
 				7D460BCD7224A24EA2DE29AC /* SharedTimerPauseSignal.swift */,
 				E80754CED57CB3CFA20D6678 /* SharedTimerStopSignal.swift */,
+				AD47285F2AB85FD492718B60 /* ToggleTimerPauseIntent.swift */,
 			);
 			path = Timer;
 			sourceTree = "<group>";
@@ -812,6 +813,7 @@
 				5D1E9CC507C304AEFCEF158F /* TemplateSectionRepository.swift in Sources */,
 				AD4DEED77A32E558566C18A8 /* TemplateSectionRepositoryEnvironment.swift in Sources */,
 				D0A380D790FA5291221B958D /* TimeMode.swift in Sources */,
+				459FFAD1A600ECDC72862921 /* ToggleTimerPauseIntent.swift in Sources */,
 				85CFD7CD27D199549EBF4184 /* VacationSettings.swift in Sources */,
 				9944B32D8221D5D19FC2E340 /* WeeklyReflectionRouter.swift in Sources */,
 				54282C61B8F9C6956B078870 /* WeeklyReflectionScheduler.swift in Sources */,
@@ -829,7 +831,7 @@
 				8BDECEDBE928F19106CF148C /* HabitTimerLiveActivity.swift in Sources */,
 				9E7B90F96AFA0EDB5E089E3D /* SharedTimerPauseSignal.swift in Sources */,
 				B421817CCDA1F4F171D3EB53 /* SharedTimerStopSignal.swift in Sources */,
-				EC20C79F6B0F5FE49E882533 /* ToggleTimerPauseIntent.swift in Sources */,
+				68CEF4EE224DBCEC9565685A /* ToggleTimerPauseIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

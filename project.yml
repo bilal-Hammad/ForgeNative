@@ -71,6 +71,11 @@ targets:
       - path: Forge/Core/Timer/HabitTimerAttributes.swift
       - path: Forge/Core/Timer/SharedTimerStopSignal.swift
       - path: Forge/Core/Timer/SharedTimerPauseSignal.swift
+      # Also compiled into the main Forge app target (via its `path: Forge`)
+      # — a LiveActivityIntent's perform() is routed to the app's process, so
+      # it must be a member of both targets (Apple's documented requirement;
+      # extension-only was the "pause does nothing" bug). See the file's doc.
+      - path: Forge/Core/Timer/ToggleTimerPauseIntent.swift
       - path: Forge/Core/Models/HabitColor.swift
     settings:
       base:

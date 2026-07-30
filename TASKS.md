@@ -239,6 +239,23 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       pill visual (Lock Screen/Dynamic Island) and interactive pause/resume freeze-continue could not be
       captured on Simulator (`simctl io screenshot` doesn't render the Live Activity overlay — a known
       limitation) — installed on Bilal's device for his real pause/resume confirmation. See RESULTS.md.
+- [x] **Timer Live Activity — two real-device bugs from Bilal's testing of af41012, root-caused + fixed.**
+      **Bug 1 (pause button did nothing)**: `ToggleTimerPauseIntent` (a `LiveActivityIntent`) was
+      compiled only into the `ForgeWidgets` extension, but a LiveActivityIntent's `perform()` is routed
+      to the *app's* process — an app binary that doesn't contain the intent can't perform it, so the
+      tap silently did nothing (Apple's documented requirement: the intent must be a member of both the
+      app and the widget-extension targets). Proven concretely, not guessed: `nm` on the built binaries
+      showed the intent symbol absent from the app dylib before, present in both (99 symbols each) after
+      moving it to `Forge/Core/Timer/` and adding it to both targets' sources. **Bug 2 (no indication at
+      0:00)**: the extension can't run a callback when time's up (it only renders `ContentState`); fixed
+      by deriving `isFinished` in the *view* from `endDate <= now` and rendering a "Done"/checkmark
+      state, refreshed while suspended via `staleDate = endDate`, plus the app-foreground completion
+      path lingering the finished pill for 3s before dismissing. **Honest verification**: the
+      both-targets fix is confirmed at the binary level and installed on-device, but the interactive
+      "countdown visibly freezes on tap" and the "0:00 shows Done" visual still need Bilal's physical
+      Lock Screen tap/observation — I cannot tap a Lock Screen Live Activity from any tool, and am not
+      claiming to have watched it. A concise permanent `PauseIntent` logger was kept so his next tap
+      produces evidence. See RESULTS.md.
 - [x] **Delete-habit delay + missing removal animation bug**. Reported directly by the user (real
       device, not spec-derived): confirming "Delete" in the alert produced a multi-second dead pause,
       then an instant unanimated cut instead of a real removal transition. Diagnosed via real-device

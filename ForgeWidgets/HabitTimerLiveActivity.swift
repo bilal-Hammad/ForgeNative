@@ -49,7 +49,7 @@ struct HabitTimerLiveActivity: Widget {
                     .font(.caption2.monospacedDigit())
                     .frame(width: 44)
             } minimal: {
-                Image(systemName: context.state.isPaused ? "pause.fill" : "timer")
+                Image(systemName: isFinished(context) ? "checkmark.circle.fill" : (context.state.isPaused ? "pause.fill" : "timer"))
                     .foregroundStyle(context.attributes.color.color)
             }
         }
@@ -75,6 +75,17 @@ struct HabitTimerLiveActivity: Widget {
 
     // MARK: - Shared pieces
 
+    /// True once a *running* timer has reached its goal. Derived from the
+    /// timeline, not a `ContentState` flag — the extension can't run a
+    /// callback at 0:00, but the view re-renders when the content goes stale
+    /// (`staleDate` is set to `endDate` while running), so this flips to
+    /// "done" at the goal instant even while the app is suspended. A paused
+    /// timer is never "finished" (its `endDate` may be in the past, but
+    /// `pausedRemaining` is what's real).
+    private func isFinished(_ context: ActivityViewContext<HabitTimerAttributes>) -> Bool {
+        !context.state.isPaused && context.state.endDate <= Date.now
+    }
+
     /// The habit's own icon in its own color, in a soft circular badge —
     /// never a generic system glyph.
     private func iconBadge(context: ActivityViewContext<HabitTimerAttributes>, size: CGFloat) -> some View {
@@ -85,25 +96,40 @@ struct HabitTimerLiveActivity: Widget {
             .background(Circle().fill(context.attributes.color.color.opacity(0.22)))
     }
 
-    /// Ticking while running, frozen while paused — see the type doc comment.
+    /// Ticking while running, frozen while paused, and a "Done" label once
+    /// the goal is reached — see the type and `isFinished` doc comments.
     @ViewBuilder
     private func timerText(context: ActivityViewContext<HabitTimerAttributes>) -> some View {
-        if context.state.isPaused {
+        if isFinished(context) {
+            Text("Done")
+                .foregroundStyle(context.attributes.color.color)
+        } else if context.state.isPaused {
             Text(Self.paused(remaining: context.state.pausedRemaining))
         } else {
             Text(timerInterval: context.state.effectiveStartDate...context.state.endDate, countsDown: true)
         }
     }
 
+    /// Pause/resume while active; once finished, a non-interactive filled
+    /// checkmark (nothing left to pause) — matching Apple's Workout Live
+    /// Activity ending on a completion glyph rather than a live control.
+    @ViewBuilder
     private func pauseResumeButton(context: ActivityViewContext<HabitTimerAttributes>, size: CGFloat) -> some View {
-        Button(intent: ToggleTimerPauseIntent(habitID: context.attributes.habitID)) {
-            Image(systemName: context.state.isPaused ? "arrow.clockwise" : "pause.fill")
-                .font(.system(size: size * 0.42, weight: .bold))
+        if isFinished(context) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: size, weight: .semibold))
                 .foregroundStyle(context.attributes.color.color)
                 .frame(width: size, height: size)
-                .background(Circle().fill(context.attributes.color.color.opacity(0.22)))
+        } else {
+            Button(intent: ToggleTimerPauseIntent(habitID: context.attributes.habitID)) {
+                Image(systemName: context.state.isPaused ? "arrow.clockwise" : "pause.fill")
+                    .font(.system(size: size * 0.42, weight: .bold))
+                    .foregroundStyle(context.attributes.color.color)
+                    .frame(width: size, height: size)
+                    .background(Circle().fill(context.attributes.color.color.opacity(0.22)))
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
     }
 
     /// `mm:ss` (or `h:mm:ss`) for the frozen paused value — matches the
