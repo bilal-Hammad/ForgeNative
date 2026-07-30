@@ -8,6 +8,12 @@ import Foundation
 protocol HabitRepository: Sendable {
     func fetchAll() async throws -> [Habit]
     func fetch(category: HabitCategory) async throws -> [Habit]
+    /// Single habit by ID, or nil if it doesn't exist. Added for callers
+    /// that must act on the *current persisted* state rather than a
+    /// UI-captured copy — stale copies clobbering `calendarEventIdentifier`/
+    /// `reminderIdentifiers` on save was the root cause of the
+    /// duplicate-Calendar-event bug (RESULTS.md, 2026-07-30).
+    func fetch(id: Habit.ID) async throws -> Habit?
     func save(_ habit: Habit) async throws
     func delete(id: Habit.ID) async throws
 

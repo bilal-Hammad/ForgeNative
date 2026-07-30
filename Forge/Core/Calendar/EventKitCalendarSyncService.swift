@@ -1,5 +1,13 @@
 import EventKit
 import Foundation
+import os
+
+/// Permanent — every EventKit failure in this file used to be silently
+/// swallowed (`try?` / empty `catch`), which made the user-reported
+/// "Reminders sync creates nothing at all" bug undiagnosable from a device:
+/// no crash, no log, no visible failure (Production Scaling Standard #8).
+/// Watch with: log stream --predicate 'category == "CalendarSync"'.
+private let syncLogger = Logger(subsystem: "com.bilalhammad.forge.native", category: "CalendarSync")
 
 /// The real `CalendarSyncService` — see that protocol's doc comment for the
 /// Calendar-vs-Reminders architectural split this implementation follows.
@@ -49,6 +57,21 @@ actor EventKitCalendarSyncService: CalendarSyncService {
     // MARK: - Sync
 
     func sync(habit: Habit) async {
+        // Defense in depth against stale caller copies: the create-vs-update
+        // decision below hinges on `calendarEventIdentifier`/
+        // `reminderIdentifiers`, and a caller holding a pre-sync copy of the
+        // habit (a UI-captured value) passes nil even when the repository
+        // already has real identifiers — which made this method create
+        // duplicate EKEvents/EKReminders instead of updating the existing
+        // ones (RESULTS.md, 2026-07-30). The two known offending call sites
+        // are fixed at the source; this refresh protects any future caller
+        // from reintroducing the same class of bug.
+        var habit = habit
+        if habit.calendarEventIdentifier == nil || habit.reminderIdentifiers == nil,
+           let fresh = ((try? await habitRepository.fetch(id: habit.id)) ?? nil) {
+            habit.calendarEventIdentifier = habit.calendarEventIdentifier ?? fresh.calendarEventIdentifier
+            habit.reminderIdentifiers = habit.reminderIdentifiers ?? fresh.reminderIdentifiers
+        }
         var updated = habit
         var changed = false
 
@@ -101,9 +124,17 @@ actor EventKitCalendarSyncService: CalendarSyncService {
         for reminder in todaysReminders {
             reminder.isCompleted = completion.isComplete
             reminder.completionDate = completion.isComplete ? .now : nil
-            try? eventStore.save(reminder, commit: false)
+            do {
+                try eventStore.save(reminder, commit: false)
+            } catch {
+                syncLogger.error("Completion-mirror reminder save failed for habit \(habit.id, privacy: .public): \(error, privacy: .public)")
+            }
         }
-        try? eventStore.commit()
+        do {
+            try eventStore.commit()
+        } catch {
+            syncLogger.error("Completion-mirror commit failed for habit \(habit.id, privacy: .public): \(error, privacy: .public)")
+        }
     }
 
     // MARK: - Calendar event sync
@@ -128,13 +159,18 @@ actor EventKitCalendarSyncService: CalendarSyncService {
             try eventStore.save(event, span: .futureEvents, commit: true)
             return event.eventIdentifier
         } catch {
+            syncLogger.error("Calendar event save failed for habit \(habit.id, privacy: .public): \(error, privacy: .public)")
             return habit.calendarEventIdentifier
         }
     }
 
     private func removeCalendarEvent(identifier: String) {
         guard let event = eventStore.event(withIdentifier: identifier) else { return }
-        try? eventStore.remove(event, span: .futureEvents, commit: true)
+        do {
+            try eventStore.remove(event, span: .futureEvents, commit: true)
+        } catch {
+            syncLogger.error("Calendar event remove failed for \(identifier, privacy: .public): \(error, privacy: .public)")
+        }
     }
 
     /// Decision logic cases 2-5 from the sync spec: no time → all-day;
@@ -242,6 +278,20 @@ actor EventKitCalendarSyncService: CalendarSyncService {
         let wantedOccurrences = Self.occurrenceComponents(for: habit, on: today)
         let existingReminders = fetchReminders(identifiers: existingIdentifiers)
 
+        // `defaultCalendarForNewReminders()` is nil when no default list is
+        // configured (a real device state, not hypothetical) — a reminder
+        // saved with a nil calendar throws, and before this was surfaced,
+        // that failure was silently swallowed per-reminder: the exact
+        // "Reminders sync creates nothing at all, no visible error" the
+        // user reported. Fall back to any writable Reminders list before
+        // giving up, and log loudly either way.
+        let targetCalendar = eventStore.defaultCalendarForNewReminders()
+            ?? eventStore.calendars(for: .reminder).first(where: { $0.allowsContentModifications })
+        guard let targetCalendar else {
+            syncLogger.error("No writable Reminders list exists (defaultCalendarForNewReminders is nil and no fallback found) — cannot create reminders for habit \(habit.id, privacy: .public)")
+            return existingIdentifiers
+        }
+
         var usedExistingIDs = Set<String>()
         var resultIdentifiers: [String] = []
 
@@ -255,29 +305,46 @@ actor EventKitCalendarSyncService: CalendarSyncService {
             }
             let reminder = EKReminder(eventStore: eventStore)
             reminder.title = habit.title
-            reminder.calendar = eventStore.defaultCalendarForNewReminders()
+            reminder.calendar = targetCalendar
             reminder.dueDateComponents = components
             do {
                 try eventStore.save(reminder, commit: false)
                 resultIdentifiers.append(reminder.calendarItemIdentifier)
             } catch {
+                syncLogger.error("Reminder save failed for habit \(habit.id, privacy: .public): \(error, privacy: .public)")
                 continue
             }
         }
 
         for reminder in existingReminders where !usedExistingIDs.contains(reminder.calendarItemIdentifier) {
-            try? eventStore.remove(reminder, commit: false)
+            do {
+                try eventStore.remove(reminder, commit: false)
+            } catch {
+                syncLogger.error("Stale reminder remove failed: \(error, privacy: .public)")
+            }
         }
-        try? eventStore.commit()
+        do {
+            try eventStore.commit()
+        } catch {
+            syncLogger.error("Reminders commit failed for habit \(habit.id, privacy: .public): \(error, privacy: .public)")
+        }
 
         return resultIdentifiers
     }
 
     private func removeReminders(identifiers: [String]) {
         for reminder in fetchReminders(identifiers: identifiers) {
-            try? eventStore.remove(reminder, commit: false)
+            do {
+                try eventStore.remove(reminder, commit: false)
+            } catch {
+                syncLogger.error("Reminder remove failed: \(error, privacy: .public)")
+            }
         }
-        try? eventStore.commit()
+        do {
+            try eventStore.commit()
+        } catch {
+            syncLogger.error("Reminder-removal commit failed: \(error, privacy: .public)")
+        }
     }
 
     private func fetchReminders(identifiers: [String]) -> [EKReminder] {

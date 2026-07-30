@@ -70,6 +70,18 @@ struct HabitFormView: View {
     /// Home) — carried through on save so editing a habit never silently
     /// un-archives it.
     private let isArchived: Bool
+    /// Sync/reflection bookkeeping carried through untouched — this form
+    /// never edits these, but `buildHabit()` reconstructs the whole
+    /// `Habit`, so any field not explicitly carried silently resets to its
+    /// initializer default on every edit. Dropping
+    /// `calendarEventIdentifier`/`reminderIdentifiers` here was the root
+    /// cause of the duplicate-Calendar-event bug: a form save persisted nil
+    /// identifiers, so the follow-up sync couldn't find the existing
+    /// event/reminders and created brand-new ones, orphaning the originals
+    /// in the user's Calendar/Reminders (see RESULTS.md, 2026-07-30).
+    private let calendarEventIdentifier: String?
+    private let reminderIdentifiers: [String]?
+    private let weeklyReflectionEnabled: Bool
 
     @State private var title: String
     @State private var category: HabitCategory
@@ -156,6 +168,9 @@ struct HabitFormView: View {
         isHealthKitTracked = template.isHealthKitTracked
         sourceTemplateID = template.id
         isArchived = false
+        calendarEventIdentifier = nil
+        reminderIdentifiers = nil
+        weeklyReflectionEnabled = true
         _title = State(initialValue: template.title)
         _category = State(initialValue: template.category)
         _iconSystemName = State(initialValue: template.iconSystemName)
@@ -194,6 +209,9 @@ struct HabitFormView: View {
         isHealthKitTracked = false
         sourceTemplateID = nil
         isArchived = false
+        calendarEventIdentifier = nil
+        reminderIdentifiers = nil
+        weeklyReflectionEnabled = true
         _title = State(initialValue: "")
         _category = State(initialValue: customHabitCategory)
         _iconSystemName = State(initialValue: "checkmark.circle")
@@ -225,6 +243,9 @@ struct HabitFormView: View {
         isHealthKitTracked = habit.isHealthKitTracked
         sourceTemplateID = habit.sourceTemplateID
         isArchived = habit.isArchived
+        calendarEventIdentifier = habit.calendarEventIdentifier
+        reminderIdentifiers = habit.reminderIdentifiers
+        weeklyReflectionEnabled = habit.weeklyReflectionEnabled
         _title = State(initialValue: habit.title)
         _category = State(initialValue: habit.category)
         _iconSystemName = State(initialValue: habit.iconSystemName)
@@ -543,6 +564,9 @@ struct HabitFormView: View {
             notificationsEnabled: notificationsEnabled,
             remindersAppSyncEnabled: remindersAppSyncEnabled,
             calendarSyncEnabled: calendarSyncEnabled,
+            calendarEventIdentifier: calendarEventIdentifier,
+            reminderIdentifiers: reminderIdentifiers,
+            weeklyReflectionEnabled: weeklyReflectionEnabled,
             isArchived: isArchived
         )
     }

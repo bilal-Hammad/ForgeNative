@@ -1499,3 +1499,123 @@ All extracted frame directories (`/tmp/glitch_frames`, `/tmp/glitch_before_frame
 `/tmp/glitch_after_frames`, `/tmp/before_diag`, `/tmp/xcui_fail`) and the scratchpad recordings
 (`glitch_before.mp4`, `glitch_after.mp4`, logs, xcresult attachment exports) deleted after analysis.
 `~/deleteTest.MP4` again left untouched at the user's own path.
+
+---
+
+## 2026-07-30 — Calendar/Reminders sync: duplicate events + reminders-not-created (both fixed)
+
+Two user-reported bugs against the shipped Calendar/Reminders sync (`8d3f9a0`). Diagnosed on a
+freshly-erased spare Simulator (`0BBF73C5`, iPhone 17 Pro) with a temporary `DebugCalendarSyncView`
+readback upgraded to run **store-wide** EventKit predicate queries (not just resolve the app's stored
+identifiers) plus direct SQLite queries against the sim's `Calendar.sqlitedb` — the identifier-only
+readback was structurally blind to the orphaned duplicates an identifier-clobbering save leaves behind,
+which is the whole failure mode of Bug 1.
+
+### Bug 1 — duplicate Calendar event: root cause (confirmed, not guessed)
+
+`HabitFormView.buildHabit()` reconstructs a full `Habit` from the form's fields, but three fields were
+simply never passed to the `Habit(...)` initializer: `calendarEventIdentifier`, `reminderIdentifiers`,
+`weeklyReflectionEnabled`. Since `Habit`'s initializer defaults those to `nil`/`true`, **every form
+save silently reset them** — a habit that had a real synced `EKEvent` had its `calendarEventIdentifier`
+persisted back to `nil`. The form's follow-up `Task { await calendarSyncService.sync(habit:) }` then
+hit `syncCalendarEvent`, which decides create-vs-update purely on
+`habit.calendarEventIdentifier != nil`:
+
+```swift
+if let existingID = habit.calendarEventIdentifier, let existing = eventStore.event(withIdentifier: existingID) {
+    event = existing          // update in place
+} else {
+    event = EKEvent(eventStore: eventStore)   // ← create a NEW event; the old one is now orphaned
+}
+```
+
+So the edit created a second `EKEvent` while the first remained in Calendar untouched — exactly the
+reported "same habit appears twice on the same day." A second, independent instance of the same
+stale-copy class lived in `HabitSyncSettingsDetailView.persist()`: it saved `var updated = habit` (the
+copy captured when the screen was pushed), so the *second* sync toggle in one visit clobbered the
+identifiers the *first* toggle's sync had just written back.
+
+Grep confirmed these are the only places identifiers are set: they live solely on the `Habit`/
+`HabitModel` and flow only through `save()`; nothing else writes them, so no other code path could be
+responsible.
+
+### Exact before/after EventKit evidence (clean Simulator, direct queries)
+
+Pre-fix, after creating + syncing 5 test habits then doing one zero-change form save on "Quantity Time
+Habit" (SQLite ground truth, `CalendarItem JOIN Calendar`):
+
+```
+Quantity Time Habit | DEFAULT_CALENDAR_NAME | 3      ← three distinct events (1 original + 2 orphans)
+```
+
+Post-fix, same flow, store-wide readback:
+
+```
+STATE_1 (after first sync):  Quantity Time Habit: 1 distinct event(s) [31703CF0]
+STATE_2 (after form save):   Quantity Time Habit: 1 distinct event(s) [31703CF0]   ← same identifier
+```
+
+Full post-fix SQLite ground truth — exactly one Calendar event per calendar-supported habit, exactly
+one reminder per occurrence:
+
+```
+End Dated Habit|DEFAULT_CALENDAR_NAME|1        End Dated Habit|Scheduled Reminders|1
+Meditate Timer Habit|DEFAULT_CALENDAR_NAME|1   Meditate Timer Habit|Scheduled Reminders|1
+No Time Habit|DEFAULT_CALENDAR_NAME|1          No Time Habit|Scheduled Reminders|1
+Quantity Time Habit|DEFAULT_CALENDAR_NAME|1    Quantity Time Habit|Scheduled Reminders|1
+                                               Hourly Habit|Scheduled Reminders|4
+```
+
+(Hourly Habit correctly has no Calendar event — `everyXHours` isn't calendar-sync-supported — and its
+4 reminders are the 4 daily occurrences, not duplicates.)
+
+### Bug 2 — "Reminders sync creates nothing": permission-gated, not a code defect
+
+On a clean Simulator with **Reminders access actually granted**, reminders create correctly — the
+readback and real Reminders.app both show them present (8 across 5 habits). The first post-fix run
+happened to grant Calendar but land Reminders in a `denied`/prompt-dismissed state, which reproduced
+"no reminders" — confirming the behavior is entirely gated on the separate `.reminder` authorization
+(`EKEventStore` treats `.event` and `.reminder` as distinct entity types; the app does request them
+separately and the Info.plist has both `NSCalendarsFullAccessUsageDescription` and
+`NSRemindersFullAccessUsageDescription`, so the request path is correct). The genuine defect adjacent
+to Bug 2 was **silent failure**: every EventKit save/commit/remove used a bare `try?` or empty
+`catch { continue }`, so a real reminder-creation failure (e.g. `defaultCalendarForNewReminders()`
+returning nil when no default list is configured — a real device state) produced no crash, no log,
+nothing — indistinguishable from "the feature does nothing." That's now impossible to miss.
+
+### Fixes shipped
+
+1. **`HabitFormView`** — added private `calendarEventIdentifier`/`reminderIdentifiers`/
+   `weeklyReflectionEnabled` carried from `existingHabit` (nil/default in the two create-mode inits),
+   passed through `buildHabit()`. The form no longer resets sync bookkeeping on save.
+2. **`HabitRepository.fetch(id:)`** — new protocol method + `SwiftData`/`InMemory` implementations, so
+   callers can act on the *current persisted* habit rather than a stale UI copy.
+   `HabitSyncSettingsDetailView.persist()` now rebases on `fetch(id:)` (falling back to the captured
+   copy only if the fetch returns nil).
+3. **`EventKitCalendarSyncService`** — a defensive `fetch(id:)` refresh at the top of `sync(habit:)`
+   (re-hydrates identifiers if a caller passes a copy with nils but the store has real ones), a
+   permanent `CalendarSync` `Logger` on every previously-swallowed EventKit failure, and — for the
+   nil-default-Reminders-list case — a fallback to any writable `.reminder` calendar plus a loud
+   `error` log if none exists, instead of silently creating nothing.
+
+### Verified
+
+- Direct EventKit + SQLite queries above (strictly stronger than a screenshot — exact counts and
+  identifiers), before and after, on a clean sim.
+- Real **Reminders.app** screenshot: all habit reminders present, one per occurrence, no duplicates.
+- Real **Calendar.app** screenshot (Thu 30 Jul): each habit's recurring event pill appears exactly
+  once (End Dated Habit, No Time Habit, Meditate Timer Habit @9:00, Quantity Time Habit @9:00) — no
+  duplicate pills.
+- Smoke regression: `DeleteHabitAnimationTests` (both tests) still pass after these changes.
+
+### Judgment call — kept vs. removed
+
+**Kept**: the `DebugCalendarSyncView` store-wide readback upgrade (per-title distinct-event-identifier
+counts + full store-wide reminder listing via a `nonisolated static` reminder fetch — the MainActor
+form tripped a real dispatch-isolation SIGTRAP because `fetchReminders`'s completion fires on a
+background queue). This is what makes an orphaned-duplicate detectable at all from the debug tool, so
+it earns its place alongside the tool's existing readback for any future sync regression. **Removed**:
+both throwaway XCUITests (`CalendarDupDiagnosisTest`, `SyncScreenshotTest`) — one-off drivers for this
+investigation, not permanent regression tests (this feature's interaction logic is exercised through
+`DebugCalendarSyncView` for future manual/automated re-verification, matching the removed-one-off
+precedent from the original sync work).

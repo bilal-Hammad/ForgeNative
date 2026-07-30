@@ -139,14 +139,23 @@ struct DebugCalendarSyncView: View {
         resultMessage = "Synced \(toSync.count) test habits."
     }
 
+    /// Two layers deliberately: the per-habit section resolves via the
+    /// habit's *stored* identifiers (what the app itself tracks), while the
+    /// "ALL matching" sections below run store-wide predicate queries —
+    /// the only way to see events/reminders the app has *lost track of*
+    /// (orphaned duplicates). Added while diagnosing the duplicate-event
+    /// bug: the identifier-only readback was structurally blind to the
+    /// orphan an identifier-clobbering save leaves behind.
     private func readEventKitState() async {
         let allHabits = (try? await habitRepository.fetchAll()) ?? []
         let testIDs: Set<UUID> = [Self.noTimeHabitID, Self.timerHabitID, Self.quantityHabitID, Self.endDatedHabitID, Self.hourlyHabitID]
         let testHabits = allHabits.filter { testIDs.contains($0.id) }
+        let testTitles = Set(Self.testHabits.map(\.title))
         let store = EKEventStore()
         var lines: [String] = []
         for habit in testHabits {
             lines.append("— \(habit.title) —")
+            lines.append("  storedEventID=\(habit.calendarEventIdentifier.map { String($0.suffix(8)) } ?? "nil") storedReminderIDs=\(habit.reminderIdentifiers?.count ?? 0)")
             if let eventID = habit.calendarEventIdentifier, let event = store.event(withIdentifier: eventID) {
                 lines.append("  Event: allDay=\(event.isAllDay) start=\(event.startDate!) end=\(event.endDate!)")
                 if let rule = event.recurrenceRules?.first {
@@ -155,18 +164,67 @@ struct DebugCalendarSyncView: View {
                     lines.append("  Recurrence: none")
                 }
             } else {
-                lines.append("  Event: none (calendarEventIdentifier=\(habit.calendarEventIdentifier ?? "nil"))")
+                lines.append("  Event: none resolvable from stored identifier")
             }
             if let reminderIDs = habit.reminderIdentifiers, !reminderIDs.isEmpty {
                 let reminders = reminderIDs.compactMap { store.calendarItem(withIdentifier: $0) as? EKReminder }
                 for reminder in reminders {
                     lines.append("  Reminder: due=\(String(describing: reminder.dueDateComponents)) completed=\(reminder.isCompleted)")
                 }
+                if reminders.isEmpty {
+                    lines.append("  Reminders: \(reminderIDs.count) stored IDs, none resolvable")
+                }
             } else {
                 lines.append("  Reminders: none")
             }
         }
+
+        lines.append("=== ALL events matching test titles (store-wide, ±3 days) ===")
+        let calendar = Calendar.current
+        let windowStart = calendar.date(byAdding: .day, value: -3, to: calendar.startOfDay(for: .now))!
+        let windowEnd = calendar.date(byAdding: .day, value: 3, to: calendar.startOfDay(for: .now))!
+        let eventPredicate = store.predicateForEvents(withStart: windowStart, end: windowEnd, calendars: nil)
+        let matchingEvents = store.events(matching: eventPredicate).filter { testTitles.contains($0.title ?? "") }
+        // `events(matching:)` returns one entry per *occurrence* — collapse
+        // to distinct EKEvent identifiers so a healthy recurring event (one
+        // identifier, several occurrences in the window) is distinguishable
+        // from a genuine duplicate (two identifiers, same title).
+        var byTitle: [String: Set<String>] = [:]
+        for event in matchingEvents {
+            byTitle[event.title ?? "?", default: []].insert(event.eventIdentifier ?? "?")
+        }
+        for (title, ids) in byTitle.sorted(by: { $0.key < $1.key }) {
+            lines.append("  \(title): \(ids.count) distinct event(s) [\(ids.map { String($0.suffix(8)) }.sorted().joined(separator: ", "))]")
+        }
+        if byTitle.isEmpty { lines.append("  (none)") }
+
+        lines.append("=== ALL reminders matching test titles (store-wide) ===")
+        let reminderLines = await Self.fetchAllReminderLines(matchingTitles: testTitles)
+        lines.append(contentsOf: reminderLines)
+        if reminderLines.isEmpty { lines.append("  (none)") }
         resultMessage = lines.joined(separator: "\n")
+    }
+
+    /// Returns pre-formatted description lines rather than the `EKReminder`
+    /// objects themselves (`EKReminder` is non-Sendable and can't cross the
+    /// continuation boundary under Swift 6), and is `nonisolated static`
+    /// with its own store because `fetchReminders`'s completion fires on a
+    /// background queue — a MainActor-inherited closure there trips a
+    /// dispatch isolation assertion at runtime (found the hard way: real
+    /// SIGTRAP in this exact spot).
+    private nonisolated static func fetchAllReminderLines(matchingTitles: Set<String>) async -> [String] {
+        let store = EKEventStore()
+        return await withCheckedContinuation { continuation in
+            store.fetchReminders(matching: store.predicateForReminders(in: nil)) { reminders in
+                let lines = (reminders ?? [])
+                    .filter { matchingTitles.contains($0.title ?? "") }
+                    .map { reminder in
+                        let due = reminder.dueDateComponents.map { "\($0.year ?? 0)-\($0.month ?? 0)-\($0.day ?? 0) \($0.hour.map(String.init) ?? "allday"):\($0.minute ?? 0)" } ?? "nil"
+                        return "  \(reminder.title ?? "?") id=\(String(reminder.calendarItemIdentifier.suffix(8))) due=\(due) completed=\(reminder.isCompleted)"
+                    }
+                continuation.resume(returning: lines)
+            }
+        }
     }
 
     private func completeTimerHabit() async {

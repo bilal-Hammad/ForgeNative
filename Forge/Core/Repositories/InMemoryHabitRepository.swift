@@ -16,6 +16,10 @@ actor InMemoryHabitRepository: HabitRepository {
         habits.filter { $0.category == category }
     }
 
+    func fetch(id: Habit.ID) async throws -> Habit? {
+        habits.first { $0.id == id }
+    }
+
     func save(_ habit: Habit) async throws {
         if let index = habits.firstIndex(where: { $0.id == habit.id }) {
             habits[index] = habit

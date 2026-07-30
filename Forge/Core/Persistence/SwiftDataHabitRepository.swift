@@ -30,6 +30,11 @@ actor SwiftDataHabitRepository: HabitRepository {
         return try modelContext.fetch(descriptor).map { $0.toHabit() }
     }
 
+    func fetch(id: Habit.ID) async throws -> Habit? {
+        let descriptor = FetchDescriptor<HabitModel>(predicate: #Predicate { $0.id == id })
+        return try modelContext.fetch(descriptor).first?.toHabit()
+    }
+
     func save(_ habit: Habit) async throws {
         let targetID = habit.id
         let descriptor = FetchDescriptor<HabitModel>(predicate: #Predicate { $0.id == targetID })

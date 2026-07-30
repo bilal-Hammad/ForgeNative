@@ -177,6 +177,24 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       New permanent debug tool: `DebugCalendarSyncView` (Settings → Debug), matching
       `DebugSeedHealthKitView`'s kept-permanently precedent, for any future Calendar-sync
       verification pass.
+- [x] **Calendar/Reminders sync — duplicate events + reminders-not-created bugs** (both user-reported
+      against commit `8d3f9a0`). **Bug 1 (duplicate Calendar event)** root cause: `HabitFormView
+      .buildHabit()` reconstructed the whole `Habit` but silently dropped `calendarEventIdentifier`/
+      `reminderIdentifiers` (and `weeklyReflectionEnabled`) — so a form edit+save persisted nil
+      identifiers, and the follow-up `sync(habit:)` couldn't find the existing `EKEvent` and created a
+      brand-new one, orphaning the original in Calendar. A second stale-copy path existed in
+      `HabitSyncSettingsDetailView.persist()` (saved the screen-entry-time `habit` copy, clobbering
+      identifiers written by an earlier toggle's sync in the same visit). Confirmed on a clean Simulator
+      with direct EventKit + SQLite queries: `Quantity Time Habit` went from 1 event to 3 after a
+      form save pre-fix; exactly 1 (same identifier, before and after) post-fix. **Bug 2** turned out
+      to be permission-gated, not a code defect — with Reminders access granted, reminders create
+      correctly (verified: 8 reminders across 5 habits, real Reminders.app screenshot); the real gap
+      was that every EventKit failure was silently swallowed (`try?`/empty `catch`), making an actual
+      failure undiagnosable. Fixes: carry the sync bookkeeping through `HabitFormView`; add
+      `HabitRepository.fetch(id:)` and rebase `persist()` (+ a defensive refresh in `sync(habit:)`) on
+      current persisted state; permanent `CalendarSync` `Logger` on every EventKit failure + a nil-
+      default-Reminders-list warning with a writable-list fallback. Verified with real Calendar.app +
+      Reminders.app screenshots and EventKit ground truth — see RESULTS.md.
 - [x] **Delete-habit delay + missing removal animation bug**. Reported directly by the user (real
       device, not spec-derived): confirming "Delete" in the alert produced a multi-second dead pause,
       then an instant unanimated cut instead of a real removal transition. Diagnosed via real-device

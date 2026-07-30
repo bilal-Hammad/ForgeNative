@@ -160,7 +160,14 @@ struct HabitSyncSettingsDetailView: View {
     }
 
     private func persist() async {
-        var updated = habit
+        // Rebase on the *current persisted* habit, not the copy captured
+        // when this screen was pushed — `sync(habit:)` below saves new
+        // `calendarEventIdentifier`/`reminderIdentifiers` back to the
+        // repository, so by the second toggle change in one visit the
+        // captured `habit` is stale; saving it verbatim clobbered those
+        // identifiers back to nil and made the next sync create duplicate
+        // EKEvents/EKReminders (RESULTS.md, 2026-07-30).
+        var updated = ((try? await habitRepository.fetch(id: habit.id)) ?? nil) ?? habit
         updated.notificationsEnabled = notificationsEnabled
         updated.calendarSyncEnabled = calendarSyncEnabled
         updated.remindersAppSyncEnabled = remindersAppSyncEnabled
