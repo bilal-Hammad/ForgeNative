@@ -70,6 +70,7 @@ targets:
       - path: ForgeWidgets
       - path: Forge/Core/Timer/HabitTimerAttributes.swift
       - path: Forge/Core/Timer/SharedTimerStopSignal.swift
+      - path: Forge/Core/Timer/SharedTimerPauseSignal.swift
       - path: Forge/Core/Models/HabitColor.swift
     settings:
       base:

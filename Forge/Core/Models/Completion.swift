@@ -17,8 +17,21 @@ struct Completion: Identifiable, Codable, Equatable {
     let date: Date
     var count: Double
     var isComplete: Bool
-    /// Time-based habits: when the habit was last "started" today.
+    /// Time-based habits: the current *running* segment's start (this is the
+    /// `runStartedAt` of the accumulated-elapsed model). Non-nil while the
+    /// timer is actively running; **nil while paused** (or never started).
+    /// A paused-but-not-finished timer is `startedAt == nil` with
+    /// `accumulatedElapsed > 0` — see `isTimerPaused`. Reversed the earlier
+    /// "no pause, only start/cancel" decision to back the Live Activity
+    /// pause/resume redesign (2026-07-30) — see CLAUDE.md.
     var startedAt: Date?
+    /// Time banked from previous run segments before the current one, in
+    /// seconds. The naive `now - startedAt` breaks the moment pause exists
+    /// (wall-clock keeps advancing while paused), so total elapsed is
+    /// `accumulatedElapsed + (now - startedAt)` while running, or just
+    /// `accumulatedElapsed` while paused. Zero for a fresh/never-paused
+    /// timer, so the running case degrades to the original `now - startedAt`.
+    var accumulatedElapsed: TimeInterval
     /// Real timestamp of the last update — distinct from `date` (which is
     /// day-granularity) — used for Progress's Recent Activity list.
     var loggedAt: Date
@@ -41,6 +54,7 @@ struct Completion: Identifiable, Codable, Equatable {
         count: Double = 0,
         isComplete: Bool = false,
         startedAt: Date? = nil,
+        accumulatedElapsed: TimeInterval = 0,
         loggedAt: Date = .now,
         healthKitSampleUUIDs: [UUID] = []
     ) {
@@ -50,7 +64,26 @@ struct Completion: Identifiable, Codable, Equatable {
         self.count = count
         self.isComplete = isComplete
         self.startedAt = startedAt
+        self.accumulatedElapsed = accumulatedElapsed
         self.loggedAt = loggedAt
         self.healthKitSampleUUIDs = healthKitSampleUUIDs
+    }
+
+    // MARK: - Timer state (accumulated-elapsed model)
+
+    /// A timer is "active" (running or paused) if it has a running segment
+    /// or any banked time. Meaningless for a completed habit — callers
+    /// already gate on `!isComplete` where it matters.
+    var isTimerActive: Bool { startedAt != nil || accumulatedElapsed > 0 }
+
+    /// Actively counting up right now.
+    var isTimerRunning: Bool { startedAt != nil }
+
+    /// Started, has banked progress, but not currently counting.
+    var isTimerPaused: Bool { startedAt == nil && accumulatedElapsed > 0 }
+
+    /// Total elapsed time as of `now`: banked segments plus the live one.
+    func elapsed(asOf now: Date = .now) -> TimeInterval {
+        accumulatedElapsed + (startedAt.map { now.timeIntervalSince($0) } ?? 0)
     }
 }

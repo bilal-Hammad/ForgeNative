@@ -222,6 +222,23 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       "hide on toggle off" there is a documented no-op — the toggle is the hook for when §13's
       correlation card is built. New permanent regression tests (`MoodCheckInTests`, 4 cases, all
       passing); dismiss animation confirmed via real recording + frame analysis. See RESULTS.md.
+- [x] **Timer Live Activity redesign — Apple-Workout-style pill + real pause/resume** (Lock-Screen
+      scope; in-app row layout is an explicitly-separate future round). Rebuilt `HabitTimerLiveActivity`
+      as a horizontal pill: circular habit-icon badge (habit's own icon/color) left, large monospaced
+      countdown center, circular pause/resume button right — no stop/cancel on the Live Activity (cancel
+      stays in-app). Reverses this project's prior "no pause concept" decision (CLAUDE.md updated): added
+      an **accumulated-elapsed model** to `Completion` (`startedAt` = running-segment start, nil while
+      paused; new `accumulatedElapsed` banks prior segments; `elapsed(asOf:)` = banked + live) so pause
+      preserves progress instead of losing it. New `ToggleTimerPauseIntent` (`LiveActivityIntent`)
+      updates the `Activity` in-process and signals the app via new `SharedTimerPauseSignal` (same
+      App-Group mechanism as the old stop signal); `ContentState` gained `isPaused` — running renders a
+      ticking `Text(timerInterval:)`, paused a static text (a `timerInterval` view keeps ticking
+      regardless of pause). Removed `StopTimerIntent`. Build passes both targets; in-app timer
+      regression tests (`TimerHabitTests`, incl. the in-app stop button) all pass; the accumulated model
+      degrades to the original behavior for a fresh start. **Honest verification gap**: the Live Activity
+      pill visual (Lock Screen/Dynamic Island) and interactive pause/resume freeze-continue could not be
+      captured on Simulator (`simctl io screenshot` doesn't render the Live Activity overlay — a known
+      limitation) — installed on Bilal's device for his real pause/resume confirmation. See RESULTS.md.
 - [x] **Delete-habit delay + missing removal animation bug**. Reported directly by the user (real
       device, not spec-derived): confirming "Delete" in the alert produced a multi-second dead pause,
       then an instant unanimated cut instead of a real removal transition. Diagnosed via real-device

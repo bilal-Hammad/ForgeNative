@@ -598,38 +598,51 @@ struct HomeView: View {
         habit.goal * habit.unit.secondsPerUnit
     }
 
-    /// Tap on a time-unit habit: starts the timer if idle, cancels it if
-    /// already running (a plain second tap as the escape hatch — no
-    /// separate cancel UI), no-ops if already complete for today (matches
-    /// how a further tap on an at-goal quantity habit is already a no-op
-    /// just above, in `handleTap`). **Judgment call**: cancelling clears
-    /// `startedAt` rather than, say, pausing/resuming — this feature has no
-    /// pause concept, only start/cancel/instant-complete (long press).
+    /// Tap on a time-unit habit: starts the timer if idle, **resumes** it if
+    /// paused (banked time preserved — `startTimer` reuses `accumulatedElapsed`),
+    /// cancels it if actively running (a plain second tap as the escape
+    /// hatch), no-ops if already complete for today. Pause/resume proper is
+    /// driven from the Live Activity's pause button this round (see
+    /// `ToggleTimerPauseIntent`); the in-app row's own pause affordance and
+    /// paused-state visuals are a separate future round, so a paused timer
+    /// still reads as "idle" in the current in-app row — tapping it resumes
+    /// rather than restarts, which is the important correctness property here.
     private func handleTimerTap(_ habit: Habit) async {
         let completion = selectedDayCompletions[habit.id]
         guard completion?.isComplete != true else { return }
-        if completion?.startedAt != nil {
+        if completion?.isTimerRunning == true {
             await cancelTimer(for: habit)
         } else {
             await startTimer(for: habit)
         }
     }
 
+    /// Starts a fresh timer, or resumes a paused one. A paused timer's
+    /// `Completion` still exists with `startedAt == nil` and
+    /// `accumulatedElapsed > 0`; reusing it here (rather than replacing it)
+    /// preserves the banked time so a resume-via-app-tap continues from where
+    /// it left off instead of restarting from zero. The `goalDuration -
+    /// accumulatedElapsed` shift keeps the countdown/one-shot honest whether
+    /// this is a fresh start (banked = 0) or a resume.
     private func startTimer(for habit: Habit) async {
         var completion = selectedDayCompletions[habit.id] ?? Completion(habitID: habit.id, date: .now)
         let start = Date.now
+        let banked = completion.accumulatedElapsed
         completion.startedAt = start
         completion.loggedAt = start
         try? await habitRepository.upsertCompletion(completion)
         selectedDayCompletions[habit.id] = completion
 
-        let end = start.addingTimeInterval(durationSeconds(for: habit))
+        let goalDuration = durationSeconds(for: habit)
+        let effectiveStart = start.addingTimeInterval(-banked)
+        let end = effectiveStart.addingTimeInterval(goalDuration)
         HabitTimerCoordinator.shared.startLiveActivity(
             habitID: habit.id,
             title: habit.title,
             iconSystemName: habit.iconSystemName,
             color: habit.color,
-            start: start,
+            goalDuration: goalDuration,
+            effectiveStart: effectiveStart,
             end: end
         )
         // See `HabitTimerCoordinator.scheduleCompletion`'s doc comment —
@@ -641,9 +654,13 @@ struct HomeView: View {
         }
     }
 
+    /// Full cancel — discards the run entirely, banked time included. Covers
+    /// both a running and a paused timer (`isTimerActive`), so the in-app
+    /// second-tap cancel still works after a pause from the Live Activity.
     private func cancelTimer(for habit: Habit) async {
-        guard var completion = selectedDayCompletions[habit.id], completion.startedAt != nil else { return }
+        guard var completion = selectedDayCompletions[habit.id], completion.isTimerActive else { return }
         completion.startedAt = nil
+        completion.accumulatedElapsed = 0
         completion.loggedAt = .now
         try? await habitRepository.upsertCompletion(completion)
         selectedDayCompletions[habit.id] = completion
@@ -659,15 +676,17 @@ struct HomeView: View {
     private func completeTimerHabit(habitID: Habit.ID) async {
         guard let habit = habits.first(where: { $0.id == habitID }) else { return }
         guard var completion = selectedDayCompletions[habitID],
-              let startedAt = completion.startedAt,
+              completion.isTimerRunning,
               !completion.isComplete else { return }
 
         // Logged as the real elapsed time, not a hardcoded `habit.goal` —
         // per explicit instruction to "log the actual elapsed duration."
-        // This is normally ~equal to the goal (the one-shot fires right at
-        // the end instant), but can genuinely exceed it when this runs from
-        // the catch-up sweep instead, after the app was away for a while.
-        let elapsedSeconds = Date.now.timeIntervalSince(startedAt)
+        // Uses the accumulated-elapsed total (banked segments + the live
+        // one) so a timer that was paused and resumed logs its true total,
+        // not just the final segment. Normally ~equal to the goal (the
+        // one-shot fires right at the end instant), but can genuinely exceed
+        // it when this runs from the catch-up sweep after the app was away.
+        let elapsedSeconds = completion.elapsed(asOf: .now)
         let elapsedInHabitUnit = elapsedSeconds / habit.unit.secondsPerUnit
         completion.count = elapsedInHabitUnit
         completion.isComplete = true
@@ -707,13 +726,53 @@ struct HomeView: View {
     /// timer only ever exists for today, and this can run while the user
     /// happens to be viewing a different day.
     private func processPendingTimerStops() async {
-        let pendingHabitIDs = SharedTimerStopSignal.drainPendingStops()
-        guard !pendingHabitIDs.isEmpty else { return }
+        await processPendingTimerSignals()
+    }
+
+    /// Drains both Live-Activity signals left while the app was suspended:
+    /// stop (`SharedTimerStopSignal`, the legacy cancel path — still drained
+    /// defensively) and pause/resume state (`SharedTimerPauseSignal`, the new
+    /// pause button). The Activity itself was already updated in the
+    /// extension the instant the button was tapped; this only catches the
+    /// *persisted* `Completion` up. Resolves against real `.now`, never
+    /// `selectedDate` — a running/paused timer only ever exists for today.
+    private func processPendingTimerSignals() async {
+        let pendingStopIDs = SharedTimerStopSignal.drainPendingStops()
+        let pendingPauseStates = SharedTimerPauseSignal.drain()
+        guard !pendingStopIDs.isEmpty || !pendingPauseStates.isEmpty else { return }
+
         let todaysCompletions = (try? await habitRepository.fetchCompletions(for: .now)) ?? []
         var completionsByHabit = Dictionary(uniqueKeysWithValues: todaysCompletions.map { ($0.habitID, $0) })
-        for habitID in pendingHabitIDs {
-            guard var completion = completionsByHabit[habitID], completion.startedAt != nil else { continue }
+
+        // Pause/resume: persist the extension-computed banked elapsed + run
+        // segment, and keep the in-process one-shot completion in sync (a
+        // paused timer must not fire it; a resumed one reschedules to the new
+        // end instant). No `endLiveActivity` — the Activity is still showing,
+        // just paused/running.
+        for (habitID, accumulated, runStartedAt) in pendingPauseStates {
+            guard var completion = completionsByHabit[habitID], !completion.isComplete else { continue }
+            completion.accumulatedElapsed = accumulated
+            completion.startedAt = runStartedAt
+            completion.loggedAt = .now
+            try? await habitRepository.upsertCompletion(completion)
+            completionsByHabit[habitID] = completion
+            if isViewingToday {
+                selectedDayCompletions[habitID] = completion
+            }
+            if let runStartedAt, let habit = habits.first(where: { $0.id == habitID }) {
+                let end = runStartedAt.addingTimeInterval(durationSeconds(for: habit) - accumulated)
+                HabitTimerCoordinator.shared.scheduleCompletion(habitID: habitID, at: end) {
+                    await completeTimerHabit(habitID: habitID)
+                }
+            } else {
+                HabitTimerCoordinator.shared.cancelScheduledCompletion(habitID: habitID)
+            }
+        }
+
+        for habitID in pendingStopIDs {
+            guard var completion = completionsByHabit[habitID], completion.isTimerActive else { continue }
             completion.startedAt = nil
+            completion.accumulatedElapsed = 0
             completion.loggedAt = .now
             try? await habitRepository.upsertCompletion(completion)
             completionsByHabit[habitID] = completion
@@ -734,9 +793,12 @@ struct HomeView: View {
         let now = Date.now
         for habit in visibleHabits where habit.unit.isTimeBased {
             guard let completion = selectedDayCompletions[habit.id],
-                  let startedAt = completion.startedAt,
+                  completion.isTimerRunning,
                   !completion.isComplete else { continue }
-            if now >= startedAt.addingTimeInterval(durationSeconds(for: habit)) {
+            // Accumulated total, so a paused-then-resumed timer completes at
+            // the right moment (a *paused* timer is skipped by `isTimerRunning`
+            // — it must never auto-complete while frozen).
+            if completion.elapsed(asOf: now) >= durationSeconds(for: habit) {
                 await completeTimerHabit(habitID: habit.id)
             }
         }
@@ -899,6 +961,7 @@ struct HomeView: View {
         completion.count = 0
         completion.isComplete = false
         completion.startedAt = nil
+        completion.accumulatedElapsed = 0
         completion.healthKitSampleUUIDs = []
         completion.loggedAt = .now
         try? await habitRepository.upsertCompletion(completion)

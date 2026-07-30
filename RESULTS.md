@@ -1758,3 +1758,96 @@ feature controlled by a Settings toggle.
 - **0.35s acknowledgement beat** before dismiss: a deliberate small delay so the picked mood's
   highlight is visible before the card animates away — a same-frame removal reads as the app eating
   the tap. Re-taps during the beat are ignored (the card guards on `todayEntry != nil`).
+
+---
+
+## 2026-07-30 — Timer Live Activity redesign: Apple-Workout-style pill + real pause/resume
+
+Redesigned the running time-unit habit's Live Activity (Lock Screen / Dynamic Island) to match a
+reference of Apple's own Workout Live Activity, and added genuine pause/resume state to back it.
+Lock-Screen scope only — the in-app row's timer UI (`HabitTimerRingView`) was deliberately untouched
+(its visual redesign is a separate future round).
+
+### Layout (the pill)
+
+`HabitTimerLiveActivity.lockScreenView` is now a horizontal `HStack`: a circular habit-icon badge on
+the left (the habit's *own* `iconSystemName` in its own `HabitColor`, on a soft `color.opacity(0.22)`
+circle — never a generic glyph), a large rounded-monospaced countdown in the center, and a circular
+pause/resume `Button(intent:)` on the right (`pause.fill` while running, `arrow.clockwise` while
+paused). No stop/cancel control — per explicit product decision, cancel lives in the in-app row only.
+The Dynamic Island expanded/compact/minimal presentations mirror this.
+
+### The accumulated-elapsed model (reverses the prior "no pause" decision)
+
+The naive `elapsed = now - startedAt` breaks the moment pause exists (wall-clock keeps advancing while
+paused). Replaced with an accumulated model on `Completion` (persisted via `CompletionModel`, same
+repository/actor discipline as every other field — property-default `= 0` for lightweight migration):
+- `startedAt: Date?` — now the *running segment's* start; **nil while paused**.
+- `accumulatedElapsed: TimeInterval` — time banked from previous run segments.
+- `elapsed(asOf:)` = `accumulatedElapsed + (startedAt.map { now - $0 } ?? 0)`; helpers
+  `isTimerRunning` / `isTimerPaused` / `isTimerActive`.
+- Pause: `accumulatedElapsed += now - startedAt`, `startedAt = nil`. Resume: `startedAt = now` (banked
+  amount preserved). Cancel/reset clear both.
+
+`HomeView` updated throughout: `startTimer` is resume-aware (reuses banked time; shifts
+`effectiveStart` back by it so the countdown/one-shot line up), `cancelTimer`/`resetHabit` clear both
+fields, `completeTimerHabit` logs `elapsed(asOf:)` (true total across segments), `checkTimerCompletions`
+uses `isTimerRunning` + `elapsed()` (a *paused* timer is skipped — it must never auto-complete while
+frozen).
+
+### The pause/resume intent + signal
+
+`ToggleTimerPauseIntent` (a single toggling `LiveActivityIntent`, iOS 17+) runs entirely in the
+`ForgeWidgets` extension: it reads the current `ContentState`, computes the new one from `goalDuration`
+(a fixed attribute) — pause freezes `pausedRemaining` and stops the ticking view; resume rebuilds the
+timeline to end `pausedRemaining` from now and re-anchors `effectiveStartDate` — updates the `Activity`
+immediately (instant button feedback, no app launch), and signals the app via new
+`SharedTimerPauseSignal` (App-Group `UserDefaults`, `[habitID: [accumulatedElapsed, runStartedAtEpoch]]`,
+`-1` epoch = paused). The main app drains it in `HomeView.processPendingTimerSignals` on every
+foreground (extended from the old `processPendingTimerStops`), persisting the extension-computed state
+and keeping the in-process one-shot completion in sync (rescheduled on resume, cancelled on pause). The
+extension is the source of truth for the tap moment, so it writes fully-resolved state rather than an
+event to re-derive — no cross-process clock drift.
+
+`ContentState` gained `isPaused` (+ `effectiveStartDate`/`endDate`/`pausedRemaining`): **running**
+renders `Text(timerInterval: effectiveStartDate...endDate, countsDown: true)` (system-repainted, stays
+correct while the extension is suspended); **paused** renders a *static* formatted `Text` — a
+`timerInterval` view keeps ticking regardless of app pause state, which is the entire reason `isPaused`
+exists. `goalDuration` moved to the fixed attributes so the intent can recompute the timeline on resume
+without reaching the (extension-unreachable) SwiftData store.
+
+### Removed / preserved
+
+- `StopTimerIntent.swift` deleted (the Live Activity no longer has a stop button). `SharedTimerStopSignal`
+  kept and still drained defensively.
+- **Cancel still exists in-app, independent of the Live Activity** — verified: the in-app row's own stop
+  button (`timerStatus.stopButton` → `HomeView.cancelTimer`) still works, and `handleTimerTap`'s
+  tap-again cancel too. `TimerHabitTests.testStopButtonStopsRunningTimer` (which tests that in-app
+  button, not the Live Activity's) still passes.
+
+### Verification — what was confirmed, and what wasn't
+
+- **Confirmed on Simulator**: build succeeds across both targets; `TimerHabitTests` (start,
+  auto-complete-on-its-own, in-app stop, long-press-instant-complete) all pass — so the accumulated
+  model degrades correctly for the fresh-start case (banked = 0 → original behavior) and doesn't break
+  the in-app timer; a screenshot shows the in-app countdown ring running (`1:53`) after the model change.
+- **NOT confirmed on Simulator (honest gap)**: the actual Live Activity pill visual (Lock Screen /
+  Dynamic Island) and the interactive pause→freeze / resume→continue behavior. `simctl io screenshot`
+  does not render the Live Activity overlay on this Simulator (a well-documented limitation; the
+  Dynamic Island showed only the plain notch across multiple timed captures while the timer was
+  confirmably running). These are exactly the kind of thing this project's history repeatedly finds
+  need a real device. The build was installed on Bilal's iPhone specifically so he can confirm: pill
+  layout (icon/timer/pause-resume), that pause freezes the countdown and swaps the button to
+  `arrow.clockwise`, and that resume continues from the frozen value (not restarted, not jumped) and
+  swaps back. Not claiming this as verified — flagged for his check.
+
+### Judgment calls
+
+- **Single toggling intent** (`ToggleTimerPauseIntent`) rather than separate Pause/Resume intents —
+  one button, one code path; the current `isPaused` decides direction.
+- **Countdown shows remaining** (`countsDown: true`), consistent with the existing in-app timer and the
+  duration-goal semantics, rather than Apple Workout's count-up elapsed.
+- **In-app row shows a paused timer as idle** for now (paused-state visuals are the separate future
+  round) — but tapping it *resumes* (banked time preserved) rather than restarting, and the coordinator
+  updates an existing Activity instead of spawning a second one, so the data/behavior stay correct even
+  though the in-app visual doesn't yet distinguish paused from idle.

@@ -1002,11 +1002,40 @@ main app's Info.plist keys; no App Group/shared container exists or is
 needed, since the extension only ever renders from the `Activity`'s own
 `ContentState`, never reads app-side storage directly.
 
+**PAUSE/RESUME NOW EXISTS — the "no pause concept" decision below was
+reversed (2026-07-30)** when the Live Activity was redesigned to match
+Apple's Workout Live Activity (icon / countdown / pause-resume pill,
+Lock-Screen scope). A genuine pause (not a cancel-and-lose-progress) now
+backs that UI, via an **accumulated-elapsed model** on `Completion`:
+`startedAt` is the *running segment's* start (nil while paused), and a new
+`accumulatedElapsed: TimeInterval` banks time from previous segments —
+total elapsed is `accumulatedElapsed + (now - startedAt)` while running,
+just `accumulatedElapsed` while paused (`Completion.elapsed(asOf:)`). The
+naive `now - startedAt` was abandoned because it keeps advancing while
+paused. Pause/resume is driven from the Live Activity's button
+(`ToggleTimerPauseIntent`, a `LiveActivityIntent` that updates the
+`Activity` in-process and signals the app via `SharedTimerPauseSignal`,
+same App-Group mechanism as the old stop signal). The Live Activity's
+`ContentState` gained `isPaused` (+ `effectiveStartDate`/`endDate`/
+`pausedRemaining`): running renders a ticking `Text(timerInterval:)`,
+paused renders a *static* text — a `timerInterval` view keeps ticking
+regardless of app pause state, so it must not be used while paused. The
+old Stop button was removed from the Live Activity (cancel still lives
+in-app: a second tap on a running row, or the in-app row's own stop
+button → `HomeView.cancelTimer`, independent of the Live Activity — the
+`timerStatus.stopButton` regression test still passes). **In-app-row
+caveat**: the in-app row still shows a *paused* timer as idle (its
+paused-state visual redesign is an explicitly-separate future round) —
+but resuming (via the LA or an in-app tap) preserves banked time, which
+is the load-bearing correctness property. See RESULTS.md (2026-07-30) for
+the full build.
+
 **Judgment calls made, not fully specified by the original request**:
-- A second tap while the timer is running cancels it (clears `startedAt`)
-  rather than pausing/resuming — this feature has no pause concept, only
-  start/cancel/instant-complete (long-press). Matches the existing "tap
-  toggles state" convention used elsewhere on the card.
+- (SUPERSEDED — see the pause/resume reversal above.) The timer originally
+  had no pause concept: a second tap while running cancelled it (cleared
+  `startedAt`), only start/cancel/instant-complete existed. Kept here for
+  history; the current behavior is pause/resume from the Live Activity plus
+  in-app start/resume-or-cancel.
 - Tapping an already-complete time-unit habit is a no-op, matching how a
   further tap on an at-goal quantity habit already behaves — no
   "uncomplete via tap" gesture exists for this habit type.

@@ -32,6 +32,11 @@ final class CompletionModel {
     var count: Double
     var isComplete: Bool
     var startedAt: Date?
+    /// See `Completion.accumulatedElapsed`. Property-declaration default
+    /// (`= 0`) for lightweight-migration safety on an existing install,
+    /// matching `healthKitSampleUUIDs` below and this project's established
+    /// pattern for every field added after initial ship.
+    var accumulatedElapsed: TimeInterval = 0
     var loggedAt: Date
     /// See `Completion.healthKitSampleUUIDs`'s doc comment. Property-
     /// declaration default (`= []`) for lightweight-migration safety on an
@@ -48,6 +53,7 @@ final class CompletionModel {
         count: Double,
         isComplete: Bool,
         startedAt: Date?,
+        accumulatedElapsed: TimeInterval = 0,
         loggedAt: Date,
         healthKitSampleUUIDs: [UUID] = []
     ) {
@@ -57,6 +63,7 @@ final class CompletionModel {
         self.count = count
         self.isComplete = isComplete
         self.startedAt = startedAt
+        self.accumulatedElapsed = accumulatedElapsed
         self.loggedAt = loggedAt
         self.healthKitSampleUUIDs = healthKitSampleUUIDs
     }
@@ -71,6 +78,7 @@ extension CompletionModel {
             count: completion.count,
             isComplete: completion.isComplete,
             startedAt: completion.startedAt,
+            accumulatedElapsed: completion.accumulatedElapsed,
             loggedAt: completion.loggedAt,
             healthKitSampleUUIDs: completion.healthKitSampleUUIDs
         )
@@ -80,6 +88,7 @@ extension CompletionModel {
         count = completion.count
         isComplete = completion.isComplete
         startedAt = completion.startedAt
+        accumulatedElapsed = completion.accumulatedElapsed
         loggedAt = completion.loggedAt
         healthKitSampleUUIDs = completion.healthKitSampleUUIDs
     }
@@ -92,6 +101,7 @@ extension CompletionModel {
             count: count,
             isComplete: isComplete,
             startedAt: startedAt,
+            accumulatedElapsed: accumulatedElapsed,
             loggedAt: loggedAt,
             healthKitSampleUUIDs: healthKitSampleUUIDs
         )

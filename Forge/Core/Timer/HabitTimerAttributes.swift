@@ -10,17 +10,39 @@ import Foundation
 /// something this small (see `HabitColor`, also referenced from both
 /// targets for exactly this reason).
 ///
-/// `startDate` is a fixed attribute (never changes once the timer starts);
-/// `endDate` lives in `ContentState` since that's the value the Live
-/// Activity's view actually renders against.
+/// The timeline lives entirely in `ContentState` (not the fixed attributes)
+/// because pause/resume shifts the effective start/end — see the
+/// accumulated-elapsed model in `Completion` and the pause/resume redesign
+/// (2026-07-30, CLAUDE.md). `goalDuration` is fixed (the habit's goal in
+/// seconds) so the widget/intent can recompute the timeline on resume
+/// without a round trip to the app.
 struct HabitTimerAttributes: ActivityAttributes, Sendable {
+    /// While **running** (`isPaused == false`): the view renders a ticking
+    /// `Text(timerInterval: effectiveStartDate...endDate, countsDown: true)`.
+    /// `effectiveStartDate` is shifted earlier than the real run-start by
+    /// the banked `accumulatedElapsed`, so the system's own ticking math
+    /// lines up with total elapsed. While **paused** (`isPaused == true`):
+    /// the view must render a *static* value (`pausedRemaining`) instead —
+    /// a `timerInterval` view keeps ticking regardless of app pause state,
+    /// since the system, not this extension, drives it.
     struct ContentState: Codable, Hashable, Sendable {
+        var isPaused: Bool
+        /// Real run-start minus banked elapsed — the anchor the ticking
+        /// countdown counts from. Recomputed on every resume.
+        var effectiveStartDate: Date
+        /// `effectiveStartDate + goalDuration` — when the countdown hits 0.
         var endDate: Date
+        /// Frozen seconds remaining, rendered statically while paused.
+        var pausedRemaining: TimeInterval
     }
 
     let habitID: UUID
     let habitTitle: String
     let iconSystemName: String
     let color: HabitColor
-    let startDate: Date
+    /// The habit's goal expressed in seconds — fixed for the life of the
+    /// timer. Lets `ToggleTimerPauseIntent` reconstruct the timeline on
+    /// resume (`endDate = now + pausedRemaining`, `effectiveStartDate =
+    /// endDate - goalDuration`) entirely inside the extension process.
+    let goalDuration: TimeInterval
 }

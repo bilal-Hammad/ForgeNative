@@ -44,16 +44,32 @@ final class HabitTimerCoordinator {
     /// (driven entirely by persisted `Completion.startedAt`) works
     /// identically either way, so a failure/denial here never blocks the
     /// actual feature.
-    func startLiveActivity(habitID: UUID, title: String, iconSystemName: String, color: HabitColor, start: Date, end: Date) {
+    /// Starts (or, if one already exists for this habit, updates) the running
+    /// timer's Live Activity. `effectiveStart` is the real run-start shifted
+    /// earlier by any banked `accumulatedElapsed`, so the countdown's ticking
+    /// math lines up with total elapsed (see `Completion`/`HabitTimerAttributes`).
+    /// Idempotent by habit: resuming a paused timer from the in-app row must
+    /// not spawn a second Activity, so an existing one is updated in place.
+    func startLiveActivity(habitID: UUID, title: String, iconSystemName: String, color: HabitColor, goalDuration: TimeInterval, effectiveStart: Date, end: Date) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        let state = HabitTimerAttributes.ContentState(
+            isPaused: false,
+            effectiveStartDate: effectiveStart,
+            endDate: end,
+            pausedRemaining: max(0, end.timeIntervalSinceNow)
+        )
+        if let existing = activities[habitID] {
+            Task { await existing.update(ActivityContent(state: state, staleDate: end)) }
+            return
+        }
         let attributes = HabitTimerAttributes(
             habitID: habitID,
             habitTitle: title,
             iconSystemName: iconSystemName,
             color: color,
-            startDate: start
+            goalDuration: goalDuration
         )
-        let content = ActivityContent(state: HabitTimerAttributes.ContentState(endDate: end), staleDate: end)
+        let content = ActivityContent(state: state, staleDate: end)
         guard let activity = try? Activity.request(attributes: attributes, content: content) else { return }
         activities[habitID] = activity
     }
