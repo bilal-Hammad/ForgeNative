@@ -59,35 +59,8 @@ final class TimerHabitTests: XCTestCase {
         XCTAssertFalse(runningMarker.exists, "long-press should never leave the timer in a running state")
     }
 
-    /// Regression test for stopping a running timer — now reached through
-    /// the running-timer options sheet (Feature C, 2026-07-30) rather than a
-    /// standalone Stop button. Tapping the running countdown ring
-    /// (`timerStatus.running`, now a Button) opens the
-    /// `.confirmationDialog`; its "Stop Timer" (destructive) option cancels
-    /// the timer back to idle.
-    ///
-    /// Uses "Stop Button Test Habit" (goal 2 minutes), not "Timer Test
-    /// Habit" (goal 3 seconds) — the 3-second habit auto-completes out from
-    /// under the test before it can drive the sheet.
-    func testStopOptionStopsRunningTimer() throws {
-        let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting"]
-        app.launch()
-
-        let habitRow = app.staticTexts["Stop Button Test Habit"]
-        XCTAssertTrue(habitRow.waitForExistence(timeout: 10), "seeded timer habit row never appeared")
-
-        habitRow.tap()
-        let runningMarker = app.descendants(matching: .any)["timerStatus.running"]
-        XCTAssertTrue(runningMarker.waitForExistence(timeout: 5), "timer never entered the running state after tapping")
-
-        app.buttons["timerStatus.running"].firstMatch.tap()
-        let stopOption = app.buttons["Stop Timer"].firstMatch
-        XCTAssertTrue(stopOption.waitForExistence(timeout: 5), "options sheet's Stop Timer never appeared")
-        stopOption.tap()
-
-        let idleMarker = app.descendants(matching: .any)["timerStatus.idle"]
-        XCTAssertTrue(idleMarker.waitForExistence(timeout: 5), "Stop never returned the timer to idle")
-        XCTAssertFalse(app.descendants(matching: .any)["timerStatus.running"].exists, "timer should no longer be running after Stop")
-    }
+    // Stopping a running timer is now covered by
+    // `TimerOptionsSheetTests.testStopFromPanel` (via the mini-player's
+    // touch-and-hold panel — the standalone in-row Stop control was removed
+    // in the Feature C redesign, 2026-07-31).
 }

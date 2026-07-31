@@ -2059,3 +2059,85 @@ detection read the computed `isPaused`/timeline as before.
   `PauseIntent` logging remains so his next tap re-confirms `perform()` runs (and, if it somehow still
   doesn't freeze, that would point at ActivityKit's `pauseTime` rendering itself, a much narrower
   remaining surface).
+
+---
+
+## 2026-07-31 — Timer: Bug A (pause freeze) re-fixed via verified API research, Bug B linkage, Feature C mini-player
+
+Bilal re-tested `36c60c2` on his real Lock Screen: the pause **button icon** toggled (⏸→↻) but the
+**countdown number kept ticking**. That split symptom (one half of the update reaches the view, the
+other doesn't) is what cracked Bug A open.
+
+### Bug A — root cause VERIFIED against current API docs (not assumed), then fixed
+
+Per this project's standing "verify current API behavior, don't assume" rule, I researched
+`Text(timerInterval:pauseTime:)` before touching code: the [Apple Developer Forums thread on pausing a
+Live Activity timer](https://developer.apple.com/forums/thread/783557), a [community write-up treating
+Live Activities as a state machine](https://blakecrosley.com/blog/live-activities-state-machine), and
+[other reports](https://swiftandsour.com/live-activity-not-so-live-%F0%9F%98%B5-part-2/) all converge:
+**`pauseTime` does not reliably freeze a *mid-countdown* value in a Live Activity** (it reliably stops
+the timer only at 0:00). The correct pattern is to render **two different views by state — a live
+`Text(timerInterval:)` when running, a *static* `Text` when paused.** That exactly matches the split
+symptom: the icon (which reads `context.state.isPaused`) updated because the `ContentState` update *did*
+reach the view, but the `Text(timerInterval:pauseTime:)` ignored the non-nil `pauseTime` and kept
+ticking.
+
+Fix (`HabitTimerLiveActivity`): paused → `Text(<static frozen remaining = endDate - pausedAt>)`;
+running → `Text(timerInterval:)`; plus `.id(context.state.isPaused)` on the timer text so SwiftUI tears
+the system-drawn ticking view down and builds the static one from scratch (the identity swap addresses
+the earlier round's "ticking view never repainted" concern directly). No `pauseTime` anywhere now.
+
+**Honest verification gap (unchanged known limitation)**: Live Activities cannot be rendered or
+interacted with on the Simulator in this environment, and I cannot tap a Lock Screen Live Activity from
+any tool here. So this fix is *well-founded* — it's the documented, community-verified pattern, and the
+icon-toggle evidence proves the state reaches the view — but the actual "the number freezes on tap" is
+**not eyeball-verified by me**; it needs Bilal's real Lock Screen test. Not claiming it fixed-and-watched.
+
+### Bug B — Lock Screen ⇄ in-app pause land the same Completion shape
+
+The two pause paths now converge on identical state: a paused timer is `startedAt == nil` +
+`accumulatedElapsed` banked (total elapsed at pause). Lock Screen pause → `ToggleTimerPauseIntent`
+updates the Activity (`pausedAt`) and writes `SharedTimerPauseSignal`; the app drains it on foreground
+(existing `processPendingTimerSignals`) → persists that shape. In-app pause (new `HomeView.pauseTimer`,
+driven by the mini-player button) does the same persist **and** calls the new
+`HabitTimerCoordinator.pauseLiveActivity` to set `pausedAt` on the Activity — so pausing in-app reflects
+on the Lock Screen too. Resume is `startTimer` (already resume-aware: preserves banked time, updates the
+Activity back to running). Verified in code + on Simulator via the mini-player pause/resume test (row
+moves to `timerStatus.paused` then back to running). The in-app row also now shows a distinct paused
+glyph so a paused timer no longer misreads as "idle".
+
+### Feature C — persistent pinned mini-player bar (replaces the confirmationDialog)
+
+New `TimerMiniPlayer.swift`. `TimerMiniPlayerBar` is pinned at the bottom of Home via
+`.safeAreaInset(edge: .bottom)` — screen-level, stays put regardless of list scroll, visible whenever
+any time-unit habit's timer is active (running or paused). Collapsed it mirrors the Live Activity pill:
+habit-color icon circle · countdown (live `Text(timerInterval:)` running, static when paused) ·
+pause/resume button. **Touch-and-hold** (`.onLongPressGesture`) opens `TimerExpandedPanel` as a bottom
+sheet (`.presentationDetents([.height(260)])`, drag-indicator, dismiss by drag/tap-outside/action) — a
+deliberately **extensible vertical stack** of full-width rows (Complete Now / Restart Timer / Stop
+Timer-destructive), structured so the planned future StoreKit "Islamic template" dhikr/tasbih counter
+row drops in without restructuring. The old `.confirmationDialog`, the standalone in-row Stop button,
+and `HabitCardRow`'s three timer callbacks were all removed. `TimerOptionsSheetTests` rewritten to the
+new interaction (6 cases: bar appears; pause→paused→resume; touch-and-hold shows all three; stop→idle +
+bar disappears; complete; restart) — all pass on Simulator with real touch injection, and the existing
+`TimerHabitTests` still pass (one flaky *launch* failure that passed on rerun).
+
+A documented accessibility trap re-encountered and handled: a container `.accessibilityIdentifier`
+cascades onto and overwrites children's ids (the pause button surfaced as `timerMiniPlayer`, and three
+elements matched the id). Fixed the same way the stop-button round did — the id lives on a combined
+icon+countdown sub-element (`.accessibilityElement(children: .combine)`), with the pause button a
+sibling keeping its own id.
+
+**Judgment calls**: the bar is gated on `isViewingToday` (a running timer only exists today, so browsing
+a past day hides it — minor, acceptable); first active timer wins if somehow more than one (only one runs
+in practice); touch-and-hold (not tap) opens the panel so it doesn't fight the pause button's tap, and a
+plain tap on the bar is currently a no-op (reserved).
+
+### Verification status, plainly
+- **Verified on Simulator**: build (both targets); all timer + mini-player XCUITests (6 mini-player + 2
+  timer) via real touch injection; the in-app pause/resume/complete/restart/stop behavior and state
+  transitions.
+- **NOT verifiable here (needs Bilal's real device)**: the Live Activity's paused countdown actually
+  freezing on a Lock Screen tap (Bug A) and the Lock-Screen↔in-app reflection end-to-end on hardware
+  (Bug B) — Live Activities don't render on Simulator. The fixes are grounded in verified API research
+  and the code-level state model; the on-hardware confirmation is his to close. Installed on his device.

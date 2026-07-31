@@ -73,6 +73,21 @@ final class HabitTimerCoordinator {
         activities[habitID] = activity
     }
 
+    /// Mirrors an in-app pause onto the running Live Activity (the Lock
+    /// Screen pause button does the equivalent from `ToggleTimerPauseIntent`).
+    /// Freezes the countdown by setting `pausedAt = now` while leaving the
+    /// timeline untouched — the same transition the intent applies, so both
+    /// pause paths converge on identical `ContentState` (Bug B). No-op if no
+    /// Activity is tracked. Resume goes back through `startLiveActivity`
+    /// (idempotent update, `pausedAt: nil`), so there's no separate resume.
+    func pauseLiveActivity(habitID: UUID) {
+        guard let activity = activities[habitID] else { return }
+        var state = activity.content.state
+        guard state.pausedAt == nil else { return }
+        state.pausedAt = .now
+        Task { await activity.update(ActivityContent(state: state, staleDate: nil)) }
+    }
+
     /// `completed: true` briefly keeps the final state visible (matching
     /// Apple's own Timer app behavior of a short "Time's up" linger) before
     /// the system dismisses it; `completed: false` (the timer was

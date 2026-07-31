@@ -23,6 +23,7 @@
 		1076868907FEA0F389E4806E /* HealthKitBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EE193FE89FAB98966A7CCE4 /* HealthKitBadgeView.swift */; };
 		1197559F758FEFA5883341AB /* SwiftDataHabitRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7237652DC04B4BFD6A4D09 /* SwiftDataHabitRepository.swift */; };
 		171A68A72592676B9C68D61E /* HabitDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 330C1B9266E34521CC428F5F /* HabitDetailView.swift */; };
+		174BA3E3745FBA9A7DA51669 /* TimerMiniPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C76503079FC9851FCDFFEB4B /* TimerMiniPlayer.swift */; };
 		17DE37310C9728953B781EEC /* Milestone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 746A87217726DBA2E1846157 /* Milestone.swift */; };
 		18CB3AC2CEA99A2CC772DF68 /* CalendarSyncServiceEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DD42B2927F8D0DA16A09DBE /* CalendarSyncServiceEnvironment.swift */; };
 		19CBA570F000C158B6A832A9 /* MilestoneEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC4984B59FDD409822A6632 /* MilestoneEngine.swift */; };
@@ -251,6 +252,7 @@
 		B1F709B02A6743B4BF03AB27 /* ForgeWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ForgeWidgets.entitlements; sourceTree = "<group>"; };
 		B8C9A59E5B07C7D1B2F352E1 /* Forge.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Forge.entitlements; sourceTree = "<group>"; };
 		C1E3E67806D936D09B66BEE6 /* TemplateSectionRepositoryEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSectionRepositoryEnvironment.swift; sourceTree = "<group>"; };
+		C76503079FC9851FCDFFEB4B /* TimerMiniPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerMiniPlayer.swift; sourceTree = "<group>"; };
 		CA832DE5528D2FA0DC893F14 /* TimeMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeMode.swift; sourceTree = "<group>"; };
 		CDDA16EB6B7B2BF0F81079B1 /* MilestoneRepositoryEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneRepositoryEnvironment.swift; sourceTree = "<group>"; };
 		CE44E9DE33B83E77F19895EB /* InMemoryTemplateSectionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryTemplateSectionRepository.swift; sourceTree = "<group>"; };
@@ -596,6 +598,7 @@
 				E9B4912998C44716F0FEAB09 /* HomeView.swift */,
 				FB61E49E0C476E33DCB290F4 /* MoodCheckInCard.swift */,
 				AF86847E6D0665429ABF0BB9 /* StreakLinesStripView.swift */,
+				C76503079FC9851FCDFFEB4B /* TimerMiniPlayer.swift */,
 				D3A4D78AFD385DD3E494224A /* WeeklyRingsPagerView.swift */,
 			);
 			path = Home;
@@ -816,6 +819,7 @@
 				5D1E9CC507C304AEFCEF158F /* TemplateSectionRepository.swift in Sources */,
 				AD4DEED77A32E558566C18A8 /* TemplateSectionRepositoryEnvironment.swift in Sources */,
 				D0A380D790FA5291221B958D /* TimeMode.swift in Sources */,
+				174BA3E3745FBA9A7DA51669 /* TimerMiniPlayer.swift in Sources */,
 				459FFAD1A600ECDC72862921 /* ToggleTimerPauseIntent.swift in Sources */,
 				85CFD7CD27D199549EBF4184 /* VacationSettings.swift in Sources */,
 				9944B32D8221D5D19FC2E340 /* WeeklyReflectionRouter.swift in Sources */,

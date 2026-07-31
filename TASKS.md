@@ -296,6 +296,26 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       by the log evidence above), but the final "countdown visibly freezes / button swaps to resume" is
       Bilal's to eyeball-confirm since I can't tap a Lock Screen Live Activity; the `PauseIntent` logging
       remains for his next tap. See RESULTS.md.
+- [x] **Timer round: Bug A re-fixed (verified API research), Bug B linkage, Feature C mini-player.**
+      Bilal re-tested `36c60c2`: the pause **icon** toggled but the **countdown kept ticking** — so the
+      `pauseTime` approach from that commit was wrong. **Bug A real root cause** (verified against Apple
+      forum thread 783557 + community sources per the standing "verify APIs, don't assume" rule):
+      `Text(timerInterval:pauseTime:)` does *not* reliably freeze a mid-countdown value in a Live Activity
+      (only stops at 0:00) — the documented pattern is *static text when paused* vs. live `timerInterval`
+      when running. Fixed exactly that + `.id(isPaused)` to force the ticking view's teardown; no
+      `pauseTime` anywhere now. **Honest**: Live Activities can't render on Simulator here and I can't tap
+      a Lock Screen LA, so the freeze itself is Bilal's to confirm — grounded in verified research + the
+      icon-toggle proving state reaches the view, not eyeball-verified by me. **Bug B**: both pause paths
+      (Lock Screen `ToggleTimerPauseIntent` + new in-app `pauseTimer`/`pauseLiveActivity`) now land the
+      `Completion` in the same shape (`startedAt=nil` + banked `accumulatedElapsed`); existing App-Group
+      drain handles Lock-Screen→app, resume=`startTimer` updates the LA back — verified in code + the
+      mini-player pause/resume XCUITest. **Feature C**: replaced the `.confirmationDialog` with a
+      persistent pinned mini-player bar (`.safeAreaInset(.bottom)`, screen-level, scroll-independent,
+      shown while any timer is active) mirroring the LA pill collapsed; touch-and-hold opens an extensible
+      bottom-sheet panel (Complete Now / Restart / Stop — a vertical stack ready for the future dhikr
+      counter row). Removed the standalone in-row Stop button + sheet; row shows a paused glyph now. New
+      `TimerMiniPlayer.swift`; `TimerOptionsSheetTests` rewritten (6 cases) — all pass on Simulator, timer
+      tests still green. Installed on device. See RESULTS.md.
 - [x] **Delete-habit delay + missing removal animation bug**. Reported directly by the user (real
       device, not spec-derived): confirming "Delete" in the alert produced a multi-second dead pause,
       then an instant unanimated cut instead of a real removal transition. Diagnosed via real-device

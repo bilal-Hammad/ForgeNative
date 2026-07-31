@@ -1,19 +1,10 @@
 import XCTest
 
-/// Permanent regression test for the running-timer options sheet (Feature C,
-/// 2026-07-30): tapping a running timer's countdown ring opens a native
-/// `.confirmationDialog` with Complete Now / Restart Timer / Stop Timer
-/// (destructive). Uses the `-uiTesting` fixture's "Stop Button Test Habit"
-/// (goal 2 minutes) so the timer stays running long enough to drive the
-/// sheet.
-///
-/// Two real XCUITest facts about `.confirmationDialog` on iOS 26, both
-/// confirmed from a captured accessibility hierarchy (not guessed):
-/// - each action button is registered *twice* in the tree, so queries use
-///   `.firstMatch` to avoid "multiple matching elements";
-/// - it renders here as an anchored menu-style sheet that dismisses by
-///   tapping outside rather than exposing a labeled "Cancel" button — so the
-///   dismiss case taps outside the sheet, which is this rendering's Cancel.
+/// Permanent regression test for the pinned timer mini-player bar + its
+/// touch-and-hold expanded panel (Feature C redesign, 2026-07-31 — replaced
+/// the earlier `.confirmationDialog`). Uses the `-uiTesting` fixture's
+/// "Stop Button Test Habit" (goal 2 minutes) so the timer stays active long
+/// enough to drive the bar.
 @MainActor
 final class TimerOptionsSheetTests: XCTestCase {
     override func setUpWithError() throws {
@@ -31,43 +22,74 @@ final class TimerOptionsSheetTests: XCTestCase {
         return app
     }
 
-    private func openSheet(_ app: XCUIApplication) {
-        app.buttons["timerStatus.running"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["Complete Now"].firstMatch.waitForExistence(timeout: 5), "options sheet never opened")
+    private func miniPlayer(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any)["timerMiniPlayer"]
     }
 
-    func testSheetShowsAllThreeOptions() throws {
+    /// The bar appears (pinned) once a timer is running.
+    func testMiniPlayerAppearsWhenTimerRunning() throws {
         let app = launchAndStartTimer()
-        openSheet(app)
-        XCTAssertTrue(app.buttons["Complete Now"].firstMatch.exists, "Complete Now missing")
+        XCTAssertTrue(miniPlayer(app).waitForExistence(timeout: 5), "mini-player bar never appeared for a running timer")
+    }
+
+    /// The in-app pause button pauses the timer (row shows the paused glyph);
+    /// tapping again resumes it.
+    func testPauseResumeFromBar() throws {
+        let app = launchAndStartTimer()
+        XCTAssertTrue(miniPlayer(app).waitForExistence(timeout: 5))
+
+        app.buttons["timerMiniPlayer.pauseResume"].firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["timerStatus.paused"].waitForExistence(timeout: 5), "pause didn't move the timer to the paused state")
+
+        app.buttons["timerMiniPlayer.pauseResume"].firstMatch.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["timerStatus.running"].waitForExistence(timeout: 5), "resume didn't return the timer to running")
+    }
+
+    /// Touch-and-hold the bar opens the expanded panel with all three rows.
+    func testTouchAndHoldShowsPanelOptions() throws {
+        let app = launchAndStartTimer()
+        let bar = miniPlayer(app)
+        XCTAssertTrue(bar.waitForExistence(timeout: 5))
+        bar.press(forDuration: 0.7)
+        XCTAssertTrue(app.buttons["Complete Now"].firstMatch.waitForExistence(timeout: 5), "expanded panel never appeared")
         XCTAssertTrue(app.buttons["Restart Timer"].firstMatch.exists, "Restart Timer missing")
         XCTAssertTrue(app.buttons["Stop Timer"].firstMatch.exists, "Stop Timer missing")
     }
 
-    /// Dismissing without choosing an option (tapping outside the menu-style
-    /// sheet — this rendering's Cancel) leaves the timer running.
-    func testDismissKeepsTimerRunning() throws {
+    /// Stop from the panel cancels the timer (bar disappears, row idle).
+    func testStopFromPanel() throws {
         let app = launchAndStartTimer()
-        openSheet(app)
-        // Tap near the very top, outside the anchored sheet, to dismiss.
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.04)).tap()
-        XCTAssertTrue(app.descendants(matching: .any)["timerStatus.running"].waitForExistence(timeout: 5), "timer should still be running after dismissing the sheet")
+        let bar = miniPlayer(app)
+        XCTAssertTrue(bar.waitForExistence(timeout: 5))
+        bar.press(forDuration: 0.7)
+        let stop = app.buttons["Stop Timer"].firstMatch
+        XCTAssertTrue(stop.waitForExistence(timeout: 5))
+        stop.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["timerStatus.idle"].waitForExistence(timeout: 5), "Stop didn't return the timer to idle")
+        XCTAssertFalse(miniPlayer(app).exists, "mini-player should disappear once no timer is active")
     }
 
-    func testCompleteNowCompletesHabit() throws {
+    /// Complete Now from the panel completes the habit.
+    func testCompleteFromPanel() throws {
         let app = launchAndStartTimer()
-        openSheet(app)
-        app.buttons["Complete Now"].firstMatch.tap()
+        let bar = miniPlayer(app)
+        XCTAssertTrue(bar.waitForExistence(timeout: 5))
+        bar.press(forDuration: 0.7)
+        let complete = app.buttons["Complete Now"].firstMatch
+        XCTAssertTrue(complete.waitForExistence(timeout: 5))
+        complete.tap()
         XCTAssertTrue(app.descendants(matching: .any)["timerStatus.complete"].waitForExistence(timeout: 5), "Complete Now didn't complete the habit")
     }
 
-    func testRestartKeepsTimerRunning() throws {
+    /// Restart from the panel keeps the timer running (fresh run).
+    func testRestartFromPanel() throws {
         let app = launchAndStartTimer()
-        openSheet(app)
-        app.buttons["Restart Timer"].firstMatch.tap()
-        // The seed has another, unrelated idle timer habit, so a global
-        // `timerStatus.idle` check would be a false positive — the meaningful
-        // assertion is simply that this habit's timer is running post-restart.
+        let bar = miniPlayer(app)
+        XCTAssertTrue(bar.waitForExistence(timeout: 5))
+        bar.press(forDuration: 0.7)
+        let restart = app.buttons["Restart Timer"].firstMatch
+        XCTAssertTrue(restart.waitForExistence(timeout: 5))
+        restart.tap()
         XCTAssertTrue(app.descendants(matching: .any)["timerStatus.running"].waitForExistence(timeout: 5), "timer should still be running after Restart")
     }
 }

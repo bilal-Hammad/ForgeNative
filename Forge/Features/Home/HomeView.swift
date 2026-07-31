@@ -136,6 +136,24 @@ struct HomeView: View {
         return habits.filter { Calendar.current.startOfDay(for: $0.startDate) <= day }
     }
 
+    /// The one time-unit habit whose timer is currently active (running or
+    /// paused) today — drives the pinned mini-player bar. A running timer
+    /// only ever exists for today, so this is gated on `isViewingToday`
+    /// (browsing a past day hides the bar). First match wins; in practice
+    /// only one timer runs at a time.
+    private var activeTimer: (habit: Habit, completion: Completion)? {
+        guard isViewingToday else { return nil }
+        for habit in habits where habit.unit.isTimeBased {
+            if let completion = selectedDayCompletions[habit.id], completion.isTimerActive, !completion.isComplete {
+                return (habit, completion)
+            }
+        }
+        return nil
+    }
+
+    /// Presents the mini-player's touch-and-hold expanded panel.
+    @State private var timerPanelHabit: Habit?
+
     /// Card shows only when: viewing today, the feature is enabled, the
     /// chosen time has passed today, and mood isn't logged yet. Re-evaluated
     /// on every `body` pass — the time check reads `.now`, so foregrounding
@@ -262,6 +280,37 @@ struct HomeView: View {
                     .padding(.vertical, 10)
                     .background(.regularMaterial)
             }
+            // Pinned "now-playing"-style timer bar — screen-level, stays put
+            // regardless of list scroll, visible whenever a timer is active.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if let active = activeTimer {
+                    TimerMiniPlayerBar(
+                        habit: active.habit,
+                        completion: active.completion,
+                        goalDuration: durationSeconds(for: active.habit),
+                        onPauseResume: {
+                            Task {
+                                if active.completion.isTimerRunning {
+                                    await pauseTimer(for: active.habit)
+                                } else {
+                                    await startTimer(for: active.habit)
+                                }
+                            }
+                        },
+                        onExpand: { timerPanelHabit = active.habit }
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 6)
+                }
+            }
+            .sheet(item: $timerPanelHabit) { habit in
+                TimerExpandedPanel(
+                    habitTitle: habit.title,
+                    onCompleteNow: { Task { await handleLongPress(habit) } },
+                    onRestart: { Task { await restartTimer(for: habit) } },
+                    onStop: { Task { await cancelTimer(for: habit) } }
+                )
+            }
             .toolbar(.hidden, for: .navigationBar)
             .task { await reload() }
             .onChange(of: selectedDate) { _, _ in
@@ -350,10 +399,7 @@ struct HomeView: View {
             completion: selectedDayCompletions[habit.id],
             isHealthKitConnected: healthKitConnectionStatus[habit.id] ?? false,
             referenceDate: selectedDate,
-            interactionToken: lastInteraction,
-            onStopTimer: { Task { await cancelTimer(for: habit) } },
-            onCompleteTimer: { Task { await handleLongPress(habit) } },
-            onRestartTimer: { Task { await restartTimer(for: habit) } }
+            interactionToken: lastInteraction
         )
         .contentShape(Rectangle())
 
@@ -413,12 +459,7 @@ struct HomeView: View {
             completion: selectedDayCompletions[habit.id],
             isHealthKitConnected: healthKitConnectionStatus[habit.id] ?? false,
             referenceDate: selectedDate,
-            interactionToken: nil,
-            // A context-menu preview is a static snapshot, not a live
-            // interactive view — no real tap ever reaches these closures.
-            onStopTimer: {},
-            onCompleteTimer: {},
-            onRestartTimer: {}
+            interactionToken: nil
         )
         .frame(maxWidth: .infinity)
     }
@@ -603,19 +644,32 @@ struct HomeView: View {
     }
 
     /// Tap on a time-unit habit's *row*: starts the timer if idle, **resumes**
-    /// it if paused (banked time preserved), no-ops if already complete. For a
-    /// *running* timer the row tap is now a no-op — managing a running timer
-    /// (Complete Now / Restart / Stop) moved to the options sheet opened by
-    /// tapping the countdown ring itself (`timerStatusIndicator`), so the row
-    /// tap no longer silently cancels. Pause/resume proper is the Live
-    /// Activity's job (`ToggleTimerPauseIntent`); a paused timer still reads
-    /// as "idle" in the current in-app row (visual redesign is a future
-    /// round) — tapping it resumes rather than restarts.
+    /// it if paused (banked time preserved), no-ops if already complete or
+    /// running. Managing a running/paused timer (pause/resume, Complete Now /
+    /// Restart / Stop) lives in the pinned mini-player bar and its
+    /// touch-and-hold panel (`TimerMiniPlayerBar`), not the row.
     private func handleTimerTap(_ habit: Habit) async {
         let completion = selectedDayCompletions[habit.id]
         guard completion?.isComplete != true else { return }
         guard completion?.isTimerRunning != true else { return }
         await startTimer(for: habit)
+    }
+
+    /// In-app pause (mini-player) — banks the elapsed run into
+    /// `accumulatedElapsed`, clears `startedAt`, and mirrors the pause onto
+    /// the Live Activity so the Lock Screen reflects it too (Bug B: the two
+    /// pause paths must land the `Completion` in the same shape). Resume is
+    /// `startTimer` (already resume-aware), which likewise updates the Live
+    /// Activity back to running — so both directions stay consistent.
+    private func pauseTimer(for habit: Habit) async {
+        guard var completion = selectedDayCompletions[habit.id], completion.isTimerRunning else { return }
+        let now = Date.now
+        completion.accumulatedElapsed = completion.elapsed(asOf: now)
+        completion.startedAt = nil
+        completion.loggedAt = now
+        try? await habitRepository.upsertCompletion(completion)
+        selectedDayCompletions[habit.id] = completion
+        HabitTimerCoordinator.shared.pauseLiveActivity(habitID: habit.id)
     }
 
     /// Restart Timer (options sheet): discard all progress and start a fresh
@@ -1166,14 +1220,6 @@ private struct HabitCardRow: View {
     /// this habit — see the type's doc comment. `nil`/unrelated most of the
     /// time; a day switch never touches this.
     let interactionToken: InteractionToken?
-    /// The three actions of the running-timer options sheet (see
-    /// `timerStatusIndicator`): stop (cancel entirely), complete now (instant
-    /// completion, the same path long-press uses), and restart (reset to zero
-    /// and start a fresh run). Wired to `HomeView.cancelTimer`/
-    /// `handleLongPress`/`restartTimer` respectively.
-    let onStopTimer: () -> Void
-    let onCompleteTimer: () -> Void
-    let onRestartTimer: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
@@ -1185,8 +1231,6 @@ private struct HabitCardRow: View {
     /// routine increment (case #2) — skipped on the crossing tap itself
     /// (case #3), which gets the full card treatment instead.
     @State private var countBounceScale: CGFloat = 1
-    /// Drives the running-timer options `.confirmationDialog`.
-    @State private var showingTimerOptions = false
 
     private var isComplete: Bool { completion?.isComplete == true }
 
@@ -1287,49 +1331,31 @@ private struct HabitCardRow: View {
         }
     }
 
-    /// Three states for a time-unit habit, gated purely on `habit.unit`
-    /// (see `HomeView.handleTap`) — idle (never tapped today), running
-    /// (a live native countdown, see `HabitTimerRingView`), and complete
-    /// (reuses the same checkmark every simple habit uses once done — a
-    /// time-unit habit is still a once-a-day completion at heart, just
-    /// reached via a timer instead of a tap).
+    /// Four states for a time-unit habit, gated purely on `habit.unit`
+    /// (see `HomeView.handleTap`) — idle (never tapped today), running (the
+    /// live native countdown ring), paused (a pause glyph, so a paused timer
+    /// doesn't misread as "not started"), and complete. Managing a
+    /// running/paused timer is the pinned mini-player bar's job now
+    /// (`TimerMiniPlayerBar`), so the row's indicator is purely a
+    /// per-habit status glyph — no nested control.
     @ViewBuilder
     private var timerStatusIndicator: some View {
         if isComplete {
             simpleCompletionIcon
                 .accessibilityIdentifier("timerStatus.complete")
         } else if let startedAt = completion?.startedAt {
-            // The running countdown ring is itself the control: tapping it
-            // opens a native options sheet (Complete Now / Restart / Stop).
-            // A real nested `Button`, not a competing `Gesture` recognizer —
-            // its own hit testing reliably coexists with the row's ancestor
-            // `.onTapGesture` (same well-defined mechanism as `List`
-            // swipe-action buttons), and the row's own tap is now a no-op
-            // for a running timer (management moved here), so there's no
-            // conflict. The `timerStatus.running` identifier stays on the
-            // Button so the running state is still findable in tests.
-            Button {
-                showingTimerOptions = true
-            } label: {
-                HabitTimerRingView(
-                    start: startedAt,
-                    end: startedAt.addingTimeInterval(habit.goal * habit.unit.secondsPerUnit),
-                    tint: habit.color.color
-                )
-            }
-            .buttonStyle(.plain)
+            HabitTimerRingView(
+                start: startedAt.addingTimeInterval(-(completion?.accumulatedElapsed ?? 0)),
+                end: startedAt.addingTimeInterval(-(completion?.accumulatedElapsed ?? 0))
+                    .addingTimeInterval(habit.goal * habit.unit.secondsPerUnit),
+                tint: habit.color.color
+            )
             .accessibilityIdentifier("timerStatus.running")
-            .accessibilityLabel("Timer running — tap for options")
-            .confirmationDialog("Timer", isPresented: $showingTimerOptions, titleVisibility: .visible) {
-                Button("Complete Now") { onCompleteTimer() }
-                    .accessibilityIdentifier("timerOptions.complete")
-                Button("Restart Timer") { onRestartTimer() }
-                    .accessibilityIdentifier("timerOptions.restart")
-                // `.confirmationDialog` appends the native Cancel itself — no
-                // manual one (redundant, non-idiomatic).
-                Button("Stop Timer", role: .destructive) { onStopTimer() }
-                    .accessibilityIdentifier("timerOptions.stop")
-            }
+        } else if completion?.isTimerPaused == true {
+            Image(systemName: "pause.circle.fill")
+                .font(.title2)
+                .foregroundStyle(habit.color.color)
+                .accessibilityIdentifier("timerStatus.paused")
         } else {
             Image(systemName: "timer")
                 .font(.title2)
