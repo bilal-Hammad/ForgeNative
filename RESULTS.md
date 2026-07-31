@@ -2141,3 +2141,12 @@ plain tap on the bar is currently a no-op (reserved).
   freezing on a Lock Screen tap (Bug A) and the Lock-Screen↔in-app reflection end-to-end on hardware
   (Bug B) — Live Activities don't render on Simulator. The fixes are grounded in verified API research
   and the code-level state model; the on-hardware confirmation is his to close. Installed on his device.
+
+### CONFIRMED ON DEVICE (2026-07-31, follow-up)
+Bilal tested Bug A and Bug B on his real device and reported both working correctly — the Live
+Activity's paused countdown now **freezes** on the Lock Screen (Bug A), and the Lock-Screen ⇄ in-app
+pause state stays in sync (Bug B). The one verification gap that couldn't be closed from this
+environment is now closed by his hardware test. Both were re-verified green on Simulator too: all 8
+timer XCUITests pass (`TimerHabitTests` ×2 + `TimerOptionsSheetTests` ×6) — the two that failed on the
+first pass (`testTimerStartsAndCompletesOnItsOwn`, `testMiniPlayerAppearsWhenTimerRunning`) were the
+known "seeded timer habit row never appeared" flaky launch and both passed cleanly on rerun.

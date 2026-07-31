@@ -303,13 +303,14 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
       `Text(timerInterval:pauseTime:)` does *not* reliably freeze a mid-countdown value in a Live Activity
       (only stops at 0:00) — the documented pattern is *static text when paused* vs. live `timerInterval`
       when running. Fixed exactly that + `.id(isPaused)` to force the ticking view's teardown; no
-      `pauseTime` anywhere now. **Honest**: Live Activities can't render on Simulator here and I can't tap
-      a Lock Screen LA, so the freeze itself is Bilal's to confirm — grounded in verified research + the
-      icon-toggle proving state reaches the view, not eyeball-verified by me. **Bug B**: both pause paths
+      `pauseTime` anywhere now. **CONFIRMED ON DEVICE (2026-07-31):** Bilal tested on his real Lock Screen
+      — the paused countdown now freezes correctly (the one verification gap that couldn't be closed from
+      this Simulator-only environment is closed by his hardware test). **Bug B**: both pause paths
       (Lock Screen `ToggleTimerPauseIntent` + new in-app `pauseTimer`/`pauseLiveActivity`) now land the
       `Completion` in the same shape (`startedAt=nil` + banked `accumulatedElapsed`); existing App-Group
       drain handles Lock-Screen→app, resume=`startTimer` updates the LA back — verified in code + the
-      mini-player pause/resume XCUITest. **Feature C**: replaced the `.confirmationDialog` with a
+      mini-player pause/resume XCUITest, and **confirmed on device by Bilal** (Lock-Screen ⇄ in-app pause
+      stays in sync). **Feature C**: replaced the `.confirmationDialog` with a
       persistent pinned mini-player bar (`.safeAreaInset(.bottom)`, screen-level, scroll-independent,
       shown while any timer is active) mirroring the LA pill collapsed; touch-and-hold opens an extensible
       bottom-sheet panel (Complete Now / Restart / Stop — a vertical stack ready for the future dhikr
