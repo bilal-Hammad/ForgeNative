@@ -2658,3 +2658,41 @@ refactor, deferred.
   gated to "prayer habits exist", so the cost is acceptable; not micro-optimized.
 - Prayer habits render via the existing `HabitCardRow` (goal-1 count habit + the prayer glyph), not a
   bespoke prayer row — reuses the list pattern, matching how dhikr reuses the quantity pattern.
+
+## 2026-08-01 — Phase 8: remote marketing config + paywall UI
+
+### Built
+- **`RemoteConfig`** (Codable): featured pack id, promo banner (text + visible), paywall headline/
+  subheadline, and a **decorative** anchor-price string. Hard boundary documented in the type: it never
+  carries a charged price — the paywall always renders the real StoreKit `displayPrice`; `anchorPriceText`
+  is marketing copy only ("Normally $4.99").
+- **`RemoteConfigService`** (`@MainActor @Observable`): loads the cached (or built-in fallback) config
+  **synchronously in init** so the paywall is usable instantly; `refresh()` fetches over HTTPS in the
+  background and silently keeps the cached/fallback value on any failure (no URL / offline / non-2xx /
+  bad JSON). Never touches purchase/transaction logic. **Hosting deliberately unresolved** —
+  `defaultRemoteURL` is `nil`, so the app runs entirely on the fallback until Bilal picks a static HTTPS
+  JSON location; flagged in the code and TASKS.md, not blocked on (no auth/signing to design since the
+  payload is public marketing copy with no secrets and no charged amounts).
+- **`PaywallView`**: subscription options (monthly/yearly, each showing `displayName` + real
+  `displayPrice`) and, when opened from a specific pack, that pack's standalone non-consumable with a
+  prominent **"or free with Premium"** anchor + the optional decorative anchor-price copy. Restore
+  Purchases button; a graceful "products couldn't load / Retry" state; Apple-required auto-renew
+  disclosure. Purchases go 100% through `StoreKitEntitlementService.purchase`; on success it dismisses,
+  and `AddSectionView` re-checks gating on dismiss.
+- **Wiring**: `ForgeApp` now creates one `StoreKitEntitlementService` (used as the entitlement service in
+  normal runs AND injected as the concrete `@Observable` for the paywall's products/purchase/restore) +
+  a `RemoteConfigService`, both injected into the environment, with a launch `.task` that loads products
+  and refreshes the config. `AddSectionView`'s locked-section tap now presents `PaywallView(packID:)`
+  instead of Phase 1's placeholder alert.
+
+### Verified
+- Build succeeds; **46 unit tests pass** (+4 `RemoteConfigTests`): fallback when no URL and no cache;
+  `refresh()` with no URL is a silent no-op that keeps the fallback and never throws; `RemoteConfig`
+  decodes from JSON; a cached config is used on init over the fallback.
+
+### NEEDS BILAL (deferred, non-blocking)
+- **Hosting decision** for the remote config JSON (flagged above) — pick a static HTTPS endpoint and set
+  `defaultRemoteURL`. Until then the built-in fallback drives the paywall (fully functional).
+- **Live purchase/restore** — the system purchase sheet + a sandbox Apple ID aren't drivable from this
+  environment; verified on device in Phase 9. The `.storekit` config is attached to the Run scheme, so
+  running from Xcode shows the real products/prices and allows sandbox purchases.

@@ -24,10 +24,12 @@
 		1197559F758FEFA5883341AB /* SwiftDataHabitRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C7237652DC04B4BFD6A4D09 /* SwiftDataHabitRepository.swift */; };
 		171A68A72592676B9C68D61E /* HabitDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 330C1B9266E34521CC428F5F /* HabitDetailView.swift */; };
 		174BA3E3745FBA9A7DA51669 /* TimerMiniPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C76503079FC9851FCDFFEB4B /* TimerMiniPlayer.swift */; };
+		17876CB5DFAF3B091BB03890 /* RemoteConfigService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86DD91800A72DB367097E58E /* RemoteConfigService.swift */; };
 		17DE37310C9728953B781EEC /* Milestone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 746A87217726DBA2E1846157 /* Milestone.swift */; };
 		18CB3AC2CEA99A2CC772DF68 /* CalendarSyncServiceEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DD42B2927F8D0DA16A09DBE /* CalendarSyncServiceEnvironment.swift */; };
 		19CBA570F000C158B6A832A9 /* MilestoneEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC4984B59FDD409822A6632 /* MilestoneEngine.swift */; };
 		1B86E6CC2C858F8F0D916109 /* PrayerWindowCatchUp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC84EAB561F02058E4159004 /* PrayerWindowCatchUp.swift */; };
+		1BB6D139D7FE6E34C27D279C /* RemoteConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E277B7D0FEE0E86A8627F02 /* RemoteConfigTests.swift */; };
 		1BF5E666DD1CD206422268D0 /* PrayerNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E7AC94653EF3D830A0191E9 /* PrayerNotificationScheduler.swift */; };
 		1F6A2E3FDDFF1250BD2AE6BD /* AuthUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9717C1EEA4C0ADA0751D6F72 /* AuthUser.swift */; };
 		20611B2D79CBE113E61B9393 /* BestDayTimeStreakDistributionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 827CCA0E998C638D1C3A7992 /* BestDayTimeStreakDistributionCard.swift */; };
@@ -63,6 +65,7 @@
 		55639823C10CBF03699C81CA /* HabitTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 189BA6C66791E2E3452D5945 /* HabitTemplate.swift */; };
 		5609E855972050657F9FA041 /* HabitModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 137DCAC8C4885EA8D25FC15A /* HabitModel.swift */; };
 		59374863BF3F98754D6F0442 /* TimerHabitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66DCBD3510CFD7820D748944 /* TimerHabitTests.swift */; };
+		5BDF577EC46F32900179FB6D /* RemoteConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59644E73A170661A7CEF4332 /* RemoteConfig.swift */; };
 		5D1E9CC507C304AEFCEF158F /* TemplateSectionRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35A3D5E5509EAC8C03ACDC8A /* TemplateSectionRepository.swift */; };
 		5E54CFA3C3278E22327A61AD /* InMemoryHabitRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05D32CFC452F3B8BE51265ED /* InMemoryHabitRepository.swift */; };
 		5FEEDD19108800DEA99EAB63 /* HabitCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 186272623D7828B105255AC2 /* HabitCategory.swift */; };
@@ -133,6 +136,7 @@
 		D506B0238329699E4BA79283 /* Habit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62894A0DEF98DD472A06BDA4 /* Habit.swift */; };
 		D509D4FD744643ED28EC5623 /* PrayerWindowResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B49B14E3FE87DC84C214A030 /* PrayerWindowResolver.swift */; };
 		D5B9568952C475B562FB0E7A /* RepeatMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29AB0D25C8E6742B44F8D567 /* RepeatMode.swift */; };
+		D617D44143A0BF379536039E /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFD475EB206682D30B3680B /* PaywallView.swift */; };
 		D9CCF830E5CB1277EDCAA497 /* PrayerDayState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC81E3C357A752B310A9E53 /* PrayerDayState.swift */; };
 		DD1FDB5BD21A2D6E5035D4D9 /* Adhan in Frameworks */ = {isa = PBXBuildFile; productRef = DCA147B2F81D4D06D4B9DF07 /* Adhan */; };
 		DEB2372390461BFFD7CACAD4 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4A831053F941A36F00C4833 /* LocationService.swift */; };
@@ -218,6 +222,7 @@
 		29AB0D25C8E6742B44F8D567 /* RepeatMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepeatMode.swift; sourceTree = "<group>"; };
 		2AD9B0F8FC64023349AFF9FB /* PrayerDayStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerDayStateTests.swift; sourceTree = "<group>"; };
 		2DD42B2927F8D0DA16A09DBE /* CalendarSyncServiceEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSyncServiceEnvironment.swift; sourceTree = "<group>"; };
+		2E277B7D0FEE0E86A8627F02 /* RemoteConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteConfigTests.swift; sourceTree = "<group>"; };
 		2EB60CE24270AFE5C68343A7 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		2EC63C385AD41C6C4E9E0F82 /* MoodCheckInRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodCheckInRouter.swift; sourceTree = "<group>"; };
 		31685D47D31E3DDDC140AB5A /* ForgeUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ForgeUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -245,6 +250,7 @@
 		535FF11F9F11E7F934A0B3E0 /* PointsLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointsLedger.swift; sourceTree = "<group>"; };
 		56EC53751E7F4C12054F6816 /* CategoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryDetailView.swift; sourceTree = "<group>"; };
 		585E7ABB8D32A97602D22353 /* ForgeWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgeWidgetsBundle.swift; sourceTree = "<group>"; };
+		59644E73A170661A7CEF4332 /* RemoteConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteConfig.swift; sourceTree = "<group>"; };
 		5DFD0708FF4499CF071359BA /* PrayerSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerSchedule.swift; sourceTree = "<group>"; };
 		5E1ADE5948619653B4083016 /* Completion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Completion.swift; sourceTree = "<group>"; };
 		5EF132C9FA46A0A810337A21 /* MoodEntryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodEntryModel.swift; sourceTree = "<group>"; };
@@ -273,6 +279,7 @@
 		81D893609E49F11C4983CB1C /* HabitSyncSettingsDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitSyncSettingsDetailView.swift; sourceTree = "<group>"; };
 		827CCA0E998C638D1C3A7992 /* BestDayTimeStreakDistributionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BestDayTimeStreakDistributionCard.swift; sourceTree = "<group>"; };
 		85C43B9B0910B8893644CEB1 /* GoalProgressionEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalProgressionEngine.swift; sourceTree = "<group>"; };
+		86DD91800A72DB367097E58E /* RemoteConfigService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteConfigService.swift; sourceTree = "<group>"; };
 		888EAC67558D686370D1CF88 /* CalendarSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSyncService.swift; sourceTree = "<group>"; };
 		8AB60F6E62E32CD49FFA56B2 /* MilestoneRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneRepository.swift; sourceTree = "<group>"; };
 		8BE64662BC45C8E932901DB5 /* EntitlementResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementResolverTests.swift; sourceTree = "<group>"; };
@@ -311,6 +318,7 @@
 		B5155B403B8AF8D17DA1C249 /* EntitlementResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementResolver.swift; sourceTree = "<group>"; };
 		B8C9A59E5B07C7D1B2F352E1 /* Forge.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Forge.entitlements; sourceTree = "<group>"; };
 		BC84EAB561F02058E4159004 /* PrayerWindowCatchUp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerWindowCatchUp.swift; sourceTree = "<group>"; };
+		BFFD475EB206682D30B3680B /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		C1E3E67806D936D09B66BEE6 /* TemplateSectionRepositoryEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSectionRepositoryEnvironment.swift; sourceTree = "<group>"; };
 		C76503079FC9851FCDFFEB4B /* TimerMiniPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerMiniPlayer.swift; sourceTree = "<group>"; };
 		CA832DE5528D2FA0DC893F14 /* TimeMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeMode.swift; sourceTree = "<group>"; };
@@ -409,6 +417,14 @@
 			path = ForgeWidgets;
 			sourceTree = "<group>";
 		};
+		2EA8DECA1BE4CDC291C33D63 /* Paywall */ = {
+			isa = PBXGroup;
+			children = (
+				BFFD475EB206682D30B3680B /* PaywallView.swift */,
+			);
+			path = Paywall;
+			sourceTree = "<group>";
+		};
 		32AE5B70D4CB0113A8985420 /* AddHabit */ = {
 			isa = PBXGroup;
 			children = (
@@ -493,6 +509,7 @@
 				16B28E70DAE15EB23CEDB497 /* Notifications */,
 				AA2BF180FA161D49C57507A1 /* Persistence */,
 				F8AF64B46324AB5C2F6FA38F /* Prayer */,
+				65E201048ADDA492C2CD5905 /* RemoteConfig */,
 				332100ACDE1D5E12D3886EFE /* Repositories */,
 				A9E03E21639FB1C959AA3705 /* Timer */,
 			);
@@ -527,6 +544,15 @@
 				7099B990E33E0CF17E0CCA7D /* VacationSettings.swift */,
 			);
 			path = Milestones;
+			sourceTree = "<group>";
+		};
+		65E201048ADDA492C2CD5905 /* RemoteConfig */ = {
+			isa = PBXGroup;
+			children = (
+				59644E73A170661A7CEF4332 /* RemoteConfig.swift */,
+				86DD91800A72DB367097E58E /* RemoteConfigService.swift */,
+			);
+			path = RemoteConfig;
 			sourceTree = "<group>";
 		};
 		79042DC1C937F11915A1F0C9 /* Navigation */ = {
@@ -568,6 +594,7 @@
 				06FF00299EB01C628209097F /* PrayerWindowCatchUpTests.swift */,
 				CD2600B96B36937CE19716DD /* PrayerWindowResolverTests.swift */,
 				973C9688CC08AC188AEEA317 /* ProgressiveGoalTests.swift */,
+				2E277B7D0FEE0E86A8627F02 /* RemoteConfigTests.swift */,
 			);
 			path = ForgeTests;
 			sourceTree = "<group>";
@@ -606,6 +633,7 @@
 			children = (
 				32AE5B70D4CB0113A8985420 /* AddHabit */,
 				FF95EFA556608D4B496FB2F5 /* Home */,
+				2EA8DECA1BE4CDC291C33D63 /* Paywall */,
 				E3452DC4250C0D80D278EE41 /* Profile */,
 				E89BDBF50F4100F109C8EB09 /* Progress */,
 			);
@@ -886,6 +914,7 @@
 				EAA507AB374DA6FBD006A073 /* PrayerWindowCatchUpTests.swift in Sources */,
 				7F52ABAC4C00AF800231BC84 /* PrayerWindowResolverTests.swift in Sources */,
 				4686CEE87B81EE20456EE355 /* ProgressiveGoalTests.swift in Sources */,
+				1BB6D139D7FE6E34C27D279C /* RemoteConfigTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -969,6 +998,7 @@
 				7A82452E35B00C32BFC66E03 /* MoodRepository.swift in Sources */,
 				F4F4C86F82479240FA0A83B0 /* MoodRepositoryEnvironment.swift in Sources */,
 				6B2A3ADC34D06AD1C4376D77 /* NoOpCalendarSyncService.swift in Sources */,
+				D617D44143A0BF379536039E /* PaywallView.swift in Sources */,
 				63CB7CE8C640E988F336AE65 /* PointsLedger.swift in Sources */,
 				48BB658E2E1B743B449F5B8E /* PointsLedgerModel.swift in Sources */,
 				35BC14121B4D3E13B9546640 /* PrayerAnchor.swift in Sources */,
@@ -986,6 +1016,8 @@
 				F7EFB4283CD093333B5E95C9 /* ProfileView.swift in Sources */,
 				C6229551F627E5556623BF3A /* ProgressScreenView.swift in Sources */,
 				F3CCB10F12AF3D0F206976D9 /* RecentlyDeletedSectionsView.swift in Sources */,
+				5BDF577EC46F32900179FB6D /* RemoteConfig.swift in Sources */,
+				17876CB5DFAF3B091BB03890 /* RemoteConfigService.swift in Sources */,
 				D5B9568952C475B562FB0E7A /* RepeatMode.swift in Sources */,
 				E2151A08582279120F5EB65A /* SectionIndexStrip.swift in Sources */,
 				EA3B2ED8D182C65A7D255D35 /* SettingsView.swift in Sources */,

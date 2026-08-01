@@ -24,7 +24,9 @@ struct AddSectionView: View {
     /// true for a generic-premium section when premium is active and for a
     /// pack section when premium is active *or* that pack is owned.
     @State private var unlockedSectionIDs: Set<String> = []
-    @State private var showingPremiumPrompt = false
+    @State private var paywallTarget: PaywallTarget?
+
+    private struct PaywallTarget: Identifiable { let id: String }
 
     var body: some View {
         NavigationStack {
@@ -57,10 +59,11 @@ struct AddSectionView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
-            .alert("Forge Premium", isPresented: $showingPremiumPrompt) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("This section is part of Forge Premium. Unlock it with a subscription, or buy the pack on its own — coming soon.")
+            .sheet(item: $paywallTarget, onDismiss: {
+                // Re-resolve gating in case a purchase just unlocked this pack.
+                Task { await reload() }
+            }) { target in
+                PaywallView(packID: target.id)
             }
             .task { await reload() }
         }
@@ -110,7 +113,7 @@ struct AddSectionView: View {
 
     private func handleTap(_ section: TemplateSection) async {
         if isLocked(section) {
-            showingPremiumPrompt = true
+            paywallTarget = PaywallTarget(id: section.id)
         } else {
             await addSuggested(section)
         }

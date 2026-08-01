@@ -292,8 +292,22 @@ habit IDs stable and sensible so it can reference them later without rework.
       location + real prayer times (window open/close, auto-miss lock on-screen, notification firing) —
       not automatable here (needs a real fix + controllable wall-clock vs. real prayer times); the pure
       logic is unit-tested and the wiring is build-verified.
-- [ ] **Phase 8 — Remote config + paywall UI.** Static JSON fetch/cache/fallback (hosting+security
-      decision made here); paywall with anchor pricing + "or free with Premium" + featured pack.
+- [x] **Phase 8 — Remote config + paywall UI.** Done 2026-08-01 (see RESULTS.md). **Remote config:**
+      `RemoteConfig` (featured pack, banner, paywall headline/subheadline, decorative anchor-price copy) +
+      `RemoteConfigService` — synchronous cached/fallback config so it **never blocks the paywall**;
+      `refresh()` is best-effort and silently keeps cached/fallback on any failure; **never touches
+      purchases**. **Paywall:** `PaywallView` — subscription options (monthly/yearly) + the triggering
+      pack's standalone price with a prominent **"or free with Premium"** anchor, all prices from real
+      `Product.displayPrice` (never hardcoded, never from config), copy from remote config; restore
+      button; purchases 100% through `StoreKitEntitlementService`. Wired into `AddSectionView` (a locked
+      section now opens the paywall, replacing Phase 1's placeholder alert; re-checks gating on dismiss).
+      **Verified:** build succeeds; **46 unit tests pass** (+4 RemoteConfig: fallback when no URL/cache,
+      refresh-no-URL is a silent no-op, JSON decode, cached-config-on-init). **FLAGGED for Bilal
+      (deferred, non-blocking):** (a) **hosting** — `RemoteConfigService.defaultRemoteURL` is `nil`, app
+      runs fully on the built-in fallback until a static HTTPS JSON endpoint is chosen (CDN/GitHub raw/S3
+      — one-line change, no auth/signing needed since the payload is public marketing copy with no
+      secrets/charged prices); (b) **live purchase/restore sheet** can't be automated here → Phase 9 /
+      device.
 - [ ] **Phase 9 — Testing.** StoreKit sandbox flows; prayer-time accuracy verification;
       entitlement-gating regression tests; real-device verification per this project's standards.
 

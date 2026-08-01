@@ -21,6 +21,14 @@ struct ForgeApp: App {
     /// an `@Observable` environment object; only prompts for permission when a
     /// prayer habit actually exists (see `HomeView`).
     private let locationService = LocationService()
+    /// Concrete StoreKit service for the paywall (products/purchase/restore).
+    /// Also used as the `entitlementService` in normal runs; the `-uiTesting`
+    /// fixture uses the stub for gating instead but this still exists (unused
+    /// by tests). Injected so `PaywallView` can drive purchases (P1 Phase 8).
+    private let storeKitEntitlementService = StoreKitEntitlementService()
+    /// Remote marketing config for the paywall (featured pack, banner, promo
+    /// copy) — fully functional on its built-in fallback until hosting is set.
+    private let remoteConfigService = RemoteConfigService()
 
     init() {
         let schema = Schema([
@@ -116,7 +124,7 @@ struct ForgeApp: App {
             let forcePremium = ProcessInfo.processInfo.arguments.contains("-premiumUnlocked")
             entitlementService = StubEntitlementService(premiumOverride: forcePremium)
         } else {
-            entitlementService = StoreKitEntitlementService()
+            entitlementService = storeKitEntitlementService
         }
         // `-uiTesting` gets the always-signed-out stand-in, matching the
         // in-memory `ModelConfiguration` above — a real Sign in with Apple
@@ -177,6 +185,12 @@ struct ForgeApp: App {
                 .environment(\.entitlementService, entitlementService)
                 .environment(\.authService, authService)
                 .environment(locationService)
+                .environment(storeKitEntitlementService)
+                .environment(remoteConfigService)
+                .task {
+                    await storeKitEntitlementService.loadProducts()
+                    await remoteConfigService.refresh()
+                }
         }
     }
 }
