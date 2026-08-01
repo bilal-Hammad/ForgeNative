@@ -2150,3 +2150,55 @@ environment is now closed by his hardware test. Both were re-verified green on S
 timer XCUITests pass (`TimerHabitTests` ×2 + `TimerOptionsSheetTests` ×6) — the two that failed on the
 first pass (`testTimerStartsAndCompletesOnItsOwn`, `testMiniPlayerAppearsWhenTimerRunning`) were the
 known "seeded timer habit row never appeared" flaky launch and both passed cleanly on rerun.
+
+## 2026-08-01 — P1 StoreKit + Islamic Template initiative: TASKS.md entry written + Phase 0 audit
+
+New major multi-session initiative (StoreKit monetization + a real Islamic template pack with
+prayer-time habits). Per the instruction, wrote the complete plan into `TASKS.md` as a new
+"## P1 — StoreKit + Islamic Template" section **before** any code, then ran Phase 0 (audit existing
+code) to make that entry reference the actual codebase, not assumptions.
+
+### Phase 0 — audit findings (read each file this pass, not from memory)
+- **`EntitlementService`** (`Forge/Core/Entitlements/EntitlementService.swift`): protocol with a
+  single `func isPremiumUnlocked() async -> Bool`; the only implementation is `StubEntitlementService`
+  (always returns `false`). The method is **already `async`** — deliberately shaped for StoreKit 2's
+  `Transaction.currentEntitlements` async sequence, so Phase 1 drops the real implementation behind
+  it without changing call sites. Injected via `EntitlementServiceEnvironment.swift` (an
+  `EnvironmentKey` defaulting to the stub). Only current consumer:
+  `BestDayTimeStreakDistributionCard`.
+- **`SuggestedSectionTier`** (`Forge/Core/Models/SuggestedSectionTier.swift`): `enum { free, premium }`.
+  Read **directly** at `AddSectionView.swift:42` (`if section.tier == .premium`) — it does **not** go
+  through `EntitlementService`. Consolidating it is exactly the TODO already written into
+  `EntitlementService.swift`'s doc comment (lines 20–23). Phase 1 owns this.
+- **Current Islamic section**: `good-islamic` at `TemplateCatalog.swift:158` — `tier: .premium`, 9
+  templates, **all Arabic-only titles** (الصلوات الخمس, قراءة القرآن, …). This is the "broken,
+  Arabic-only" section to delete in Phase 7.
+- **`Habit` model** (`Forge/Core/Models/Habit.swift`): has **no time-source concept**. `timeMode` is
+  `TimeMode` = `none`/`fixedTime(Date)`/`everyXHours(Int)`/`timesADay(Int)` — all fixed-clock. No
+  prayer-relative notion anywhere. `goal: Double`, `unit: HabitUnit`, `step: Double`.
+- **`Completion` model** (`Forge/Core/Models/Completion.swift`): `count`/`isComplete` + the
+  accumulated-elapsed timer fields. **No goal snapshot** — Phase 5 must add `goalAtCompletion`.
+- **Catch-up precedents** (Phase 3 will mirror these): `MilestoneEngine.runCatchUp()` /
+  `afterCompletionLogged(habit:)` (`Forge/Core/Milestones/MilestoneEngine.swift`), and
+  `HomeView.checkTimerCompletions()` (`Forge/Features/Home/HomeView.swift`) — both self-heal on
+  appear/foreground from persisted state, the exact shape prayer auto-miss needs.
+- **Calendar disabled-mode precedent** (Phase 2 will mirror this): `recurrenceRule(for:)` in
+  `EventKitCalendarSyncService.swift` returns `nil` for `.timesPerWeek`/`.everyXHours`/`.timesADay`,
+  making those Reminders-only — the same treatment prayer-relative habits need (a daily-shifting time
+  has no `EKRecurrenceRule`).
+- **Progressive-goal audit targets** (Phase 5 must migrate to point-in-time goal): `HomeView.swift`
+  (574/579/581/583/588/612/933/947–948/963/1327/1350/1393), `HealthKitService.swift` (137/165),
+  `HabitDetailView.swift` (127/130/144/234), `EventKitCalendarSyncService.swift:195`,
+  `DebugSeedHistoryView.swift:137–138`, `DebugCalendarSyncView.swift:246`.
+
+### Verified
+- The audit itself: every file/line cited above was opened and read this pass (grep + Read), not
+  recalled. No code changed in Phase 0 — it's a read-only audit, so nothing to build/test yet.
+- **Open decision flagged (not blocking Phase 0):** Isha's notification offset default (10+15=25 min)
+  is my assumption to match Dhuhr/Asr/Maghrib — Bilal didn't specify it; noted in TASKS.md for his
+  review when Phase 4 lands.
+- **Deferred decision (Phase 8):** remote-config hosting + security approach — flagged in TASKS.md,
+  not resolved now (correctly, per the instruction to not block on it).
+
+Next: Phase 1 — real StoreKit 2 `EntitlementService`, verifying the current StoreKit 2 API before
+coding (standing "verify APIs" rule).

@@ -34,6 +34,170 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
 
 ---
 
+## P1 — StoreKit + Islamic Template (major multi-session initiative, started 2026-08-01)
+
+**This is the persistent source of truth for a large multi-session effort planned in an extensive
+conversation and captured here before any code was written.** Everything below was decided in that
+planning pass and exists nowhere in the codebase yet (except the stubs/enums noted under Phase 0).
+Work through the phases **in order**; after each phase, update this file + `RESULTS.md` honestly
+(what was built, what was verified and *how* — no "looks right"), commit, push, and install to the
+real iPhone if connected (standing rule). Follow the Autonomous operation policy + Engineering
+standards throughout: repository pattern, bounded queries, **verified current APIs (not assumed)**,
+real XCUITest for gesture features, destructive-action confirmation, no "done" claims without real
+verification. Flag any genuine product/design decision for Bilal rather than guessing.
+
+### Monetization architecture (decided)
+- **One auto-renewable subscription "Forge Premium"** (monthly + yearly) unlocking **all** premium
+  features **and** all template packs automatically. This is app-side entitlement logic, not a
+  special Apple mechanism — "has active subscription OR owns this specific pack" resolves in our own
+  `EntitlementService`.
+- **Each template pack (starting Islamic) also sells as a standalone one-time non-consumable** for
+  non-subscribers who want just that pack.
+- **Real `EntitlementService`** on StoreKit 2 (`Transaction.currentEntitlements`, `Transaction.updates`
+  listener, restore purchases) replacing `StubEntitlementService`. **Consolidate `SuggestedSectionTier`'s
+  existing direct-flag read** (`AddSectionView.swift:42` reads `section.tier == .premium` directly, NOT
+  through the service — the consolidation is already flagged as a TODO in `EntitlementService.swift`'s
+  own doc comment) into this service.
+- **Never hardcode prices** — always render `product.displayPrice` fetched live, so App Store Connect
+  price changes need no app update.
+- **Paywall**: show the pack's individual price with a prominent **"or free with Premium"** callout
+  (anchor-pricing). Anchor price + promo copy read from the remote config below, not hardcoded.
+- **Local `.storekit` config file** for Xcode StoreKit Testing (sandbox purchase/restore/subscription
+  without live App Store Connect products yet).
+
+### Remote marketing config — NOT payments (decided)
+- Lightweight **static JSON**, hosted externally (hosting/security approach is **TBD as its own small
+  decision when Phase 8 is reached** — flag it, don't block on it), fetched + cached with a **graceful
+  fallback to sensible built-in defaults** if unreachable (must **never block the paywall**).
+- Controls: featured pack, promotional banner text/visibility, anchor price/promo copy for the paywall.
+- **Hard boundary**: this system never touches purchase/transaction logic — all purchases stay 100%
+  through StoreKit.
+
+### Prayer-time architecture (decided)
+- Add **Adhan Swift** (SPM, `batoulapps/adhan-swift`, MIT, actively maintained) for prayer + Sunnah
+  time calculation. **Verify current package API before use** (standing rule).
+- **Location**: GPS via CoreLocation — auto-detect, one-time/foreground request, privacy-conscious,
+  **no background location**.
+- **Asr madhab: Shafi'i.**
+- New **`Habit` time-source concept**: fixed clock time (existing `TimeMode`) vs. **prayer-relative**
+  (new — e.g. "10 min before Dhuhr" for a rawatib sunnah). Time recalculated **daily from real
+  astronomical data**, never a cached clock time.
+- **`CalendarSyncService` disabled for prayer-relative habits** — same treatment `.everyXHours`/
+  `.timesPerWeek`/`.timesADay` already get (`recurrenceRule(for:)` returns `nil` → Reminders-only),
+  since `EKRecurrenceRule` can't represent a daily-shifting time.
+
+### Prayer completion windows — strict, verified against real fiqh sources (decided)
+- **Fajr**: adhan → sunrise.
+- **Dhuhr**: adhan → Asr start.
+- **Asr (Shafi'i calc)**: start → Maghrib. **No sunnah for Asr at all** (confirmed — not even the
+  optional ghair-muakkad 4 rakat).
+- **Maghrib**: adhan → Isha start.
+- **Isha**: adhan → true dawn/Fajr (the actual Shafi'i-valid outer boundary), with a **distinct
+  visual/notification indicator after local midnight** noting the preferred time has passed —
+  **without locking the habit yet** (still completable until Fajr).
+- **On a window closing without completion**: auto-mark **missed**, apply the point/streak consequence
+  immediately, and show **zero interactive options** — fully locked, no edit, no retroactive
+  completion. Needs a **self-healing catch-up mechanism** (same shape as `MilestoneEngine.runCatchUp()`
+  / `HomeView.checkTimerCompletions()`) so it resolves correctly even if the app wasn't open when a
+  window closed.
+- **Qiyam al-layl**: Isha → Fajr, **spanning midnight** — handle the cross-calendar-day window
+  explicitly, don't assume same-day boundaries.
+
+### Notifications for prayer-window habits (decided)
+- **Mandatory** (not optional, unlike normal habit notifications) given the stakes of a missed window.
+- **Exactly one notification per prayer** — **not at adhan time** (deliberate: redundant with dedicated
+  adhan apps users already have).
+- Timed at **adhan + iqama-delay + prayer-duration**, both offsets **user-configurable per prayer** in
+  Settings. Defaults: **Fajr 30+20 = 50 min** after adhan; **Dhuhr/Asr/Maghrib 10+15 = 25 min** after
+  adhan. **Isha's default was NOT explicitly specified by Bilal — ASSUMED 10+15 = 25 min to match the
+  Dhuhr/Asr/Maghrib pattern; flag for his review, easy to change.**
+
+### Progressive / auto-increasing goals — generalized, not Islamic-specific (decided)
+- Applies to **any quantity-type habit**, not just the dhikr counter.
+- **Each `Completion` snapshots the goal active when it was logged** (`goalAtCompletion` or equiv) —
+  **never mutate the habit's goal in place**, which would retroactively corrupt past days'
+  completion-rate math. **Audit every `count >= habit.goal` / `habit.goal` comparison and update to
+  the point-in-time goal.** Known sites from the Phase 0 audit: `HomeView.swift` (574/579/581/583/588/
+  612/933/947–948/963/1327/1350/1393), `HealthKitService.swift` (137/165), `HabitDetailView.swift`
+  (127/130/144/234), `EventKitCalendarSyncService.swift:195`, `DebugSeedHistoryView.swift:137–138`,
+  `DebugCalendarSyncView.swift:246`.
+- **Two modes**: automatic (user sets interval e.g. monthly + increment e.g. +10, friendly bump
+  notification "Nice consistency! Your goal is now 110") or manual (user edits anytime, same
+  non-retroactive guarantee).
+
+### Dhikr / Tasbih counter — its own habit type, NOT the timer UI (decided)
+- Tap-to-increment counter with a **distinct haptic per tap**, preset goal shortcuts (**33/99/100**),
+  **reuses the quantity-habit tap-to-increment pattern** rather than living inside the timer
+  mini-player's panel (reconsidered from an earlier idea — cleaner).
+
+### Islamic template pack — v1 content (decided)
+**Delete the current `good-islamic` section first** (`TemplateCatalog.swift:158` — broken, Arabic-only,
+9 templates). Build the new pack **in English first**; Arabic/Turkish translation is the **last** step
+(Phase 10). Content verified against real references (Sahih Muslim 728, Tirmidhi 414, Nasa'i 1807 for
+Rawatib; IslamQA.info + SeekersGuidance for prayer-time boundaries). Organize as **sub-groups** within
+the pack (matching §5's thematic-section pattern), let the user **pick which habits to add** via the
+existing Add-Section flow (surface the **5 Fard prayers as the suggested starter subset**).
+- **Group 1 — Prayers (Type A: strict prayer-window):** Fajr/Dhuhr/Asr/Maghrib/Isha Fard; Sunnah
+  Rawatib (2 before Fajr, 4 before Dhuhr, 2 after Dhuhr, 2 after Maghrib, 2 after Isha — **no Asr
+  sunnah**); Witr; Dhikr-after-prayer (**5 separate instances, one per prayer**, sharing that prayer's
+  window).
+- **Group 2 — Dhikr & Tasbih (Type B: new counter type):** SubhanAllah (33), Alhamdulillah (33),
+  Allahu Akbar (33), Istighfar, Salawat upon the Prophet ﷺ.
+- **Group 3 — Quran, Character & General Adhkar (Type C: regular daily habit, zero new engineering):**
+  Quran reading, morning/evening/sleep/waking adhkar, recommended verses (Ayat al-Kursi, Al-Ikhlas/
+  Al-Falaq/An-Nas), and the full "Character & Dealings" set (honoring parents, family ties, charity,
+  spreading salam, visiting the sick, etc.) — plain check-off habits.
+- **Group 4 — Weekly (Type E: existing "specific days" repeat mode, zero new engineering):** Friday
+  practices (Surah Al-Kahf, increased Salawat, early attendance, ghusl); Monday/Thursday fasting.
+- **Deferred to v2 (do NOT build):** Hijri-calendar practices (White Days, Ashura, Arafah, Shawwal 6,
+  Ramadan, I'tikaf, annual Zakah) — needs Hijri calc; event/situational adhkar (18 items) — doesn't fit
+  habit-tracking.
+
+### Explicitly OUT of scope this round (separate future planning)
+Friends/family competition (§9) — needs its own design pass + a real backend (none exists). Captured
+for that future session: sharing must be **granular per-relationship** (pick exactly which habits to
+share with each specific person, not share-all), supporting **asymmetric relationships** (a parent
+following a child's habits with real stats visibility). **Do not start now** — just keep pack/section/
+habit IDs stable and sensible so it can reference them later without rework.
+
+### Phases (work in order)
+- [x] **Phase 0 — Audit existing code first.** Done 2026-08-01, before any new code (see RESULTS.md).
+      Findings: `EntitlementService` protocol exists with only `StubEntitlementService` (always
+      `false`); `isPremiumUnlocked()` is already `async` (StoreKit-2-shaped). Only current consumer:
+      `BestDayTimeStreakDistributionCard`. `SuggestedSectionTier` (`.free`/`.premium`) is read
+      **directly** at `AddSectionView.swift:42`, bypassing the service — consolidation is the flagged
+      TODO. Current Islamic section = `good-islamic` (`TemplateCatalog.swift:158`, `.premium`, 9
+      Arabic-only templates) → to delete. `Habit` has **no** time-source concept (`TimeMode` =
+      none/fixedTime/everyXHours/timesADay only); `Completion` has **no** goal snapshot. Catch-up
+      precedents confirmed: `MilestoneEngine.runCatchUp()`/`afterCompletionLogged`,
+      `HomeView.checkTimerCompletions()`. Calendar disabled-mode precedent confirmed:
+      `recurrenceRule(for:)` returns `nil` for `.timesPerWeek`/`.everyXHours`/`.timesADay`. Goal-
+      comparison sites enumerated (see the progressive-goals section above). **Verified:** by reading
+      each named file this pass, not from memory.
+- [ ] **Phase 1 — Real `EntitlementService` + StoreKit setup.** StoreKit 2 entitlements +
+      `Transaction.updates` listener + restore; `.storekit` test config; consolidate
+      `SuggestedSectionTier` gate behind the service. **Verify current StoreKit 2 API before coding.**
+- [ ] **Phase 2 — Prayer-time architecture.** Adhan Swift (SPM), CoreLocation (foreground/one-time,
+      Shafi'i), the prayer-relative time-source concept on `Habit`, daily recomputation, Calendar-sync
+      disabled for prayer-relative.
+- [ ] **Phase 3 — Time-windowed completion + auto-miss catch-up.** Per-prayer windows above; auto-miss
+      + immediate consequence + fully-locked UI; self-healing catch-up; Qiyam cross-midnight window.
+- [ ] **Phase 4 — Notification system for prayer habits.** Mandatory, one per prayer, at
+      adhan+iqama+duration with per-prayer configurable offsets; post-midnight Isha indicator.
+- [ ] **Phase 5 — Progressive / auto-increasing goals (generalized).** `goalAtCompletion` snapshot;
+      audit + migrate every goal-comparison site; automatic + manual modes; bump notification.
+- [ ] **Phase 6 — Dhikr counter habit type.** Tap-to-increment, per-tap haptic, 33/99/100 shortcuts,
+      reusing the quantity pattern.
+- [ ] **Phase 7 — Islamic template content (English), organized into the 4 groups.** Delete
+      `good-islamic` first; new sub-grouped pack; 5 Fard prayers as suggested starter.
+- [ ] **Phase 8 — Remote config + paywall UI.** Static JSON fetch/cache/fallback (hosting+security
+      decision made here); paywall with anchor pricing + "or free with Premium" + featured pack.
+- [ ] **Phase 9 — Testing.** StoreKit sandbox flows; prayer-time accuracy verification;
+      entitlement-gating regression tests; real-device verification per this project's standards.
+- [ ] **Phase 10 — Translation (Arabic/Turkish).** Last step, only after content is finalized/stable.
+
+---
+
 ## Ad-hoc feature requests (not derived from APP_REDESIGN_SPEC.md — direct user requests)
 
 - [x] **Timer-based interaction for time-unit habits**. BUILT this pass, per explicit user request
