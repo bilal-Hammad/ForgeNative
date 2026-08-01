@@ -50,6 +50,7 @@
 		480953116186E2EE245FF6BF /* MilestoneBadgePreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C4DA27050BFE34A39374491 /* MilestoneBadgePreview.swift */; };
 		48BB658E2E1B743B449F5B8E /* PointsLedgerModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41884147DAE3AD6646B3D5B7 /* PointsLedgerModel.swift */; };
 		4955EA80AAE523C9EFB36C8E /* DebugCalendarSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A8CB7644B080301FECC426 /* DebugCalendarSyncView.swift */; };
+		4A61C42DF8DA16C16CEF6FFE /* PrayerDayStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AD9B0F8FC64023349AFF9FB /* PrayerDayStateTests.swift */; };
 		4EDC13BD010A135CDD0A21EC /* PrayerTimeServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B986212557869B3998328F6 /* PrayerTimeServiceTests.swift */; };
 		4F5337F69C13EBC57DD40ACC /* HabitColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 412307AB57C455F20017C1C8 /* HabitColor.swift */; };
 		503CE12F1F30177C5E74FC26 /* CompletionFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4295D6EE380F992FC14F4BC /* CompletionFeedback.swift */; };
@@ -75,6 +76,7 @@
 		7A82452E35B00C32BFC66E03 /* MoodRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 635C61F86F05E11DF4B5BB93 /* MoodRepository.swift */; };
 		7BD030D59429180024E24A5D /* TemplateCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91A703FE817D83C2CEFE30F /* TemplateCatalog.swift */; };
 		7EA756B805334B8948AFC093 /* TemplateSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 355DE92A884A2D3821E0891E /* TemplateSection.swift */; };
+		7F52ABAC4C00AF800231BC84 /* PrayerWindowResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD2600B96B36937CE19716DD /* PrayerWindowResolverTests.swift */; };
 		82429A14DD0CF704E402C804 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB60CE24270AFE5C68343A7 /* AuthService.swift */; };
 		82F266BE9C1EBD4BC372B66F /* Coordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80DC6CEF3E60EA44AD3C1A31 /* Coordinate.swift */; };
 		85CFD7CD27D199549EBF4184 /* VacationSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7099B990E33E0CF17E0CCA7D /* VacationSettings.swift */; };
@@ -102,6 +104,7 @@
 		ACD50BDB7BFE6FA5D914CFD4 /* HabitTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA276ABED8B83855BEBF4C6 /* HabitTimerAttributes.swift */; };
 		AD4DEED77A32E558566C18A8 /* TemplateSectionRepositoryEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1E3E67806D936D09B66BEE6 /* TemplateSectionRepositoryEnvironment.swift */; };
 		AE632F825B00715829A04D34 /* MoodCheckInCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB61E49E0C476E33DCB290F4 /* MoodCheckInCard.swift */; };
+		B1C6A32EBA0799703E36BF5E /* PrayerWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D7678A1EA0DCBDA23CA00EB /* PrayerWindow.swift */; };
 		B1E1B1DECAADECE8F0A4A409 /* MilestoneDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5C72C32E098E83C726E5A76 /* MilestoneDetailView.swift */; };
 		B421817CCDA1F4F171D3EB53 /* SharedTimerStopSignal.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80754CED57CB3CFA20D6678 /* SharedTimerStopSignal.swift */; };
 		B602ABDFDB21C9FA6A82ED1E /* DebugSeedHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8CD3AA1284CB0B4A509C797 /* DebugSeedHistoryView.swift */; };
@@ -121,7 +124,9 @@
 		D0A380D790FA5291221B958D /* TimeMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA832DE5528D2FA0DC893F14 /* TimeMode.swift */; };
 		D2F71404B62720518F6015F8 /* EntitlementResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5155B403B8AF8D17DA1C249 /* EntitlementResolver.swift */; };
 		D506B0238329699E4BA79283 /* Habit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62894A0DEF98DD472A06BDA4 /* Habit.swift */; };
+		D509D4FD744643ED28EC5623 /* PrayerWindowResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B49B14E3FE87DC84C214A030 /* PrayerWindowResolver.swift */; };
 		D5B9568952C475B562FB0E7A /* RepeatMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29AB0D25C8E6742B44F8D567 /* RepeatMode.swift */; };
+		D9CCF830E5CB1277EDCAA497 /* PrayerDayState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC81E3C357A752B310A9E53 /* PrayerDayState.swift */; };
 		DD1FDB5BD21A2D6E5035D4D9 /* Adhan in Frameworks */ = {isa = PBXBuildFile; productRef = DCA147B2F81D4D06D4B9DF07 /* Adhan */; };
 		DEB2372390461BFFD7CACAD4 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4A831053F941A36F00C4833 /* LocationService.swift */; };
 		DF19D3A6912F6BB383936B66 /* ProductIdentifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0599F8B0C35D67760C344C06 /* ProductIdentifiers.swift */; };
@@ -201,6 +206,7 @@
 		2011D3E460734BFCA01A6F7D /* TemplateSectionConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSectionConfiguration.swift; sourceTree = "<group>"; };
 		2556327218A50F0CD12FF4B6 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		29AB0D25C8E6742B44F8D567 /* RepeatMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepeatMode.swift; sourceTree = "<group>"; };
+		2AD9B0F8FC64023349AFF9FB /* PrayerDayStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerDayStateTests.swift; sourceTree = "<group>"; };
 		2DD42B2927F8D0DA16A09DBE /* CalendarSyncServiceEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSyncServiceEnvironment.swift; sourceTree = "<group>"; };
 		2EB60CE24270AFE5C68343A7 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		2EC63C385AD41C6C4E9E0F82 /* MoodCheckInRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodCheckInRouter.swift; sourceTree = "<group>"; };
@@ -212,6 +218,7 @@
 		374AD2D54777742738C4AF92 /* HealthKitRealDeviceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitRealDeviceTests.swift; sourceTree = "<group>"; };
 		39113B1569704859C394F49F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3B986212557869B3998328F6 /* PrayerTimeServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerTimeServiceTests.swift; sourceTree = "<group>"; };
+		3D7678A1EA0DCBDA23CA00EB /* PrayerWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerWindow.swift; sourceTree = "<group>"; };
 		412307AB57C455F20017C1C8 /* HabitColor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitColor.swift; sourceTree = "<group>"; };
 		41598F96D0FE8F9EF9D5924C /* MoodLevel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodLevel.swift; sourceTree = "<group>"; };
 		41884147DAE3AD6646B3D5B7 /* PointsLedgerModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointsLedgerModel.swift; sourceTree = "<group>"; };
@@ -245,6 +252,7 @@
 		746A87217726DBA2E1846157 /* Milestone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Milestone.swift; sourceTree = "<group>"; };
 		7495E882EE5CA0675BB590BE /* HabitRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitRepository.swift; sourceTree = "<group>"; };
 		78B3FEACC547C0BC35BB3E59 /* Badge3DView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Badge3DView.swift; sourceTree = "<group>"; };
+		7AC81E3C357A752B310A9E53 /* PrayerDayState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerDayState.swift; sourceTree = "<group>"; };
 		7AD2020E9966C7045248DF33 /* HabitNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitNotificationScheduler.swift; sourceTree = "<group>"; };
 		7C845E8AAB692CA41FEA891D /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		7D460BCD7224A24EA2DE29AC /* SharedTimerPauseSignal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedTimerPauseSignal.swift; sourceTree = "<group>"; };
@@ -282,11 +290,13 @@
 		AF87E0CD5D3AC5355C26AC28 /* PrayerAnchor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerAnchor.swift; sourceTree = "<group>"; };
 		B032223927D6733174F1A1DE /* ForgeIconv1.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = ForgeIconv1.icon; sourceTree = "<group>"; };
 		B1F709B02A6743B4BF03AB27 /* ForgeWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ForgeWidgets.entitlements; sourceTree = "<group>"; };
+		B49B14E3FE87DC84C214A030 /* PrayerWindowResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerWindowResolver.swift; sourceTree = "<group>"; };
 		B5155B403B8AF8D17DA1C249 /* EntitlementResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementResolver.swift; sourceTree = "<group>"; };
 		B8C9A59E5B07C7D1B2F352E1 /* Forge.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Forge.entitlements; sourceTree = "<group>"; };
 		C1E3E67806D936D09B66BEE6 /* TemplateSectionRepositoryEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSectionRepositoryEnvironment.swift; sourceTree = "<group>"; };
 		C76503079FC9851FCDFFEB4B /* TimerMiniPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerMiniPlayer.swift; sourceTree = "<group>"; };
 		CA832DE5528D2FA0DC893F14 /* TimeMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeMode.swift; sourceTree = "<group>"; };
+		CD2600B96B36937CE19716DD /* PrayerWindowResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerWindowResolverTests.swift; sourceTree = "<group>"; };
 		CDDA16EB6B7B2BF0F81079B1 /* MilestoneRepositoryEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneRepositoryEnvironment.swift; sourceTree = "<group>"; };
 		CE44E9DE33B83E77F19895EB /* InMemoryTemplateSectionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryTemplateSectionRepository.swift; sourceTree = "<group>"; };
 		CFFD8C526DAD6D9136DB583B /* PrayerCalculationMethod.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerCalculationMethod.swift; sourceTree = "<group>"; };
@@ -522,7 +532,9 @@
 			isa = PBXGroup;
 			children = (
 				8BE64662BC45C8E932901DB5 /* EntitlementResolverTests.swift */,
+				2AD9B0F8FC64023349AFF9FB /* PrayerDayStateTests.swift */,
 				3B986212557869B3998328F6 /* PrayerTimeServiceTests.swift */,
+				CD2600B96B36937CE19716DD /* PrayerWindowResolverTests.swift */,
 			);
 			path = ForgeTests;
 			sourceTree = "<group>";
@@ -660,9 +672,12 @@
 				80DC6CEF3E60EA44AD3C1A31 /* Coordinate.swift */,
 				A4A831053F941A36F00C4833 /* LocationService.swift */,
 				CFFD8C526DAD6D9136DB583B /* PrayerCalculationMethod.swift */,
+				7AC81E3C357A752B310A9E53 /* PrayerDayState.swift */,
 				47EDADA4510A9A28483EE0DD /* PrayerPreferences.swift */,
 				5DFD0708FF4499CF071359BA /* PrayerSchedule.swift */,
 				44A518074DB64E2804AE3A02 /* PrayerTimeService.swift */,
+				3D7678A1EA0DCBDA23CA00EB /* PrayerWindow.swift */,
+				B49B14E3FE87DC84C214A030 /* PrayerWindowResolver.swift */,
 			);
 			path = Prayer;
 			sourceTree = "<group>";
@@ -829,7 +844,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				C454B059EFEA8586066E9267 /* EntitlementResolverTests.swift in Sources */,
+				4A61C42DF8DA16C16CEF6FFE /* PrayerDayStateTests.swift in Sources */,
 				4EDC13BD010A135CDD0A21EC /* PrayerTimeServiceTests.swift in Sources */,
+				7F52ABAC4C00AF800231BC84 /* PrayerWindowResolverTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -914,10 +931,13 @@
 				48BB658E2E1B743B449F5B8E /* PointsLedgerModel.swift in Sources */,
 				35BC14121B4D3E13B9546640 /* PrayerAnchor.swift in Sources */,
 				65B752BAA121B23C3EEB1466 /* PrayerCalculationMethod.swift in Sources */,
+				D9CCF830E5CB1277EDCAA497 /* PrayerDayState.swift in Sources */,
 				A2458A15EE9660AAD4C51EF9 /* PrayerName.swift in Sources */,
 				FDA21371EEA55127CFDE92AF /* PrayerPreferences.swift in Sources */,
 				35AA615A728986C9705EFDDB /* PrayerSchedule.swift in Sources */,
 				BD01DFBACB5B6427EBD07F9A /* PrayerTimeService.swift in Sources */,
+				B1C6A32EBA0799703E36BF5E /* PrayerWindow.swift in Sources */,
+				D509D4FD744643ED28EC5623 /* PrayerWindowResolver.swift in Sources */,
 				DF19D3A6912F6BB383936B66 /* ProductIdentifiers.swift in Sources */,
 				F7EFB4283CD093333B5E95C9 /* ProfileView.swift in Sources */,
 				C6229551F627E5556623BF3A /* ProgressScreenView.swift in Sources */,

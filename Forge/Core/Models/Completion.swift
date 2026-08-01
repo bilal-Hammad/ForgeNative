@@ -32,6 +32,16 @@ struct Completion: Identifiable, Codable, Equatable {
     /// `accumulatedElapsed` while paused. Zero for a fresh/never-paused
     /// timer, so the running case degrades to the original `now - startedAt`.
     var accumulatedElapsed: TimeInterval
+    /// P1 Phase 3: a prayer-relative habit whose strict completion window
+    /// closed without being completed is auto-marked `missed` (by the prayer
+    /// catch-up sweep) and then fully locked — no retroactive completion. A
+    /// missed day is persisted at the moment the window closes (when the
+    /// location that determined the window is known), so a later location/
+    /// schedule change can't retroactively reopen a past miss. Always `false`
+    /// for non-prayer habits (a normal habit simply has no completion row on a
+    /// missed day). Distinct from `isComplete == false`, which for a prayer
+    /// habit can still mean "window open, not done yet".
+    var missed: Bool
     /// Real timestamp of the last update — distinct from `date` (which is
     /// day-granularity) — used for Progress's Recent Activity list.
     var loggedAt: Date
@@ -55,6 +65,7 @@ struct Completion: Identifiable, Codable, Equatable {
         isComplete: Bool = false,
         startedAt: Date? = nil,
         accumulatedElapsed: TimeInterval = 0,
+        missed: Bool = false,
         loggedAt: Date = .now,
         healthKitSampleUUIDs: [UUID] = []
     ) {
@@ -65,6 +76,7 @@ struct Completion: Identifiable, Codable, Equatable {
         self.isComplete = isComplete
         self.startedAt = startedAt
         self.accumulatedElapsed = accumulatedElapsed
+        self.missed = missed
         self.loggedAt = loggedAt
         self.healthKitSampleUUIDs = healthKitSampleUUIDs
     }
