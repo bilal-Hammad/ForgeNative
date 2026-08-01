@@ -125,9 +125,13 @@ struct HabitDetailView: View {
     private func heatmapColor(for day: Date) -> Color {
         guard day >= habitStartDay else { return Color(.systemGray6) }
         if habit.goal > 1 {
-            let count = completionsByDate[day]?.count ?? 0
+            let dayCompletion = completionsByDate[day]
+            let count = dayCompletion?.count ?? 0
             guard count > 0 else { return Color(.systemGray5) }
-            let ratio = min(1, count / habit.goal)
+            // Ratio against that day's goal-at-completion (P1 Phase 5), not
+            // today's goal — a progressive goal must not rescale past days.
+            let goal = dayCompletion?.effectiveGoal(currentGoal: habit.goal) ?? habit.goal
+            let ratio = min(1, count / goal)
             return habit.color.color.opacity(0.25 + ratio * 0.75)
         } else {
             return completedDates.contains(day) ? habit.color.color : Color(.systemGray5)

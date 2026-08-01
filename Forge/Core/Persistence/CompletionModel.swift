@@ -41,6 +41,10 @@ final class CompletionModel {
     /// lightweight-migration safety on an existing install, matching this
     /// project's established pattern for every field added after initial ship.
     var missed: Bool = false
+    /// See `Completion.goalAtCompletion`. Optional + no stored default needed
+    /// for lightweight migration (a new optional column back-fills as `nil` on
+    /// existing rows, which `effectiveGoal` treats as "use current goal").
+    var goalAtCompletion: Double?
     var loggedAt: Date
     /// See `Completion.healthKitSampleUUIDs`'s doc comment. Property-
     /// declaration default (`= []`) for lightweight-migration safety on an
@@ -59,6 +63,7 @@ final class CompletionModel {
         startedAt: Date?,
         accumulatedElapsed: TimeInterval = 0,
         missed: Bool = false,
+        goalAtCompletion: Double? = nil,
         loggedAt: Date,
         healthKitSampleUUIDs: [UUID] = []
     ) {
@@ -70,6 +75,7 @@ final class CompletionModel {
         self.startedAt = startedAt
         self.accumulatedElapsed = accumulatedElapsed
         self.missed = missed
+        self.goalAtCompletion = goalAtCompletion
         self.loggedAt = loggedAt
         self.healthKitSampleUUIDs = healthKitSampleUUIDs
     }
@@ -86,6 +92,7 @@ extension CompletionModel {
             startedAt: completion.startedAt,
             accumulatedElapsed: completion.accumulatedElapsed,
             missed: completion.missed,
+            goalAtCompletion: completion.goalAtCompletion,
             loggedAt: completion.loggedAt,
             healthKitSampleUUIDs: completion.healthKitSampleUUIDs
         )
@@ -97,6 +104,7 @@ extension CompletionModel {
         startedAt = completion.startedAt
         accumulatedElapsed = completion.accumulatedElapsed
         missed = completion.missed
+        goalAtCompletion = completion.goalAtCompletion
         loggedAt = completion.loggedAt
         healthKitSampleUUIDs = completion.healthKitSampleUUIDs
     }
@@ -111,6 +119,7 @@ extension CompletionModel {
             startedAt: startedAt,
             accumulatedElapsed: accumulatedElapsed,
             missed: missed,
+            goalAtCompletion: goalAtCompletion,
             loggedAt: loggedAt,
             healthKitSampleUUIDs: healthKitSampleUUIDs
         )

@@ -588,6 +588,10 @@ struct HomeView: View {
             healthKitDelta = completion.isComplete ? habit.goal : 0
         }
         completion.loggedAt = .now
+        // Snapshot the goal in effect right now (P1 Phase 5) so a later
+        // goal change (auto-increase or manual edit) can't retroactively
+        // rescale this day's count-vs-goal ratio.
+        completion.goalAtCompletion = habit.goal
 
         try? await habitRepository.upsertCompletion(completion)
         selectedDayCompletions[habit.id] = completion
@@ -758,6 +762,7 @@ struct HomeView: View {
         completion.count = elapsedInHabitUnit
         completion.isComplete = true
         completion.loggedAt = .now
+        completion.goalAtCompletion = habit.goal // P1 Phase 5 snapshot (duration goals can progress too)
         try? await habitRepository.upsertCompletion(completion)
         selectedDayCompletions[habitID] = completion
 
@@ -948,6 +953,7 @@ struct HomeView: View {
             completion.count = habit.goal
         }
         completion.loggedAt = .now
+        completion.goalAtCompletion = habit.goal // P1 Phase 5 snapshot (see handleTap)
 
         try? await habitRepository.upsertCompletion(completion)
         selectedDayCompletions[habit.id] = completion
@@ -1390,7 +1396,10 @@ private struct HabitCardRow: View {
     /// dimensions.
     private var quantityProgressIndicator: some View {
         let count = completion?.count ?? 0
-        let goal = max(habit.goal, 1)
+        // Use the goal that was in effect when this day was logged (P1 Phase
+        // 5), not today's — otherwise a past day viewed after a goal increase
+        // would render a shrunken ring against the wrong denominator.
+        let goal = max(completion?.effectiveGoal(currentGoal: habit.goal) ?? habit.goal, 1)
         let progress = min(count / goal, 1.0)
 
         return ZStack {

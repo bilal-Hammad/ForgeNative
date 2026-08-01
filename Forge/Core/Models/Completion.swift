@@ -42,6 +42,15 @@ struct Completion: Identifiable, Codable, Equatable {
     /// missed day). Distinct from `isComplete == false`, which for a prayer
     /// habit can still mean "window open, not done yet".
     var missed: Bool
+    /// P1 Phase 5: the habit's `goal` at the moment this completion was
+    /// logged. Progressive/auto-increasing goals mean `habit.goal` changes
+    /// over time; a past day's "count vs. goal" ratio must be measured against
+    /// the goal that was in effect *that* day, not today's, or history is
+    /// silently corrupted (a day that hit its goal-of-30 would look like a
+    /// partial miss once the goal grows to 40). `nil` for completions logged
+    /// before this field existed (and legacy rows) — callers fall back to the
+    /// habit's current `goal` in that case (`effectiveGoal(currentGoal:)`).
+    var goalAtCompletion: Double?
     /// Real timestamp of the last update — distinct from `date` (which is
     /// day-granularity) — used for Progress's Recent Activity list.
     var loggedAt: Date
@@ -66,6 +75,7 @@ struct Completion: Identifiable, Codable, Equatable {
         startedAt: Date? = nil,
         accumulatedElapsed: TimeInterval = 0,
         missed: Bool = false,
+        goalAtCompletion: Double? = nil,
         loggedAt: Date = .now,
         healthKitSampleUUIDs: [UUID] = []
     ) {
@@ -77,8 +87,16 @@ struct Completion: Identifiable, Codable, Equatable {
         self.startedAt = startedAt
         self.accumulatedElapsed = accumulatedElapsed
         self.missed = missed
+        self.goalAtCompletion = goalAtCompletion
         self.loggedAt = loggedAt
         self.healthKitSampleUUIDs = healthKitSampleUUIDs
+    }
+
+    /// The goal that was in effect for this completion's day: the snapshot if
+    /// present, otherwise the habit's current goal (legacy rows). Use this —
+    /// never the live `habit.goal` — for any *historical* count-vs-goal ratio.
+    func effectiveGoal(currentGoal: Double) -> Double {
+        goalAtCompletion ?? currentGoal
     }
 
     // MARK: - Timer state (accumulated-elapsed model)
