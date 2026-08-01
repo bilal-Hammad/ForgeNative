@@ -57,6 +57,12 @@ final class HabitModel {
     /// real Calendar/Reminders sync.
     var calendarEventIdentifier: String? = nil
     var reminderIdentifiers: [String]? = nil
+    /// See `Habit.goalProgression`/`.lastGoalIncreaseDate` (P1 Phase 5b) —
+    /// migration-safe property-declaration defaults, same pattern as the
+    /// fields above. `goalProgression` is JSON-encoded (optional `Data`, `nil`
+    /// = manual mode) to match how `repeatMode`/`timeMode` are stored.
+    var goalProgressionData: Data? = nil
+    var lastGoalIncreaseDate: Date? = nil
 
     /// Cascade delete: removing a habit removes all its completion history
     /// with it — no orphaned rows left behind pointing at a deleted habit.
@@ -84,7 +90,9 @@ final class HabitModel {
         isArchived: Bool,
         weeklyReflectionEnabled: Bool = true,
         calendarEventIdentifier: String? = nil,
-        reminderIdentifiers: [String]? = nil
+        reminderIdentifiers: [String]? = nil,
+        goalProgressionData: Data? = nil,
+        lastGoalIncreaseDate: Date? = nil
     ) {
         self.id = id
         self.title = title
@@ -107,6 +115,8 @@ final class HabitModel {
         self.weeklyReflectionEnabled = weeklyReflectionEnabled
         self.calendarEventIdentifier = calendarEventIdentifier
         self.reminderIdentifiers = reminderIdentifiers
+        self.goalProgressionData = goalProgressionData
+        self.lastGoalIncreaseDate = lastGoalIncreaseDate
     }
 }
 
@@ -133,7 +143,9 @@ extension HabitModel {
             isArchived: habit.isArchived,
             weeklyReflectionEnabled: habit.weeklyReflectionEnabled,
             calendarEventIdentifier: habit.calendarEventIdentifier,
-            reminderIdentifiers: habit.reminderIdentifiers
+            reminderIdentifiers: habit.reminderIdentifiers,
+            goalProgressionData: habit.goalProgression.flatMap { try? JSONEncoder().encode($0) },
+            lastGoalIncreaseDate: habit.lastGoalIncreaseDate
         )
     }
 
@@ -157,11 +169,14 @@ extension HabitModel {
         weeklyReflectionEnabled = habit.weeklyReflectionEnabled
         calendarEventIdentifier = habit.calendarEventIdentifier
         reminderIdentifiers = habit.reminderIdentifiers
+        goalProgressionData = habit.goalProgression.flatMap { try? JSONEncoder().encode($0) }
+        lastGoalIncreaseDate = habit.lastGoalIncreaseDate
     }
 
     func toHabit() -> Habit {
         let repeatMode = (try? JSONDecoder().decode(RepeatMode.self, from: repeatModeData)) ?? .daily
         let timeMode = (try? JSONDecoder().decode(TimeMode.self, from: timeModeData)) ?? .none
+        let goalProgression = goalProgressionData.flatMap { try? JSONDecoder().decode(GoalProgression.self, from: $0) }
         return Habit(
             id: id,
             title: title,
@@ -173,6 +188,8 @@ extension HabitModel {
             goal: goal,
             unit: HabitUnit(rawValue: unitRaw) ?? .count,
             step: step,
+            goalProgression: goalProgression,
+            lastGoalIncreaseDate: lastGoalIncreaseDate,
             repeatMode: repeatMode,
             timeMode: timeMode,
             startDate: startDate,

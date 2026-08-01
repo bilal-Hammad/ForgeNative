@@ -245,8 +245,20 @@ habit IDs stable and sensible so it can reference them later without rework.
       independence test). **Deferred to Phase 7 (same sequencing as Phase 3):** the foreground *arming*
       of the rolling window (needs location + prayer habits to exist) and reachability of the settings
       detail; the scheduler + settings UI + offsets are built and the pure core is tested now.
-- [ ] **Phase 5 — Progressive / auto-increasing goals (generalized).** `goalAtCompletion` snapshot;
-      audit + migrate every goal-comparison site; automatic + manual modes; bump notification.
+- [x] **Phase 5 — Progressive / auto-increasing goals (generalized).** Done 2026-08-01 (see RESULTS.md).
+      **5a (correctness):** `Completion.goalAtCompletion` snapshot (+ persistence, nil migration) stamped
+      at every log site (tap/long-press/timer-complete); `effectiveGoal(currentGoal:)`; audited the
+      goal-comparison sites and fixed the two corruptible historical-ratio ones (HomeView past-day ring,
+      HabitDetailView heatmap) to divide by the per-day snapshot — `isComplete`-based streak/rate math
+      was already point-in-time correct. **5b (auto-increase):** `GoalProgression` (increment +
+      intervalDays) + `Habit.goalProgression`/`lastGoalIncreaseDate` (+ persistence);
+      `GoalProgressionEngine` (bounded, self-healing catch-up run on foreground/reload, advances the
+      anchor by exact intervals so partial progress isn't lost, fires a "your goal is now X"
+      notification); `HabitFormView` "Goal Progression" section (toggle + increment + interval, quantity
+      habits only). Manual mode already works (edit goal anytime, history-safe via 5a). **Verified:**
+      build succeeds; **41 unit tests pass** (+8: snapshot used/fallback, a day completed at goal 30
+      stays 1.0 after goal→40, engine bumps per elapsed interval, no premature bump, no retroactive bump
+      on enable, ignores non-progression habits, bounded by max-bumps).
 - [ ] **Phase 6 — Dhikr counter habit type.** Tap-to-increment, per-tap haptic, 33/99/100 shortcuts,
       reusing the quantity pattern.
 - [ ] **Phase 7 — Islamic template content (English), organized into the 4 groups.** Delete

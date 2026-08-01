@@ -2473,3 +2473,42 @@ does — no dormant plumbing.
 ### Isha post-midnight indicator
 Captured by `PrayerDayState.openLate` (Phase 3) — the distinct "late" *visual* lands with the Phase 7
 Home row rendering. No second notification is added (that would violate "exactly one per prayer").
+
+## 2026-08-01 — Phase 5b: automatic goal progression (engine + form UI + wiring)
+
+Completes Phase 5 (5a — the goalAtCompletion snapshot + non-retroactive audit fix — shipped in the
+prior commit). This adds the *automatic* increase mode; manual mode already worked (edit the goal in
+`HabitFormView` anytime, kept history-safe by 5a's snapshot).
+
+### Built
+- `GoalProgression { incrementAmount, intervalDays }` + `Habit.goalProgression` /
+  `Habit.lastGoalIncreaseDate` (+ `HabitModel` persistence: `goalProgression` JSON-encoded like
+  repeat/time mode, `lastGoalIncreaseDate` a plain optional Date — both migration-safe declaration
+  defaults).
+- `GoalProgressionEngine` — bounded, self-healing catch-up (same shape as `MilestoneEngine.runCatchUp()`):
+  for each habit with progression, bumps `goal` by `increment x (elapsed intervals)`, advances the
+  anchor by *exactly* those whole intervals (not to `now`, so partial progress toward the next bump is
+  kept), caps bumps/run, and fires a best-effort "Nice consistency! Your goal is now X" notification.
+  A habit with progression but no anchor initializes the anchor to now — **never** a retroactive bump
+  for its past.
+- `HabitFormView` "Goal Progression" section (quantity habits only — not HealthKit-locked, not a
+  duration/timer goal): toggle + "increase by" amount + "every Week/2 Weeks/Month/3 Months". Enabling
+  starts the clock now; editing preserves the existing anchor.
+- **Wiring:** the engine runs at the top of `HomeView.reload()` (launch, add/edit/delete) and on
+  foreground (scenePhase `.active` → reload), so a bump that came due while the app was closed is
+  applied and surfaced. Location-free, so unlike the prayer catch-up it's wired live now.
+
+### Verified
+- Build succeeds; **41 unit tests pass** (+5 engine): bumps once per elapsed interval (65 days / 30 =
+  2 bumps, 20→40, anchor advanced 60 days not to now); no bump before the interval; enabling with no
+  anchor + a year-old startDate does **not** retroactively bump; ignores non-progression habits;
+  bounded by `maxBumpsPerRun` (1000 days at interval 1 capped to 10). Plus the 3 Phase-5a
+  ProgressiveGoalTests.
+
+### Judgment calls
+- Progression offered for editable-goal, non-time-based quantity habits only (a HealthKit-fixed goal or
+  a duration timer goal has no coherent tap-based increment to progress). Interval offered as
+  Week/2wk/Month/3mo presets rather than a free day field (cleaner; matches the spec's "monthly"
+  example). The bump notification is best-effort (only if notifications authorized) and delivered
+  immediately (nil trigger). The chart's goal `RuleMark` still shows the *current* goal as a reference
+  line (a deliberate "where you are now" marker, not per-day history).

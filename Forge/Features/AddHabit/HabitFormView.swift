@@ -90,6 +90,12 @@ struct HabitFormView: View {
     @State private var goal: Double
     @State private var unit: HabitUnit
     @State private var step: Double
+    // Goal progression (P1 Phase 5b). Inline defaults; only the edit init
+    // overrides from an existing habit.
+    @State private var autoIncreaseEnabled = false
+    @State private var progressionIncrement: Double = 10
+    @State private var progressionIntervalDays: Int = 30
+    @State private var existingLastGoalIncreaseDate: Date? = nil
     @State private var repeatModeKind: RepeatModeKind
     @State private var specificDays: Set<Int>
     @State private var timesPerWeek: Int
@@ -256,6 +262,12 @@ struct HabitFormView: View {
         _goal = State(initialValue: habit.goal)
         _unit = State(initialValue: habit.unit)
         _step = State(initialValue: habit.step)
+        if let progression = habit.goalProgression {
+            _autoIncreaseEnabled = State(initialValue: true)
+            _progressionIncrement = State(initialValue: progression.incrementAmount)
+            _progressionIntervalDays = State(initialValue: progression.intervalDays)
+        }
+        _existingLastGoalIncreaseDate = State(initialValue: habit.lastGoalIncreaseDate)
 
         switch habit.repeatMode {
         case .daily:
@@ -417,6 +429,39 @@ struct HabitFormView: View {
                     }
                 }
 
+                // Auto-increasing goal (P1 Phase 5b) — quantity habits only
+                // (a HealthKit-locked goal or a duration timer goal isn't
+                // progressed here).
+                if !isHealthKitTracked && !unit.isTimeBased {
+                    Section {
+                        Toggle("Auto-increase goal", isOn: $autoIncreaseEnabled)
+                        if autoIncreaseEnabled {
+                            HStack {
+                                Text("Increase by")
+                                Spacer()
+                                TextField("", value: $progressionIncrement, format: .number)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(width: 60)
+                                Stepper("", value: $progressionIncrement, in: 1...100000)
+                                    .labelsHidden()
+                            }
+                            Picker("Every", selection: $progressionIntervalDays) {
+                                Text("Week").tag(7)
+                                Text("2 Weeks").tag(14)
+                                Text("Month").tag(30)
+                                Text("3 Months").tag(90)
+                            }
+                        }
+                    } header: {
+                        Text("Goal Progression")
+                    } footer: {
+                        Text(autoIncreaseEnabled
+                             ? "Your goal grows by \(Self.formatIncrement(progressionIncrement)) automatically. Past days keep the goal they had, so your history stays accurate."
+                             : "Automatically raise this habit's goal over time to keep it challenging. You can always change the goal yourself instead.")
+                    }
+                }
+
                 if isHealthKitTracked {
                     Section {
                         HStack {
@@ -564,6 +609,15 @@ struct HabitFormView: View {
         case .timesADay: timeMode = .timesADay(timesADay)
         }
 
+        // Goal progression: only for editable-goal quantity habits. Preserve
+        // the existing anchor if progression was already on; start the clock
+        // *now* when newly enabled, so it never bumps retroactively for the
+        // habit's past.
+        let goalProgression: GoalProgression? = (autoIncreaseEnabled && !isHealthKitTracked && !unit.isTimeBased)
+            ? GoalProgression(incrementAmount: progressionIncrement, intervalDays: progressionIntervalDays)
+            : nil
+        let lastGoalIncreaseDate: Date? = goalProgression != nil ? (existingLastGoalIncreaseDate ?? .now) : nil
+
         return Habit(
             id: habitID,
             title: title,
@@ -575,6 +629,8 @@ struct HabitFormView: View {
             goal: goal,
             unit: unit,
             step: step,
+            goalProgression: goalProgression,
+            lastGoalIncreaseDate: lastGoalIncreaseDate,
             repeatMode: repeatMode,
             timeMode: timeMode,
             startDate: startDate,
@@ -587,6 +643,10 @@ struct HabitFormView: View {
             weeklyReflectionEnabled: weeklyReflectionEnabled,
             isArchived: isArchived
         )
+    }
+
+    private static func formatIncrement(_ value: Double) -> String {
+        value.rounded() == value ? String(Int(value)) : String(format: "%.1f", value)
     }
 
     private func save() async {

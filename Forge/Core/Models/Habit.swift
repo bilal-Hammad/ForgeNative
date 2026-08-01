@@ -36,6 +36,15 @@ struct Habit: Identifiable, Codable, Equatable {
     /// UI label: "Increment" — how much each tap adds toward `goal`.
     var step: Double
 
+    /// P1 Phase 5b: automatic goal progression (interval + increment). `nil`
+    /// = manual mode (user edits `goal` directly, anytime). Both modes are
+    /// history-safe via `Completion.goalAtCompletion`.
+    var goalProgression: GoalProgression?
+    /// When the goal was last auto-increased (or the habit's `startDate` for a
+    /// habit that just enabled progression). `GoalProgressionEngine` uses this
+    /// to decide when the next bump is due. `nil` until progression is set.
+    var lastGoalIncreaseDate: Date?
+
     var repeatMode: RepeatMode
     /// §12: "Time" (plain fixed-time picker) plus the Forge-specific
     /// "Every X Hours" / "X Times a Day" interval sub-modes.
@@ -94,6 +103,8 @@ struct Habit: Identifiable, Codable, Equatable {
         goal: Double = 1,
         unit: HabitUnit = .count,
         step: Double = 1,
+        goalProgression: GoalProgression? = nil,
+        lastGoalIncreaseDate: Date? = nil,
         repeatMode: RepeatMode = .daily,
         timeMode: TimeMode = .none,
         startDate: Date = .now,
@@ -116,6 +127,8 @@ struct Habit: Identifiable, Codable, Equatable {
         self.goal = goal
         self.unit = unit
         self.step = step
+        self.goalProgression = goalProgression
+        self.lastGoalIncreaseDate = lastGoalIncreaseDate
         self.repeatMode = repeatMode
         self.timeMode = timeMode
         self.startDate = startDate

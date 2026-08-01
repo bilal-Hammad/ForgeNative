@@ -334,6 +334,10 @@ struct HomeView: View {
                     // new day started while backgrounded, and the chosen time
                     // having passed since the app was last active.
                     await refreshMoodLoggedToday()
+                    // Apply + surface any goal increase that came due while
+                    // backgrounded (P1 Phase 5b) — reload runs the progression
+                    // engine and refreshes the list with the new goal.
+                    await reload()
                 }
             }
             .sheet(isPresented: $isPresentingAddHabit) {
@@ -465,6 +469,10 @@ struct HomeView: View {
     }
 
     private func reload() async {
+        // Apply any due automatic goal increases before loading, so the fetch
+        // below reflects a freshly-bumped goal (P1 Phase 5b). Idempotent +
+        // bounded; a no-op for habits without progression.
+        await GoalProgressionEngine(habitRepository: habitRepository).runCatchUp()
         let allHabits = (try? await habitRepository.fetchAll()) ?? []
         habits = allHabits.filter { !$0.isArchived }
         await reloadSelectedDayCompletions()
