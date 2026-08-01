@@ -2696,3 +2696,51 @@ refactor, deferred.
 - **Live purchase/restore** — the system purchase sheet + a sandbox Apple ID aren't drivable from this
   environment; verified on device in Phase 9. The `.storekit` config is attached to the Run scheme, so
   running from Xcode shows the real products/prices and allows sandbox purchases.
+
+## 2026-08-01 — Phase 9: full regression pass (unit + UI); StoreKit sandbox left for Bilal
+
+The closing verification pass. Per Bilal's instruction, ran everything automatable and stopped only at
+the StoreKit sandbox purchase/restore step.
+
+### Unit suite — 46/46 pass
+Covers the whole initiative's automatable logic: entitlement resolution + pack gating (9), prayer-time
+accuracy vs. Adhan's own reference case incl. the Shafi'i Asr 2:42 PM check (5), prayer window/state
+(11), auto-miss catch-up (4), notification fire-times + the notifications-off-still-auto-misses
+independence invariant (5), progressive-goal snapshot + non-retroactive ratio + engine (8), RemoteConfig
+fallback/decode (4).
+
+### UI regression suite — effectively all pass (17/19; the 2 non-passes are non-regressions)
+This was the **critical check** that the large HomeView changes across this initiative — the goal engine
+in `reload()`, the whole prayer wiring (`reloadPrayerData`, prayer-state rendering, tap-gating), and the
+new `@Environment(LocationService.self)` — didn't regress the existing gesture behavior. They didn't:
+- **Passed:** `WeeklyPagerSwipeTests` (swipe), `MoodCheckInTests` ×4, `ResetHabitTests` ×3 (quantity +
+  timer long-press dialog), `TimerHabitTests` ×2, `TimerOptionsSheetTests` 5/6, `DeleteHabitAnimation
+  Tests` ×2.
+- **`HealthKitRealDeviceTests.testRealDeviceHealthKitEndToEnd` — failed by design:** the test's own doc
+  comment says it "deliberately targets a real device, not Simulator." Not a regression, not in scope.
+- **`TimerOptionsSheetTests.testMiniPlayerAppearsWhenTimerRunning` — flaky launch, passed on rerun:** the
+  documented "seeded timer habit row never appeared" launch flakiness; re-ran it in isolation and it
+  passed (25.3s). The other 5 mini-player tests + both timer tests + both quantity tests all passed, so
+  the timer/mini-player/tap flow is intact.
+
+Confirmed the `-uiTesting` fixture is unaffected by the new code: it seeds no prayer habits (so
+`reloadPrayerData` early-returns and never prompts for location) and no progression habits (so the goal
+engine is a no-op), and `ForgeApp` always injects `LocationService` so `@Environment(LocationService.self)`
+never crashes the fixture.
+
+### STOP POINT — needs Bilal's hands (real device + sandbox Apple ID)
+1. **StoreKit sandbox purchase/restore**: the system purchase sheet + a sandbox Apple ID can't be driven
+   here. Run from Xcode with the attached `Configuration/Forge.storekit` (or a sandbox account) to verify:
+   buy monthly/yearly → premium unlocks all packs; buy the Islamic pack standalone → only that pack
+   unlocks (premium stays locked); Restore Purchases; and that `AddSectionView`'s locked sections unlock
+   after purchase.
+2. **On-device prayer end-to-end**: with a real location fix and real prayer times — watch a window open
+   then close, a row auto-lock as "missed", tap-gating outside the window, and the one-per-prayer
+   notification firing at adhan+iqama+duration. Needs a genuine CoreLocation fix + wall-clock vs. real
+   prayer times, neither deterministic in Simulator/XCUITest. The pure logic is unit-tested (15 prayer
+   tests); this is the on-hardware confirmation.
+
+### Separate cleanup flagged (not this initiative)
+The 3-second-timer / launch flakiness in `testMiniPlayerAppearsWhenTimerRunning` and
+`testTimerHabitRunningLongPressDialogAndReset` should get its own longer-goal-seed fix so it stops
+intermittently failing under Simulator load.

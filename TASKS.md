@@ -308,8 +308,22 @@ habit IDs stable and sensible so it can reference them later without rework.
       — one-line change, no auth/signing needed since the payload is public marketing copy with no
       secrets/charged prices); (b) **live purchase/restore sheet** can't be automated here → Phase 9 /
       device.
-- [ ] **Phase 9 — Testing.** StoreKit sandbox flows; prayer-time accuracy verification;
-      entitlement-gating regression tests; real-device verification per this project's standards.
+- [x] **Phase 9 — Testing (everything automatable; StoreKit sandbox left for Bilal).** Done
+      2026-08-01 (see RESULTS.md). **Unit: 46/46 pass** — entitlement resolution + pack gating,
+      prayer-time accuracy vs. Adhan's own reference (Shafi'i Asr 2:42 PM), window/state/catch-up,
+      notification fire-times + the notifications-off-still-locks independence invariant, progressive-goal
+      snapshot + engine, RemoteConfig fallback/decode. **UI regression (the critical check that the big
+      HomeView changes — goal engine in reload, prayer wiring, `reloadPrayerData`, LocationService env —
+      didn't break existing gestures): effectively all pass.** 17/19 green; the 2 non-passes are both
+      **non-regressions**: `HealthKitRealDeviceTests.testRealDeviceHealthKitEndToEnd` is explicitly
+      real-device-only (fails on Simulator by design), and `testMiniPlayerAppearsWhenTimerRunning` is the
+      documented flaky launch (**passed on rerun**; 5/6 mini-player + both timer + both quantity tests
+      passed). **STOP POINT for Bilal (as flagged):** StoreKit **sandbox purchase/restore** and the
+      **on-device prayer end-to-end** (real location → real prayer times → window open/close → auto-miss
+      lock on-screen → notification firing) can't be automated here — real device + sandbox Apple ID
+      required. **Pre-existing flaky-test cleanup** (separate, not this initiative): the 3s-timer/launch
+      flakiness in `testMiniPlayerAppearsWhenTimerRunning` + `testTimerHabitRunningLongPressDialogAndReset`
+      deserves its own longer-goal-seed fix.
 
 **Localization (Arabic/Turkish) is intentionally NOT part of this initiative** (Bilal, 2026-08-01):
 translation happens later as its own separate pass, once the *entire app* is finished — not part of the
