@@ -45,6 +45,16 @@ final class EntitlementResolverTests: XCTestCase {
         XCTAssertTrue(EntitlementResolver.isPackUnlocked("good-islamic", ownedProductIDs: owned))
     }
 
+    func testEveryIslamicPackSectionUnlocksWithThePack() {
+        // The 4-group Islamic pack: every `good-islamic-*` section id must be
+        // unlocked by owning the one Islamic Pack non-consumable.
+        let owned: Set<String> = [ProductIdentifiers.islamicPack]
+        for sectionID in ["good-islamic-prayers", "good-islamic-dhikr", "good-islamic-quran-character", "good-islamic-weekly"] {
+            XCTAssertTrue(EntitlementResolver.isPackUnlocked(sectionID, ownedProductIDs: owned), "\(sectionID) should unlock with the pack")
+            XCTAssertFalse(EntitlementResolver.isPackUnlocked(sectionID, ownedProductIDs: []), "\(sectionID) locked without pack or premium")
+        }
+    }
+
     func testUnknownPackIsLockedWithoutPremium() {
         let owned: Set<String> = [ProductIdentifiers.islamicPack]
         // A pack with no standalone product id (subscription-only) is locked

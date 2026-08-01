@@ -195,6 +195,37 @@ struct HabitFormView: View {
         _fixedTime = State(initialValue: .now)
         _everyXHours = State(initialValue: 3)
         _timesADay = State(initialValue: 3)
+        // Seed the schedule from the template (P1 Phase 7): prayer/weekly
+        // templates carry a real repeat/time mode. A prayer-relative time mode
+        // is stashed in `preservedPrayerAnchor` (the generic form has no
+        // prayer editor yet), so `buildHabit()` reconstructs `.prayerRelative`
+        // on save.
+        switch template.repeatMode {
+        case .daily: break
+        case .specificDays(let days):
+            _repeatModeKind = State(initialValue: .specificDays)
+            _specificDays = State(initialValue: days)
+        case .timesPerWeek(let n):
+            _repeatModeKind = State(initialValue: .timesPerWeek)
+            _timesPerWeek = State(initialValue: n)
+        case .everyXDays(let n):
+            _repeatModeKind = State(initialValue: .everyXDays)
+            _everyXDays = State(initialValue: n)
+        }
+        switch template.timeMode {
+        case .none: break
+        case .fixedTime(let date):
+            _timeModeKind = State(initialValue: .fixedTime)
+            _fixedTime = State(initialValue: date)
+        case .everyXHours(let n):
+            _timeModeKind = State(initialValue: .everyXHours)
+            _everyXHours = State(initialValue: n)
+        case .timesADay(let n):
+            _timeModeKind = State(initialValue: .timesADay)
+            _timesADay = State(initialValue: n)
+        case .prayerRelative(let anchor):
+            _preservedPrayerAnchor = State(initialValue: anchor)
+        }
         _startDate = State(initialValue: .now)
         _hasEndDate = State(initialValue: false)
         _endDate = State(initialValue: .now.addingTimeInterval(30 * 86400))

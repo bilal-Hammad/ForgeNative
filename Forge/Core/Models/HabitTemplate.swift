@@ -18,6 +18,13 @@ struct HabitTemplate: Identifiable, Codable, Equatable {
     var goal: Double
     var unit: HabitUnit
     var step: Double
+    /// P1 Phase 7: templates that seed a scheduled habit carry their schedule.
+    /// A prayer-relative template (Islamic pack) uses `.prayerRelative(anchor)`
+    /// so the created habit gets the prayer-window behavior; a weekly template
+    /// (Friday practices, Mon/Thu fasting) uses `repeatMode .specificDays`.
+    /// Default `.none`/`.daily` matches every existing plain template.
+    var timeMode: TimeMode
+    var repeatMode: RepeatMode
 
     init(
         id: String,
@@ -27,7 +34,9 @@ struct HabitTemplate: Identifiable, Codable, Equatable {
         isHealthKitTracked: Bool = false,
         goal: Double = 1,
         unit: HabitUnit = .count,
-        step: Double = 1
+        step: Double = 1,
+        timeMode: TimeMode = .none,
+        repeatMode: RepeatMode = .daily
     ) {
         self.id = id
         self.title = title
@@ -37,5 +46,7 @@ struct HabitTemplate: Identifiable, Codable, Equatable {
         self.goal = goal
         self.unit = unit
         self.step = step
+        self.timeMode = timeMode
+        self.repeatMode = repeatMode
     }
 }

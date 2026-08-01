@@ -152,24 +152,96 @@ enum TemplateCatalog {
                 HabitTemplate(id: "start-conversation", title: "Start a Conversation", category: .good, iconSystemName: "bubble.left.and.bubble.right.fill", goal: 1, unit: .count, step: 1),
             ]
         ),
-        // Relocated here (not a default section) per the decision to make it
-        // a premium suggested section rather than drop it or fold it into
-        // Mindfulness — content unchanged from the original app.
+        // MARK: Islamic pack (P1 Phase 7) — English-first, four thematic
+        // sub-groups rather than one flat list, all premium (unlocked by the
+        // Forge Premium subscription OR the standalone Islamic Pack
+        // non-consumable — see ProductIdentifiers.packProductID, which maps
+        // every `good-islamic-*` id to the pack). Replaced the old Arabic-only
+        // `good-islamic` section. The 5 Fard prayers lead Group 1 as the
+        // suggested starter subset.
+        //
+        // Group 1 — Prayers: prayer-window habits (`.prayerRelative`), so each
+        // gets the strict completion window + auto-miss lock from Phase 3. The
+        // offset is a display/notification hint; the completion window is the
+        // anchor prayer's window regardless (a "before"/"after" sunnah still
+        // completes within that prayer's window).
         TemplateSection(
-            id: "good-islamic",
+            id: "good-islamic-prayers",
             category: .good,
-            displayName: "Islamic",
+            displayName: "Prayers",
             tier: .premium,
             templates: [
-                HabitTemplate(id: "five-prayers", title: "الصلوات الخمس", category: .good, iconSystemName: "building.columns.fill", goal: 5, unit: .count, step: 1),
-                HabitTemplate(id: "read-quran", title: "قراءة القرآن", category: .good, iconSystemName: "book.closed.fill", goal: 20, unit: .minutes, step: 5),
-                HabitTemplate(id: "morning-adhkar", title: "الأذكار الصباحية", category: .good, iconSystemName: "sunrise.fill", goal: 10, unit: .minutes, step: 1),
-                HabitTemplate(id: "evening-adhkar", title: "الأذكار المسائية", category: .good, iconSystemName: "moon.stars.fill", goal: 10, unit: .minutes, step: 1),
-                HabitTemplate(id: "istighfar", title: "الاستغفار", category: .good, iconSystemName: "circle.grid.cross.fill", goal: 1, unit: .count, step: 1),
-                HabitTemplate(id: "night-prayer", title: "قيام الليل", category: .good, iconSystemName: "moon.fill", goal: 1, unit: .count, step: 1),
-                HabitTemplate(id: "mon-thu-fast", title: "صيام الإثنين والخميس", category: .good, iconSystemName: "moon.zzz.fill", goal: 1, unit: .count, step: 1),
-                HabitTemplate(id: "daily-sadaqah", title: "الصدقة اليومية", category: .good, iconSystemName: "gift.fill", goal: 1, unit: .count, step: 1),
-                HabitTemplate(id: "tasbih", title: "تلاوة الأذكار", category: .good, iconSystemName: "circle.grid.cross", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-fajr-fard", title: "Fajr Prayer", category: .good, iconSystemName: "sunrise.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .fajr, offsetMinutes: 0))),
+                HabitTemplate(id: "islamic-dhuhr-fard", title: "Dhuhr Prayer", category: .good, iconSystemName: "sun.max.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .dhuhr, offsetMinutes: 0))),
+                HabitTemplate(id: "islamic-asr-fard", title: "Asr Prayer", category: .good, iconSystemName: "sun.min.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .asr, offsetMinutes: 0))),
+                HabitTemplate(id: "islamic-maghrib-fard", title: "Maghrib Prayer", category: .good, iconSystemName: "sunset.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .maghrib, offsetMinutes: 0))),
+                HabitTemplate(id: "islamic-isha-fard", title: "Isha Prayer", category: .good, iconSystemName: "moon.stars.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .isha, offsetMinutes: 0))),
+                HabitTemplate(id: "islamic-sunnah-before-fajr", title: "Sunnah before Fajr (2 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .fajr, offsetMinutes: -15))),
+                HabitTemplate(id: "islamic-sunnah-before-dhuhr", title: "Sunnah before Dhuhr (4 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .dhuhr, offsetMinutes: -15))),
+                HabitTemplate(id: "islamic-sunnah-after-dhuhr", title: "Sunnah after Dhuhr (2 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .dhuhr, offsetMinutes: 25))),
+                HabitTemplate(id: "islamic-sunnah-after-maghrib", title: "Sunnah after Maghrib (2 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .maghrib, offsetMinutes: 15))),
+                HabitTemplate(id: "islamic-sunnah-after-isha", title: "Sunnah after Isha (2 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .isha, offsetMinutes: 15))),
+                HabitTemplate(id: "islamic-witr", title: "Witr Prayer", category: .good, iconSystemName: "moon.circle.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .isha, offsetMinutes: 30))),
+                HabitTemplate(id: "islamic-dhikr-after-fajr", title: "Adhkar after Fajr", category: .good, iconSystemName: "hands.sparkles.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .fajr, offsetMinutes: 5))),
+                HabitTemplate(id: "islamic-dhikr-after-dhuhr", title: "Adhkar after Dhuhr", category: .good, iconSystemName: "hands.sparkles.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .dhuhr, offsetMinutes: 10))),
+                HabitTemplate(id: "islamic-dhikr-after-asr", title: "Adhkar after Asr", category: .good, iconSystemName: "hands.sparkles.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .asr, offsetMinutes: 5))),
+                HabitTemplate(id: "islamic-dhikr-after-maghrib", title: "Adhkar after Maghrib", category: .good, iconSystemName: "hands.sparkles.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .maghrib, offsetMinutes: 10))),
+                HabitTemplate(id: "islamic-dhikr-after-isha", title: "Adhkar after Isha", category: .good, iconSystemName: "hands.sparkles.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .isha, offsetMinutes: 10))),
+            ]
+        ),
+        // Group 2 — Dhikr & Tasbih: counter habits (Phase 6) — `.count` with a
+        // classic tasbih goal, tap-to-increment with the selection-tick haptic.
+        TemplateSection(
+            id: "good-islamic-dhikr",
+            category: .good,
+            displayName: "Dhikr & Tasbih",
+            tier: .premium,
+            templates: [
+                HabitTemplate(id: "islamic-tasbih-subhanallah", title: "SubhanAllah", category: .good, iconSystemName: "circle.grid.cross.fill", goal: 33, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-tasbih-alhamdulillah", title: "Alhamdulillah", category: .good, iconSystemName: "circle.grid.cross.fill", goal: 33, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-tasbih-allahuakbar", title: "Allahu Akbar", category: .good, iconSystemName: "circle.grid.cross.fill", goal: 33, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-tasbih-istighfar", title: "Istighfar (Astaghfirullah)", category: .good, iconSystemName: "circle.grid.cross.fill", goal: 100, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-tasbih-salawat", title: "Salawat upon the Prophet ﷺ", category: .good, iconSystemName: "circle.grid.cross.fill", goal: 10, unit: .count, step: 1),
+            ]
+        ),
+        // Group 3 — Quran, Character & General Adhkar: plain daily check-off
+        // habits (Type C) — no special mechanic, reuses existing habit types.
+        TemplateSection(
+            id: "good-islamic-quran-character",
+            category: .good,
+            displayName: "Quran & Character",
+            tier: .premium,
+            templates: [
+                HabitTemplate(id: "islamic-read-quran", title: "Read Qur'an", category: .good, iconSystemName: "book.closed.fill", goal: 15, unit: .minutes, step: 5),
+                HabitTemplate(id: "islamic-morning-adhkar", title: "Morning Adhkar", category: .good, iconSystemName: "sunrise.fill", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-evening-adhkar", title: "Evening Adhkar", category: .good, iconSystemName: "sunset.fill", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-sleep-adhkar", title: "Adhkar before Sleep", category: .good, iconSystemName: "moon.zzz.fill", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-waking-adhkar", title: "Adhkar upon Waking", category: .good, iconSystemName: "sun.horizon.fill", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-ayat-al-kursi", title: "Recite Ayat al-Kursi", category: .good, iconSystemName: "sparkles", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-three-quls", title: "Recite the Three Quls", category: .good, iconSystemName: "book.closed.fill", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-honor-parents", title: "Honor Your Parents", category: .good, iconSystemName: "heart.circle.fill", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-family-ties", title: "Maintain Family Ties", category: .good, iconSystemName: "person.2.fill", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-sadaqah", title: "Give in Charity (Sadaqah)", category: .good, iconSystemName: "gift.fill", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-spread-salam", title: "Spread Salam", category: .good, iconSystemName: "hand.raised.fill", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-visit-sick", title: "Visit the Sick", category: .good, iconSystemName: "cross.case.fill", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-guard-tongue", title: "Guard Your Tongue", category: .good, iconSystemName: "bubble.left.fill", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-control-anger", title: "Control Your Anger", category: .good, iconSystemName: "flame.fill", goal: 1, unit: .count, step: 1),
+                HabitTemplate(id: "islamic-forgive", title: "Forgive Others", category: .good, iconSystemName: "heart.fill", goal: 1, unit: .count, step: 1),
+            ]
+        ),
+        // Group 4 — Weekly: existing "specific days" repeat mode (Type E) — no
+        // new engineering. Day convention 0=Sun…6=Sat (see RepeatMode).
+        TemplateSection(
+            id: "good-islamic-weekly",
+            category: .good,
+            displayName: "Weekly Practices",
+            tier: .premium,
+            templates: [
+                HabitTemplate(id: "islamic-surah-al-kahf", title: "Surah Al-Kahf (Friday)", category: .good, iconSystemName: "book.closed.fill", repeatMode: .specificDays([5])),
+                HabitTemplate(id: "islamic-friday-salawat", title: "Increased Salawat (Friday)", category: .good, iconSystemName: "hands.sparkles.fill", repeatMode: .specificDays([5])),
+                HabitTemplate(id: "islamic-jumuah-early", title: "Attend Jumu'ah Early", category: .good, iconSystemName: "person.3.fill", repeatMode: .specificDays([5])),
+                HabitTemplate(id: "islamic-jumuah-ghusl", title: "Ghusl for Jumu'ah", category: .good, iconSystemName: "drop.fill", repeatMode: .specificDays([5])),
+                HabitTemplate(id: "islamic-mon-thu-fast", title: "Fast Monday & Thursday", category: .good, iconSystemName: "moon.zzz.fill", repeatMode: .specificDays([1, 4])),
             ]
         ),
 

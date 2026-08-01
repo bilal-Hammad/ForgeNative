@@ -2551,3 +2551,65 @@ with these goals + a prayer-beads SF Symbol — no extra engineering, exactly as
 beads icon on the templates) over the shared quantity mechanics, not a new model type — the cleaner
 design the spec itself points at. If Bilal wants a genuinely separate type (e.g. a full-screen counter),
 that's a follow-up, flagged.
+
+## 2026-08-01 — Phase 7a: Islamic template pack content (English) — CONTENT READY FOR REVIEW
+
+**⚠️ CONTENT REVIEW REQUESTED (non-blocking):** This is religious content going into a paid product.
+The full generated English content is listed below in one place for Bilal to do a focused review
+whenever convenient — I did **not** stop and wait for it (per instruction), and have continued into the
+Phase 7 UI wiring. Verify wording, prayer offsets, tasbih counts, and the sunnah rak'ah numbers against
+your own references; anything here is a one-line edit in `TemplateCatalog.swift`.
+
+Deleted the old Arabic-only `good-islamic` section. New pack = **4 thematic sub-groups** (not one flat
+list), all premium-tier, all unlocked by Forge Premium **or** the standalone Islamic Pack
+non-consumable. The 5 Fard prayers lead Group 1 as the suggested starter subset.
+
+### Group 1 — Prayers (prayer-window habits: strict window + auto-miss lock from Phase 3)
+Each is `.prayerRelative(prayer, offsetMinutes)`. The offset is a display/notification hint; the
+completion window is always the anchor prayer's window.
+- **Fajr Prayer** — Fajr +0 · **Dhuhr Prayer** — Dhuhr +0 · **Asr Prayer** — Asr +0 ·
+  **Maghrib Prayer** — Maghrib +0 · **Isha Prayer** — Isha +0   (the 5 Fard)
+- **Sunnah before Fajr (2 rak'ah)** — Fajr −15 · **Sunnah before Dhuhr (4 rak'ah)** — Dhuhr −15 ·
+  **Sunnah after Dhuhr (2 rak'ah)** — Dhuhr +25 · **Sunnah after Maghrib (2 rak'ah)** — Maghrib +15 ·
+  **Sunnah after Isha (2 rak'ah)** — Isha +15   (no Asr sunnah — confirmed)
+- **Witr Prayer** — Isha +30
+- **Adhkar after Fajr / Dhuhr / Asr / Maghrib / Isha** — 5 separate, each anchored to its prayer
+  (+5/+10/+5/+10/+10), each sharing that prayer's window.
+
+### Group 2 — Dhikr & Tasbih (counter habits: tap-to-increment, selection-tick haptic)
+- **SubhanAllah** — 33 · **Alhamdulillah** — 33 · **Allahu Akbar** — 33 ·
+  **Istighfar (Astaghfirullah)** — 100 · **Salawat upon the Prophet ﷺ** — 10
+
+### Group 3 — Quran, Character & General Adhkar (plain daily check-off habits)
+- **Read Qur'an** — 15 min · **Morning Adhkar** · **Evening Adhkar** · **Adhkar before Sleep** ·
+  **Adhkar upon Waking** · **Recite Ayat al-Kursi** · **Recite the Three Quls** ·
+  **Honor Your Parents** · **Maintain Family Ties** · **Give in Charity (Sadaqah)** ·
+  **Spread Salam** · **Visit the Sick** · **Guard Your Tongue** · **Control Your Anger** ·
+  **Forgive Others**   (all goal 1/day except Read Qur'an)
+
+### Group 4 — Weekly Practices (existing "specific days" repeat mode)
+- **Surah Al-Kahf (Friday)** · **Increased Salawat (Friday)** · **Attend Jumu'ah Early** ·
+  **Ghusl for Jumu'ah**   (all Fridays)
+- **Fast Monday & Thursday** (Mon + Thu)
+
+### Judgment calls / assumptions for Bilal to confirm
+- **All of Group 1 is strict prayer-window** (auto-miss lock), including sunnah/witr/dhikr-after —
+  per the spec's "Group 1 = Type A". Applying the hard lock to *sunnah* (recommended, not obligatory)
+  is per-spec but worth a conscious confirm.
+- **Prayer offsets** (the −15/+15/+25/+30 minute hints) are my reasonable choices for before/after
+  ordering, not from a specific source — adjust freely.
+- **Tasbih counts**: SubhanAllah/Alhamdulillah/AllahuAkbar 33 each; Istighfar 100; Salawat 10 — the
+  spec gave 33/33/33 and left Istighfar/Salawat unspecified (I chose 100/10, common values).
+- **Sunnah rak'ah counts** in the titles (2 before Fajr, 4 before Dhuhr, 2 after Dhuhr/Maghrib/Isha)
+  follow Sahih Muslim 728 / Tirmidhi 414 / Nasa'i 1807 per TASKS.md.
+- **Deferred to v2** (not built, per spec): Hijri-calendar practices (White Days, Ashura, Arafah,
+  Shawwal 6, Ramadan, I'tikaf, Zakah) and the 18 event/situational adhkar.
+- Arabic/Turkish translation is out of scope for this initiative (later full-app pass).
+
+### Verified
+- Build succeeds; the pack gates correctly — 9 `EntitlementResolverTests` pass incl. a new test that
+  **every** `good-islamic-*` section unlocks with the Islamic Pack (and is locked without pack or
+  premium). `HabitTemplate` gained `timeMode`/`repeatMode`; `HabitFormView(template:)` seeds them (a
+  prayer template's anchor rides through the existing `preservedPrayerAnchor` path to a
+  `.prayerRelative` habit on save). Live end-to-end creation/rendering is exercised in the Phase 7b/7c
+  wiring next.

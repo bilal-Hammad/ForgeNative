@@ -19,7 +19,11 @@ struct AddSectionView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var availableSuggested: [TemplateSection] = []
     @State private var newSectionName = ""
-    @State private var isPremiumUnlocked = false
+    /// Section ids the user may add (premium unlocked, or the section's pack
+    /// owned) — resolved through `EntitlementService.isPackUnlocked`, which is
+    /// true for a generic-premium section when premium is active and for a
+    /// pack section when premium is active *or* that pack is owned.
+    @State private var unlockedSectionIDs: Set<String> = []
     @State private var showingPremiumPrompt = false
 
     var body: some View {
@@ -85,16 +89,23 @@ struct AddSectionView: View {
     }
 
     /// A section is locked only when it's premium-tier *and* the user hasn't
-    /// unlocked premium — resolved through `EntitlementService`, not the raw
-    /// `tier` flag alone (that's the §10 consolidation this phase makes).
+    /// unlocked it (premium subscription, or ownership of that section's pack).
     private func isLocked(_ section: TemplateSection) -> Bool {
-        section.tier == .premium && !isPremiumUnlocked
+        section.tier == .premium && !unlockedSectionIDs.contains(section.id)
     }
 
     private func reload() async {
-        isPremiumUnlocked = await entitlementService.isPremiumUnlocked()
         guard let config = try? await repository.fetchConfiguration(for: category) else { return }
-        availableSuggested = config.availableSuggestedSections(for: category)
+        let available = config.availableSuggestedSections(for: category)
+        availableSuggested = available
+        // Resolve unlock per premium section (pack ownership OR premium).
+        var unlocked: Set<String> = []
+        for section in available where section.tier == .premium {
+            if await entitlementService.isPackUnlocked(section.id) {
+                unlocked.insert(section.id)
+            }
+        }
+        unlockedSectionIDs = unlocked
     }
 
     private func handleTap(_ section: TemplateSection) async {

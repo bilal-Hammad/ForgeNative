@@ -36,9 +36,11 @@ enum ProductIdentifiers {
     /// string-munging convention so a typo can't silently produce a wrong,
     /// never-owned identifier.
     static func packProductID(for packID: String) -> String? {
-        switch packID {
-        case "islamic", "good-islamic": return islamicPack
-        default: return nil
+        // Every Islamic catalog section id is `good-islamic-*` (or the bare
+        // `islamic`), all unlocked by the one Islamic Pack non-consumable.
+        if packID == "islamic" || packID.hasPrefix("good-islamic") {
+            return islamicPack
         }
+        return nil
     }
 }
