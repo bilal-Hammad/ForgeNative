@@ -2613,3 +2613,48 @@ completion window is always the anchor prayer's window.
   prayer template's anchor rides through the existing `preservedPrayerAnchor` path to a
   `.prayerRelative` habit on save). Live end-to-end creation/rendering is exercised in the Phase 7b/7c
   wiring next.
+
+## 2026-08-01 — Phase 7b/7c: prayer UI wiring (the deferred Phase 3/4 pieces, now live)
+
+With the Islamic content in (7a), wired the previously-deferred prayer engines end-to-end into the app.
+
+### Built
+- **`LocationService` env injection** (`ForgeApp` → `.environment(locationService)`, read in HomeView via
+  `@Environment(LocationService.self)`). When-in-use permission is requested **only when a prayer habit
+  exists** (`reloadPrayerData` early-returns otherwise) — no location prompt for users without prayer
+  habits.
+- **HomeView prayer rendering**: `prayerWindows[Habit.ID]` computed for the selected day from the day's
+  schedule (`AdhanPrayerTimeService.fromPreferences()` + `PrayerWindowResolver`) at the user's
+  coordinate; `prayerState(for:)` → a distinct row glyph via `HabitCardRow.prayerState`
+  (clock=upcoming, grey circle=open, orange circle=late, filled check=completed, **lock=missed**). A new
+  branch in `statusIndicator` takes priority so a prayer habit no longer misrenders as the generic
+  timed-habit clock.
+- **Strict tap-gating**: `handleTap`, `handleLongPress` (force-complete) and `resetHabit` all guard on
+  `prayerInteractionAllowed(habit)` — a prayer is mutable only while its window is open; upcoming or
+  missed/locked → the interaction is a no-op (zero interactive options), which is the Phase 3 lock made
+  visible. Independent of notifications by construction (the guard reads the window, never a setting).
+- **Live catch-up + notifications**: `reloadPrayerData` runs `PrayerWindowCatchUp.run` (persists closed
+  uncompleted windows as missed) and `PrayerNotificationScheduler.reschedule` for each prayer habit, on
+  reload / foreground / `selectedDate` change / location-fix (`onChange(of: locationService.coordinate)`).
+  It refreshes completions afterward so a freshly auto-missed today-row locks immediately.
+
+### Verified
+- Build succeeds; **42 unit tests pass** (all prayer window/state/catch-up/notification logic + a new
+  pack-gating test; the HomeView `#Preview` got the `LocationService` env so it doesn't crash).
+
+### Needs Bilal's device (rolled into Phase 9)
+The **end-to-end prayer experience** — a real location fix producing real prayer times, watching a
+window open then close, a row auto-locking as missed, and the notification firing at adhan+iqama+duration
+— can't be automated here: it needs a genuine CoreLocation fix and a controllable wall-clock relative to
+*real* prayer times, neither of which the Simulator/XCUITest gives deterministically (same class of limit
+as the StoreKit purchase sheet). The pure logic behind all of it is unit-tested (15 prayer tests) and the
+UI wiring is build-verified; on-device confirmation is the remaining step. A tractable middle-ground for
+later: inject `PrayerTimeService` so a test can supply a fixed schedule + fake location — a real
+refactor, deferred.
+
+### Judgment calls
+- `reloadPrayerData` re-runs the catch-up + notification reschedule fairly often (every reload/foreground/
+  day-change/location-fix). Both are bounded (7-day lookback; ~3 notifications × N prayer habits) and
+  gated to "prayer habits exist", so the cost is acceptable; not micro-optimized.
+- Prayer habits render via the existing `HabitCardRow` (goal-1 count habit + the prayer glyph), not a
+  bespoke prayer row — reuses the list pattern, matching how dhikr reuses the quantity pattern.

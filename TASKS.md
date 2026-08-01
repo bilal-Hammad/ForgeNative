@@ -275,8 +275,23 @@ habit IDs stable and sensible so it can reference them later without rework.
       documents), and this run was severely Simulator-slowed (142s). It's unrelated to Phase 6 (the
       quantity tests on the identical dialog pass); a candidate for a separate flaky-test fix (seed a
       longer-goal timer habit for it, like the Stop-button test already does).
-- [ ] **Phase 7 — Islamic template content (English), organized into the 4 groups.** Delete
-      `good-islamic` first; new sub-grouped pack; 5 Fard prayers as suggested starter.
+- [x] **Phase 7 — Islamic template content (English) + prayer UI wiring.** Done 2026-08-01 (see
+      RESULTS.md; **full content listed there for Bilal's review — flagged, non-blocking**). **Content
+      (7a):** deleted the Arabic-only `good-islamic`; built the 4-group pack (Prayers / Dhikr & Tasbih /
+      Quran & Character / Weekly), all premium, unlocked by Forge Premium OR the Islamic Pack;
+      `HabitTemplate` gained `timeMode`/`repeatMode`, `HabitFormView(template:)` seeds them, gating via
+      `isPackUnlocked`. **Prayer UI wiring (7b/7c) — the deferred Phase 3/4 pieces, now live:** injected
+      `LocationService` (env), request when-in-use location only when a prayer habit exists; HomeView
+      computes each prayer habit's `PrayerWindow`/`PrayerDayState` for the day and renders a distinct
+      row glyph (upcoming/open/late/completed/missed-lock); tap, long-press force-complete, and reset are
+      all **gated to the open window** (`prayerInteractionAllowed`) — a missed/upcoming prayer has zero
+      interactive options; and `reloadPrayerData` runs `PrayerWindowCatchUp` (auto-miss) +
+      `PrayerNotificationScheduler.reschedule` on reload/foreground/day-change/location-fix. **Verified:**
+      build succeeds; **42 unit tests pass** (prayer window/state/catch-up/notification logic all covered
+      + a new pack-gating test). **Needs Bilal's device (Phase 9):** end-to-end prayer flow with real
+      location + real prayer times (window open/close, auto-miss lock on-screen, notification firing) —
+      not automatable here (needs a real fix + controllable wall-clock vs. real prayer times); the pure
+      logic is unit-tested and the wiring is build-verified.
 - [ ] **Phase 8 — Remote config + paywall UI.** Static JSON fetch/cache/fallback (hosting+security
       decision made here); paywall with anchor pricing + "or free with Premium" + featured pack.
 - [ ] **Phase 9 — Testing.** StoreKit sandbox flows; prayer-time accuracy verification;

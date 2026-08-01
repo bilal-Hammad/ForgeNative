@@ -17,6 +17,10 @@ struct ForgeApp: App {
     /// Held as a `let` so it outlives `init()` — `UNUserNotificationCenter`
     /// only keeps a weak reference to its `delegate`.
     private let appNotificationDelegate = AppNotificationDelegate()
+    /// Shared location source for prayer-time habits (P1 Phase 7). Injected as
+    /// an `@Observable` environment object; only prompts for permission when a
+    /// prayer habit actually exists (see `HomeView`).
+    private let locationService = LocationService()
 
     init() {
         let schema = Schema([
@@ -172,6 +176,7 @@ struct ForgeApp: App {
                 .environment(\.moodRepository, moodRepository)
                 .environment(\.entitlementService, entitlementService)
                 .environment(\.authService, authService)
+                .environment(locationService)
         }
     }
 }

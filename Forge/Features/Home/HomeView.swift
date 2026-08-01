@@ -91,6 +91,8 @@ struct HomeView: View {
     @Environment(\.moodRepository) private var moodRepository
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Prayer-time habits (P1 Phase 7): location for the day's prayer schedule.
+    @Environment(LocationService.self) private var locationService
 
     /// The single "Mood Check-In" Settings toggle (default off — mood
     /// tracking is opt-in, §13). When on, its chosen time is both when the
@@ -121,6 +123,11 @@ struct HomeView: View {
     /// everything else this gets compared against.
     @State private var selectedDate = Calendar.current.startOfDay(for: .now)
     @State private var selectedDayCompletions: [Habit.ID: Completion] = [:]
+    /// Per-prayer-habit completion window for `selectedDate` (P1 Phase 7),
+    /// computed from the day's prayer schedule at the user's location. Drives
+    /// each prayer row's state and gates its tap so a prayer can't be
+    /// completed outside its window.
+    @State private var prayerWindows: [Habit.ID: PrayerWindow] = [:]
     @State private var healthKitConnectionStatus: [Habit.ID: Bool] = [:]
     /// Deletion is permanent and irreversible (unlike Archive) — the swipe
     /// action arms this rather than calling `delete(_:)` directly, so an
@@ -314,7 +321,15 @@ struct HomeView: View {
             .toolbar(.hidden, for: .navigationBar)
             .task { await reload() }
             .onChange(of: selectedDate) { _, _ in
-                Task { await reloadSelectedDayCompletions() }
+                Task {
+                    await reloadSelectedDayCompletions()
+                    await reloadPrayerData()
+                }
+            }
+            .onChange(of: locationService.coordinate) { _, _ in
+                // A first/updated location fix arrived — recompute prayer
+                // windows (they degrade to "no window" until we have one).
+                Task { await reloadPrayerData() }
             }
             .onChange(of: scenePhase) { _, newPhase in
                 // Catch-up sweep: a running timer's one-shot completion
@@ -403,7 +418,8 @@ struct HomeView: View {
             completion: selectedDayCompletions[habit.id],
             isHealthKitConnected: healthKitConnectionStatus[habit.id] ?? false,
             referenceDate: selectedDate,
-            interactionToken: lastInteraction
+            interactionToken: lastInteraction,
+            prayerState: prayerState(for: habit)
         )
         .contentShape(Rectangle())
 
@@ -463,9 +479,71 @@ struct HomeView: View {
             completion: selectedDayCompletions[habit.id],
             isHealthKitConnected: healthKitConnectionStatus[habit.id] ?? false,
             referenceDate: selectedDate,
-            interactionToken: nil
+            interactionToken: nil,
+            prayerState: prayerState(for: habit)
         )
         .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Prayer habits (P1 Phase 7)
+
+    private var hasPrayerHabits: Bool { habits.contains { $0.isPrayerRelative } }
+
+    /// The prayer window state for a prayer habit on the selected day (drives
+    /// its row glyph). `nil` for non-prayer habits.
+    private func prayerState(for habit: Habit) -> PrayerDayState? {
+        guard habit.isPrayerRelative else { return nil }
+        return PrayerDayState.resolve(
+            window: prayerWindows[habit.id],
+            completion: selectedDayCompletions[habit.id]
+        )
+    }
+
+    /// Whether a prayer habit is completable right now — its window is open on
+    /// the selected day. Non-prayer habits and (gracefully) prayer habits with
+    /// no computed window return `true` so normal interaction isn't blocked.
+    private func prayerInteractionAllowed(_ habit: Habit) -> Bool {
+        guard habit.isPrayerRelative else { return true }
+        guard let window = prayerWindows[habit.id] else { return true }
+        return window.isOpen()
+    }
+
+    /// Recompute prayer windows for the selected day, ensure location, and run
+    /// the auto-miss catch-up + notification arming. No-op when there are no
+    /// prayer habits, so the location prompt never fires for other users.
+    private func reloadPrayerData() async {
+        guard hasPrayerHabits else {
+            if !prayerWindows.isEmpty { prayerWindows = [:] }
+            return
+        }
+        if locationService.authorizationStatus == .notDetermined {
+            locationService.requestAuthorization()
+        }
+        guard let coordinate = locationService.coordinate else {
+            prayerWindows = [:]
+            return
+        }
+        let service = AdhanPrayerTimeService.fromPreferences()
+        let resolver = PrayerWindowResolver(service: service)
+        var windows: [Habit.ID: PrayerWindow] = [:]
+        for habit in habits {
+            guard let anchor = habit.prayerAnchor else { continue }
+            windows[habit.id] = resolver.window(for: anchor, on: selectedDate, at: coordinate)
+        }
+        prayerWindows = windows
+
+        // Auto-miss catch-up (persists closed windows as missed) + notification
+        // arming — only reachable with a real location + existing prayer habits.
+        await PrayerWindowCatchUp(habitRepository: habitRepository, resolver: resolver).run(coordinate: coordinate)
+        let globalNotifications = UserDefaults.standard.bool(forKey: "notificationsEnabledGlobal")
+        for habit in habits where habit.isPrayerRelative {
+            await PrayerNotificationScheduler.reschedule(
+                for: habit, coordinate: coordinate, service: service,
+                globalNotificationsEnabled: globalNotifications
+            )
+        }
+        // The catch-up may have written a fresh missed row for today.
+        await reloadSelectedDayCompletions()
     }
 
     private func reload() async {
@@ -482,6 +560,9 @@ struct HomeView: View {
         }
         await refreshMoodLoggedToday()
         dispatchDailyReminderCatchUp()
+        // Prayer windows + auto-miss catch-up + notification arming (P1 Phase
+        // 7). No-op unless prayer habits exist; requests location only then.
+        await reloadPrayerData()
     }
 
     /// Refetches whether *today's* mood is logged. Cheap single-key lookup —
@@ -558,6 +639,11 @@ struct HomeView: View {
     /// Only ever called while viewing today (guarded at the gesture in
     /// `body`) — `selectedDate == .now` whenever this runs.
     private func handleTap(_ habit: Habit) async {
+        // Prayer habits (P1 Phase 7): only completable within their window —
+        // upcoming (not yet) or missed (window closed, locked) → a tap does
+        // nothing. Fully independent of notification settings; this is the
+        // strict lock from Phase 3.
+        guard prayerInteractionAllowed(habit) else { return }
         // Time-unit habits (minutes/hours goal) replace tap-to-increment
         // entirely with the native timer — checked first, ahead of both
         // `timeMode` and the quantity branch below, since a duration goal
@@ -953,6 +1039,9 @@ struct HomeView: View {
     /// context menu's "Complete" item for a partial-progress habit.
     /// Unchanged from this feature's original single behavior.
     private func handleLongPress(_ habit: Habit) async {
+        // Prayer habits: force-complete is also gated to the open window
+        // (P1 Phase 7) — a closed/upcoming prayer can't be force-completed.
+        guard prayerInteractionAllowed(habit) else { return }
         var completion = selectedDayCompletions[habit.id] ?? Completion(habitID: habit.id, date: .now)
         let previousCount = completion.count
         let wasAlreadyComplete = completion.isComplete
@@ -1036,6 +1125,10 @@ struct HomeView: View {
     ///   habit back to complete. That's not a bug: Forge deleting real,
     ///   non-Forge-written Health data would be actively wrong.
     private func resetHabit(_ habit: Habit) async {
+        // Prayer habits: can't reset outside the open window (P1 Phase 7) —
+        // once the window closes, a completed prayer is locked like a missed
+        // one; you can only correct a mis-tap while the window is still open.
+        guard prayerInteractionAllowed(habit) else { return }
         guard var completion = selectedDayCompletions[habit.id] else { return }
         let uuidsToDelete = completion.healthKitSampleUUIDs
 
@@ -1234,6 +1327,11 @@ private struct HabitCardRow: View {
     /// this habit — see the type's doc comment. `nil`/unrelated most of the
     /// time; a day switch never touches this.
     let interactionToken: InteractionToken?
+    /// For a prayer-relative habit (P1 Phase 7): its window state on this day,
+    /// which replaces the normal quantity/checkmark indicator with an
+    /// upcoming/open/late/completed/missed-locked glyph. `nil` for every
+    /// non-prayer habit.
+    var prayerState: PrayerDayState? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
@@ -1327,7 +1425,9 @@ private struct HabitCardRow: View {
 
     @ViewBuilder
     private var statusIndicator: some View {
-        if habit.unit.isTimeBased {
+        if let prayerState {
+            prayerIndicator(prayerState)
+        } else if habit.unit.isTimeBased {
             timerStatusIndicator
         } else if habit.timeMode != .none {
             if let startedAt = completion?.startedAt, Calendar.current.isDate(startedAt, inSameDayAs: referenceDate) {
@@ -1384,6 +1484,37 @@ private struct HabitCardRow: View {
             .foregroundStyle(isComplete ? habit.color.color : Color(.systemGray3))
             .contentTransition(reduceMotion ? .opacity : .symbolEffect(.replace))
             .scaleEffect(iconBounceScale)
+    }
+
+    /// Prayer habit's per-day state glyph (P1 Phase 7): upcoming (clock),
+    /// open (tappable circle), late (orange circle — Isha past midnight,
+    /// still completable), completed (filled check), or missed (lock — the
+    /// window closed, fully locked, no interaction).
+    @ViewBuilder
+    private func prayerIndicator(_ state: PrayerDayState) -> some View {
+        switch state {
+        case .upcoming:
+            Image(systemName: "clock")
+                .font(.title2).foregroundStyle(Color(.systemGray3))
+                .accessibilityIdentifier("prayerStatus.upcoming")
+        case .open:
+            Image(systemName: "circle")
+                .font(.title2).foregroundStyle(Color(.systemGray3))
+                .accessibilityIdentifier("prayerStatus.open")
+        case .openLate:
+            Image(systemName: "circle")
+                .font(.title2).foregroundStyle(.orange)
+                .accessibilityIdentifier("prayerStatus.late")
+        case .completed:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.title2).foregroundStyle(habit.color.color)
+                .scaleEffect(iconBounceScale)
+                .accessibilityIdentifier("prayerStatus.completed")
+        case .missed:
+            Image(systemName: "lock.fill")
+                .font(.title2).foregroundStyle(Color(.systemGray3))
+                .accessibilityIdentifier("prayerStatus.missed")
+        }
     }
 
     /// A ring since none existed before this feature — quantity habits
@@ -1449,4 +1580,5 @@ private struct HabitCardRow: View {
 #Preview {
     HomeView()
         .environment(\.habitRepository, InMemoryHabitRepository())
+        .environment(LocationService())
 }
