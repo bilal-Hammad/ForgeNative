@@ -191,6 +191,12 @@ enum HabitNotificationScheduler {
         switch timeMode {
         case .none:
             return []
+        case .prayerRelative:
+            // Prayer-relative habits are notified by the dedicated mandatory
+            // prayer scheduler (Phase 4) — one notification per prayer at a
+            // location-derived time — not by this generic fixed-clock
+            // scheduler. Return no fire times here so the two don't overlap.
+            return []
         case .fixedTime(let date):
             let components = Calendar.current.dateComponents([.hour, .minute], from: date)
             return [FireTime(hour: components.hour ?? 9, minute: components.minute ?? 0)]

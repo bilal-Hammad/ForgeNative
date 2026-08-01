@@ -192,9 +192,24 @@ habit IDs stable and sensible so it can reference them later without rework.
       on-device. **Open for Bilal:** final prices in `Forge.storekit` are placeholders (monthly 2.99 /
       yearly 19.99 / Islamic pack 4.99) — set the real ones in App Store Connect; app renders
       `displayPrice` live so no code change needed.
-- [ ] **Phase 2 — Prayer-time architecture.** Adhan Swift (SPM), CoreLocation (foreground/one-time,
-      Shafi'i), the prayer-relative time-source concept on `Habit`, daily recomputation, Calendar-sync
-      disabled for prayer-relative.
+- [x] **Phase 2 — Prayer-time architecture.** Done 2026-08-01 (see RESULTS.md). Added Adhan Swift
+      (SPM, batoulapps/adhan-swift 1.5.0, API verified against source before use); `PrayerTimeService`
+      (protocol + `AdhanPrayerTimeService`, **Shafi'i** madhab, MWL method default) computing the
+      schedule + resolving a prayer-relative habit's daily time; `LocationService` (CoreLocation,
+      when-in-use/one-shot, city-level accuracy, persisted last-known coordinate); Adhan-free value
+      types `PrayerName`/`PrayerAnchor`/`Coordinate`/`PrayerSchedule`; new `TimeMode.prayerRelative
+      (PrayerAnchor)` case (JSON-persisted, no migration); Calendar sync disabled for prayer-relative
+      (Reminders-only, like `.everyXHours`), generic notification scheduler skips it (Phase 4 owns
+      prayer notifications), and `HabitFormView` preserves a prayer anchor through save rather than
+      dropping it. **Verified:** Simulator build succeeds; 5/5 `PrayerTimeServiceTests` pass —
+      accuracy asserted against Adhan's own documented reference case (2015-12-01, Raleigh, MWL,
+      **Shafi'i** → Asr 2:42 PM, confirming the madhab is actually applied and no prayer is
+      mis-mapped), plus chronology, `time(for:)` mapping, and signed-offset anchor resolution;
+      entitlement tests still green (13 total). **Deferred (correctly):** environment injection of the
+      two services waits for Phase 3's first real consumer (avoids unused `@MainActor` env-default
+      plumbing now); the prayer-habit *creation UI* is Phase 7. **Open for Bilal:** calculation
+      **method** defaults to Muslim World League (affects Fajr/Isha angles) — a reasonable global
+      default, but a candidate for a user/region setting later; flag if a specific method is wanted.
 - [ ] **Phase 3 — Time-windowed completion + auto-miss catch-up.** Per-prayer windows above; auto-miss
       + immediate consequence + fully-locked UI; self-healing catch-up; Qiyam cross-midnight window.
 - [ ] **Phase 4 — Notification system for prayer habits.** Mandatory, one per prayer, at

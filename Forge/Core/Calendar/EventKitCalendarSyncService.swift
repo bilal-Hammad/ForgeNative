@@ -203,11 +203,12 @@ actor EventKitCalendarSyncService: CalendarSyncService {
                 // default, this is the one constant to change.
                 event.endDate = start.addingTimeInterval(Self.defaultTimedEventDuration)
             }
-        case .everyXHours, .timesADay:
+        case .everyXHours, .timesADay, .prayerRelative:
             // Unreachable in practice — `sync(habit:)` only calls this
             // after confirming `habit.isCalendarSyncSupported`, which is
-            // false for both these `TimeMode` cases. No fallback branch
-            // needed beyond satisfying exhaustiveness.
+            // false for all of these `TimeMode` cases (prayer-relative
+            // included: its time shifts daily). No fallback branch needed
+            // beyond satisfying exhaustiveness.
             break
         }
         event.recurrenceRules = [Self.recurrenceRule(for: habit)].compactMap { $0 }
@@ -371,6 +372,13 @@ actor EventKitCalendarSyncService: CalendarSyncService {
         switch habit.timeMode {
         case .none:
             return [dayComponents]
+        case .prayerRelative:
+            // Prayer-relative habits don't get generic Reminders occurrences
+            // here — their time depends on location + the day's prayer
+            // schedule (unavailable to this EventKit service), and their
+            // notifications are owned by the dedicated mandatory prayer
+            // scheduler (Phase 4), not this generic reminder path.
+            return []
         case .fixedTime(let time):
             let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
             return [components(hour: timeComponents.hour ?? 9, minute: timeComponents.minute ?? 0)]

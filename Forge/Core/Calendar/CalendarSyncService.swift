@@ -108,6 +108,8 @@ extension Habit {
         switch timeMode {
         case .everyXHours, .timesADay:
             return "Calendar doesn't support multiple times per day — use Reminders instead."
+        case .prayerRelative:
+            return "Calendar can't track prayer times that shift daily — use Reminders instead."
         case .none, .fixedTime:
             break
         }

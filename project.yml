@@ -23,6 +23,15 @@ settings:
     CODE_SIGN_STYLE: Automatic
     DEVELOPMENT_TEAM: 53T98NLS49
 
+# Third-party Swift packages. Adhan (batoulapps/adhan-swift, MIT) computes
+# prayer + Sunnah times from real astronomical data — the foundation of the
+# P1 prayer-relative habit feature. API verified against the 1.5.0 source
+# before use.
+packages:
+  Adhan:
+    url: https://github.com/batoulapps/adhan-swift.git
+    from: "1.5.0"
+
 targets:
   Forge:
     type: application
@@ -51,9 +60,13 @@ targets:
         # Required for `Activity.request` to succeed at all — the timer
         # feature's Live Activity/Dynamic Island presentation.
         INFOPLIST_KEY_NSSupportsLiveActivities: YES
+        # When-in-use location for prayer-time calculation (P1 Phase 2).
+        # Foreground/one-shot only — no background/"always" location.
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Forge uses your location to calculate accurate prayer times for prayer-based habits. Your location is used on-device only and never leaves your phone."
     dependencies:
       - target: ForgeWidgets
         embed: true
+      - package: Adhan
 
   # Widget extension whose sole purpose is the timer feature's Live
   # Activity (`HabitTimerLiveActivity`) — Dynamic Island + Lock Screen

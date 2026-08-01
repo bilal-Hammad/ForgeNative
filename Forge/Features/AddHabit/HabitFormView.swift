@@ -95,6 +95,9 @@ struct HabitFormView: View {
     @State private var timesPerWeek: Int
     @State private var everyXDays: Int
     @State private var timeModeKind: TimeModeKind
+    /// Set only when editing a prayer-relative habit (which this generic form
+    /// can't yet edit) — preserved through save so the anchor isn't lost.
+    @State private var preservedPrayerAnchor: PrayerAnchor? = nil
     @State private var fixedTime: Date
     @State private var everyXHours: Int
     @State private var timesADay: Int
@@ -298,6 +301,16 @@ struct HabitFormView: View {
             _fixedTime = State(initialValue: .now)
             _everyXHours = State(initialValue: 3)
             _timesADay = State(initialValue: count)
+        case .prayerRelative(let anchor):
+            // The generic form has no prayer-anchor editor yet (that's the
+            // Phase 7 prayer flow). Show the picker at ".none" but stash the
+            // anchor so `buildHabit()` preserves it on save rather than
+            // silently dropping it.
+            _timeModeKind = State(initialValue: .none)
+            _fixedTime = State(initialValue: .now)
+            _everyXHours = State(initialValue: 3)
+            _timesADay = State(initialValue: 3)
+            _preservedPrayerAnchor = State(initialValue: anchor)
         }
 
         _startDate = State(initialValue: habit.startDate)
@@ -540,7 +553,12 @@ struct HabitFormView: View {
 
         let timeMode: TimeMode
         switch timeModeKind {
-        case .none: timeMode = .none
+        case .none:
+            // Preserve a prayer-relative anchor if this habit was one and the
+            // user didn't switch to a different explicit time mode — the
+            // generic form has no prayer-anchor editor (Phase 7), so it must
+            // not silently drop the anchor.
+            timeMode = preservedPrayerAnchor.map { .prayerRelative($0) } ?? .none
         case .fixedTime: timeMode = .fixedTime(fixedTime)
         case .everyXHours: timeMode = .everyXHours(everyXHours)
         case .timesADay: timeMode = .timesADay(timesADay)

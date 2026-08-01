@@ -2282,3 +2282,72 @@ hand-guessing the format.
 
 Next: Phase 2 — prayer-time architecture (Adhan Swift, CoreLocation, prayer-relative time-source),
 verifying the Adhan package API before use.
+
+## 2026-08-01 — Phase 2: Prayer-time architecture (Adhan Swift + CoreLocation + prayer-relative time-source)
+
+Verified the Adhan Swift API against the actual 1.5.0 source (cloned + read `PrayerTimes.swift`,
+`CalculationMethod.swift`, `Madhab.swift`, `SunnahTimes.swift`, `Package.swift`) before writing — the
+standing "verify APIs, don't assume" rule. Confirmed: `PrayerTimes(coordinates:date:calculation
+Parameters:)` is a **failable** init taking `DateComponents`; `.fajr/.sunrise/.dhuhr/.asr/.maghrib/
+.isha` are `Date`; `Madhab.shafi`; `params = CalculationMethod.x.params; params.madhab = .shafi`;
+module `Adhan`, package `batoulapps/adhan-swift`, latest 1.5.0 (MIT).
+
+### Built
+- **SPM dependency**: `packages: Adhan (from 1.5.0)` + Forge target `- package: Adhan` in project.yml.
+  Resolved + compiled on build.
+- **Adhan-free value types** (so nothing outside the service imports Adhan): `PrayerName`
+  (fajr/dhuhr/asr/maghrib/isha), `PrayerAnchor` (prayer + signed `offsetMinutes`, with a
+  "10 min before Dhuhr"/"At Fajr" display string), `Coordinate` (Codable lat/lon), `PrayerSchedule`
+  (the 5 times + sunrise, with `time(for:)`).
+- **`TimeMode.prayerRelative(PrayerAnchor)`** — the new time-source concept. `TimeMode` is JSON-encoded
+  in `HabitModel`, so this new case persists with **no migration** (Codable synthesises it; verified by
+  build + the model's existing encode/decode path).
+- **`PrayerTimeService`** (protocol + `AdhanPrayerTimeService`): `schedule(for:at:)` → the day's
+  `PrayerSchedule`, and `resolvedTime(for:on:at:)` → a prayer-relative habit's concrete clock time
+  (anchor prayer's adhan + signed offset). **Asr madhab: Shafi'i** (product decision). Calculation
+  **method: Muslim World League** default (flagged for Bilal — affects Fajr/Isha angles, candidate for
+  a future user/region setting). Only this file imports Adhan; it also carries a documented, genuinely-
+  safe retroactive `@unchecked Sendable` on Adhan's trivial `CalculationMethod`/`Madhab` enums (not
+  declared Sendable in 1.5.0) so the `Sendable` service can store them.
+- **`LocationService`** (CoreLocation): `@MainActor @Observable`, **when-in-use** authorization only
+  (no background/always), single `requestLocation()` fix, `kCLLocationAccuracyThreeKilometers`
+  (city-level — plenty for prayer times, avoids the precise-location prompt/battery cost), and a
+  persisted last-known coordinate so prayer times still compute before a fresh fix. Delegate callbacks
+  are `nonisolated` and hop to the main actor with only `Sendable` values (never the non-Sendable
+  `CLLocationManager`). Added the `NSLocationWhenInUseUsageDescription` Info.plist key.
+- **Calendar-sync + notification handling for the new case**: `calendarSyncUnsupportedReason` returns a
+  Reminders-only reason for `.prayerRelative` (its time shifts daily — no `EKRecurrenceRule`), matching
+  `.everyXHours`/`.timesADay`; `EventKitCalendarSyncService`'s two exhaustive switches and
+  `HabitNotificationScheduler.fireTimes` all handle `.prayerRelative` (no generic reminders/
+  notifications — the Phase 4 dedicated mandatory prayer scheduler owns those). `HabitFormView` (a
+  fifth exhaustive switch) preserves a prayer anchor through save rather than silently dropping it,
+  since the generic form has no prayer-anchor editor yet (Phase 7).
+
+### Verified (and how)
+- **Simulator build succeeds** — Adhan resolves/compiles; all 5 exhaustive `switch timeMode` sites
+  (found by the compiler, not guessed) handle the new case. One real fix: Adhan's `CalculationMethod`/
+  `Madhab` aren't `Sendable` in 1.5.0 → documented retroactive `@unchecked Sendable`.
+- **5/5 `PrayerTimeServiceTests` pass** (13 unit tests total with the entitlement suite): accuracy
+  asserted against Adhan's own documented reference (35.7750/-78.6336, 2015-12-01, MWL, Shafi'i,
+  America/New_York → Fajr 5:35 / Sunrise 7:06 / Dhuhr 12:05 / **Asr 2:42 (Shafi'i)** / Maghrib 5:01 /
+  Isha 6:26) — the Asr assertion specifically proves the Shafi'i madhab is applied (Hanafi would be
+  materially later) and that no prayer is mis-mapped to the wrong property; plus chronological ordering,
+  `time(for:)` mapping, and signed-offset anchor resolution (−10 min before Dhuhr, at-Maghrib,
+  +5 after Isha), and the anchor display strings.
+
+### NOT built this phase (correct phase boundaries)
+- Completion **windows** (Fajr→sunrise, Isha→next-Fajr, Qiyam cross-midnight) + auto-miss + lock →
+  Phase 3.
+- **Notifications** for prayer habits → Phase 4.
+- **Environment injection** of `LocationService`/`PrayerTimeService` → deferred to Phase 3's first real
+  consumer (a `@MainActor` `EnvironmentKey.defaultValue` is awkward with nothing using it yet; wiring
+  it alongside the consuming code is cleaner and avoids dead plumbing).
+- Prayer-habit **creation UI** / template content → Phase 7.
+
+### Open for Bilal (not blocking)
+- Calculation **method** = Muslim World League by default. Reasonable global default; if a specific
+  method (e.g. Umm al-Qura, Egyptian, ISNA/North America) is wanted, it's a one-line change or a future
+  user setting — flag it.
+
+Next: Phase 3 — time-windowed completion + auto-miss catch-up (the strict per-prayer windows), which
+will consume `PrayerTimeService` + `LocationService` and inject them into the environment.
