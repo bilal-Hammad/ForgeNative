@@ -2425,3 +2425,51 @@ ever firing for a user with no prayer habits, too.
 
 Next: Phase 4 — the mandatory one-per-prayer notification system (adhan + iqama-delay + prayer-duration,
 per-prayer configurable offsets in the `PrayerPreferences` home; Isha post-midnight indicator).
+
+## 2026-08-01 — Phase 4: prayer notification system (per-habit settings, independent of the window lock)
+
+Incorporates Bilal's two clarifications from this session: (1) prayer notification settings reuse the
+existing per-habit settings pattern (`HabitSyncSettingsDetailView`) — toggleable off, computed time
+adjustable — and are **fully independent** of the Phase 3 completion-window lock; (2) Phase 10
+(translation) is removed from this initiative (localization is a later, separate full-app pass — noted
+in TASKS.md; the Islamic pack is English-only for now).
+
+### Built
+- **`PrayerNotificationScheduler`** — one reminder per prayer habit at `adhan + iqamaDelay +
+  prayerDuration` (keyed on the anchor prayer's adhan, deliberately not at adhan time, and not at the
+  habit's own display-offset). Because prayer times shift daily, it arms **non-repeating**
+  `UNCalendarNotificationTrigger`s for the next `daysAhead` (3) days — a rolling window, the same
+  fresh-per-day approach the Reminders sync uses — rather than one repeating trigger. Reuses
+  `HabitNotificationScheduler`'s authorization helpers. The fire-time computation (`fireDate` /
+  `upcomingFireDates`) is pure and unit-tested.
+- **`PrayerOffsets`** + per-prayer offsets in `PrayerPreferences` (JSON per prayer key). Defaults:
+  **Fajr 30+20 = 50 min**, **Dhuhr/Asr/Maghrib 10+15 = 25 min**, **Isha 10+15 = 25 min** — Isha's is my
+  assumption mirroring the others (Bilal didn't specify it; flagged, user-adjustable). Offsets are
+  per-*prayer* (a physical property of the prayer — how long after its adhan it's realistically prayed),
+  shared across every habit anchored to that prayer, edited from that habit's detail.
+- **Per-habit settings UI** — a prayer branch in `HabitSyncSettingsDetailView`: a "Prayer Notification"
+  section with the on/off toggle + iqama-delay and prayer-duration steppers, Calendar/Reminders sync
+  hidden (a daily-shifting time has no `EKRecurrenceRule`), and a footer that (a) shows the computed
+  "N min after the X adhan" time and (b) states explicitly that this only controls the reminder and the
+  completion lock stays enforced regardless.
+
+### Verified (and how)
+- **Simulator build succeeds; 33 unit tests pass** (+5 Phase 4): default offsets match the spec
+  (Fajr 50 / others 25); offsets round-trip through `PrayerPreferences`; `fireDate` == adhan + total
+  offset; `upcomingFireDates` are all future + chronological + correct count.
+- **Independence invariant PROVEN, not just asserted in prose:** `testNotificationsOffDoesNotWeaken
+  WindowLock` seeds a prayer habit with `notificationsEnabled = false`, runs the catch-up, and confirms
+  it's **still auto-missed**. This works by construction — `PrayerDayState.resolve` and
+  `PrayerWindowCatchUp` never read `notificationsEnabled` or any offset — and the test guards against a
+  future regression coupling them.
+
+### Deferred to Phase 7 (same deliberate sequencing as Phase 3)
+The **foreground arming** of the rolling notification window (`PrayerNotificationScheduler.reschedule`
+needs a real coordinate + the prayer habits to exist) and the live reachability of the settings detail
+are wired end-to-end with the Phase 7 content. The scheduler, the offsets, and the settings UI are all
+built here; only their live invocation waits for content + location, exactly as the Phase 3 lock UI
+does — no dormant plumbing.
+
+### Isha post-midnight indicator
+Captured by `PrayerDayState.openLate` (Phase 3) — the distinct "late" *visual* lands with the Phase 7
+Home row rendering. No second notification is added (that would violate "exactly one per prayer").

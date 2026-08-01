@@ -132,8 +132,9 @@ verification. Flag any genuine product/design decision for Bilal rather than gue
 
 ### Islamic template pack — v1 content (decided)
 **Delete the current `good-islamic` section first** (`TemplateCatalog.swift:158` — broken, Arabic-only,
-9 templates). Build the new pack **in English first**; Arabic/Turkish translation is the **last** step
-(Phase 10). Content verified against real references (Sahih Muslim 728, Tirmidhi 414, Nasa'i 1807 for
+9 templates). Build the new pack **in English only** — Arabic/Turkish translation is explicitly **out of
+scope** for this initiative (deferred to a separate full-app localization pass; see the note under the
+phase list). Content verified against real references (Sahih Muslim 728, Tirmidhi 414, Nasa'i 1807 for
 Rawatib; IslamQA.info + SeekersGuidance for prayer-time boundaries). Organize as **sub-groups** within
 the pack (matching §5's thematic-section pattern), let the user **pick which habits to add** via the
 existing Add-Section flow (surface the **5 Fard prayers as the suggested starter subset**).
@@ -229,8 +230,21 @@ habit IDs stable and sensible so it can reference them later without rework.
       these need prayer habits to *exist* to render/prompt-location-for, so they're built end-to-end
       with the Phase 7 content rather than as dormant, untestable plumbing now. The engine they consume
       is done and fully tested.
-- [ ] **Phase 4 — Notification system for prayer habits.** Mandatory, one per prayer, at
-      adhan+iqama+duration with per-prayer configurable offsets; post-midnight Isha indicator.
+- [x] **Phase 4 — Notification system for prayer habits.** Done 2026-08-01 (see RESULTS.md).
+      `PrayerNotificationScheduler` — one reminder per prayer habit at `adhan + iqamaDelay +
+      prayerDuration` (never at adhan), scheduled as **non-repeating per-day triggers over a rolling
+      window** (prayer times shift daily). `PrayerOffsets` + per-prayer offsets in `PrayerPreferences`
+      (defaults Fajr 30+20=50, Dhuhr/Asr/Maghrib/**Isha** 10+15=25 — **Isha is my assumption**, still
+      flagged for Bilal). Notification settings **reuse the per-habit pattern** — a prayer branch in
+      `HabitSyncSettingsDetailView` with the toggle + two offset steppers (Calendar/Reminders hidden;
+      they don't apply), plus a footer stating the window lock is unaffected. **Hard invariant HELD and
+      PROVEN:** the lock path (`PrayerDayState`, `PrayerWindowCatchUp`) never reads `notificationsEnabled`
+      or any offset — a unit test confirms a prayer habit with **notifications off is still auto-missed**.
+      **Verified:** build succeeds; **33 unit tests pass** (+5: offset defaults/round-trip, `fireDate` =
+      adhan+total, future/chronological `upcomingFireDates`, and the notifications-off-still-locks
+      independence test). **Deferred to Phase 7 (same sequencing as Phase 3):** the foreground *arming*
+      of the rolling window (needs location + prayer habits to exist) and reachability of the settings
+      detail; the scheduler + settings UI + offsets are built and the pure core is tested now.
 - [ ] **Phase 5 — Progressive / auto-increasing goals (generalized).** `goalAtCompletion` snapshot;
       audit + migrate every goal-comparison site; automatic + manual modes; bump notification.
 - [ ] **Phase 6 — Dhikr counter habit type.** Tap-to-increment, per-tap haptic, 33/99/100 shortcuts,
@@ -241,7 +255,11 @@ habit IDs stable and sensible so it can reference them later without rework.
       decision made here); paywall with anchor pricing + "or free with Premium" + featured pack.
 - [ ] **Phase 9 — Testing.** StoreKit sandbox flows; prayer-time accuracy verification;
       entitlement-gating regression tests; real-device verification per this project's standards.
-- [ ] **Phase 10 — Translation (Arabic/Turkish).** Last step, only after content is finalized/stable.
+
+**Localization (Arabic/Turkish) is intentionally NOT part of this initiative** (Bilal, 2026-08-01):
+translation happens later as its own separate pass, once the *entire app* is finished — not part of the
+StoreKit + Islamic Template definition of done. (This is why Phase 7 builds the content English-first;
+there is deliberately no translation phase here anymore.)
 
 ---
 

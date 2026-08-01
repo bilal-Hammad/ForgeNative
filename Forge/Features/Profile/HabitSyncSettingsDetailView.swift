@@ -36,6 +36,10 @@ struct HabitSyncSettingsDetailView: View {
     @State private var notificationPermissionDenied = false
     @State private var calendarAccessDenied = false
     @State private var remindersAccessDenied = false
+    // Prayer-habit notification offsets (per-prayer, shared via
+    // PrayerPreferences). Unused for non-prayer habits.
+    @State private var iqamaDelayMinutes: Int
+    @State private var prayerDurationMinutes: Int
 
     init(habit: Habit) {
         self.habit = habit
@@ -43,24 +47,31 @@ struct HabitSyncSettingsDetailView: View {
         _calendarSyncEnabled = State(initialValue: habit.calendarSyncEnabled)
         _remindersAppSyncEnabled = State(initialValue: habit.remindersAppSyncEnabled)
         _weeklyReflectionEnabled = State(initialValue: habit.weeklyReflectionEnabled)
+        let offsets = PrayerPreferences.offsets(for: habit.prayerAnchor?.prayer ?? .dhuhr)
+        _iqamaDelayMinutes = State(initialValue: offsets.iqamaDelayMinutes)
+        _prayerDurationMinutes = State(initialValue: offsets.prayerDurationMinutes)
     }
 
     var body: some View {
         Form {
-            Section {
-                Toggle("Notifications", isOn: $notificationsEnabled)
-                Toggle("Sync to Calendar", isOn: $calendarSyncEnabled)
-                    .disabled(!habit.isCalendarSyncSupported)
-                Toggle("Sync to Reminders App", isOn: $remindersAppSyncEnabled)
-                if notificationPermissionDenied || calendarAccessDenied || remindersAccessDenied {
-                    Button("Open iOS Settings") {
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
+            if habit.isPrayerRelative {
+                prayerNotificationSection
+            } else {
+                Section {
+                    Toggle("Notifications", isOn: $notificationsEnabled)
+                    Toggle("Sync to Calendar", isOn: $calendarSyncEnabled)
+                        .disabled(!habit.isCalendarSyncSupported)
+                    Toggle("Sync to Reminders App", isOn: $remindersAppSyncEnabled)
+                    if notificationPermissionDenied || calendarAccessDenied || remindersAccessDenied {
+                        Button("Open iOS Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
                         }
                     }
+                } footer: {
+                    syncFooter
                 }
-            } footer: {
-                syncFooter
             }
 
             if weeklyReflectionEnabledGlobal {
@@ -95,6 +106,57 @@ struct HabitSyncSettingsDetailView: View {
         }
         .onChange(of: weeklyReflectionEnabled) { _, _ in
             Task { await persist() }
+        }
+        .onChange(of: iqamaDelayMinutes) { _, _ in savePrayerOffsets() }
+        .onChange(of: prayerDurationMinutes) { _, _ in savePrayerOffsets() }
+    }
+
+    /// Persists the per-prayer offsets (shared across every habit anchored to
+    /// this prayer). The live notification re-arming happens on the next
+    /// app-foreground pass once location is available (Phase 7 wiring) — this
+    /// view only owns the settings, exactly like it owns the toggle.
+    private func savePrayerOffsets() {
+        guard let prayer = habit.prayerAnchor?.prayer else { return }
+        PrayerPreferences.setOffsets(
+            PrayerOffsets(iqamaDelayMinutes: iqamaDelayMinutes, prayerDurationMinutes: prayerDurationMinutes),
+            for: prayer
+        )
+    }
+
+    /// Prayer habit's notification settings — full flexibility (toggle off,
+    /// adjust the computed time via the two offsets), reusing this same
+    /// per-habit settings pattern. Calendar/Reminders sync is intentionally
+    /// omitted (a prayer's daily-shifting time has no `EKRecurrenceRule`). The
+    /// footer makes the hard invariant explicit: none of this affects the
+    /// strict completion-window lock.
+    @ViewBuilder
+    private var prayerNotificationSection: some View {
+        Section {
+            Toggle("Notification", isOn: $notificationsEnabled)
+            if notificationsEnabled {
+                Stepper("Iqama delay: \(iqamaDelayMinutes) min", value: $iqamaDelayMinutes, in: 0...60)
+                Stepper("Prayer duration: \(prayerDurationMinutes) min", value: $prayerDurationMinutes, in: 0...60)
+            }
+            if notificationPermissionDenied {
+                Button("Open iOS Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            }
+        } header: {
+            Text("Prayer Notification")
+        } footer: {
+            VStack(alignment: .leading, spacing: 6) {
+                if let prayer = habit.prayerAnchor?.prayer {
+                    Text("One reminder \(iqamaDelayMinutes + prayerDurationMinutes) min after the \(prayer.displayName) adhan (iqama delay + prayer duration) — once the prayer has realistically been prayed, not at adhan time.")
+                }
+                if notificationPermissionDenied {
+                    Text("Notifications permission was denied — enable it in iOS Settings for this reminder to fire.")
+                }
+                Text("This only controls the reminder. Completing this prayer stays locked to its time window no matter your notification settings.")
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

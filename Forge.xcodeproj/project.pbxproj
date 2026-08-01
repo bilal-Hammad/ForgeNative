@@ -28,6 +28,7 @@
 		18CB3AC2CEA99A2CC772DF68 /* CalendarSyncServiceEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DD42B2927F8D0DA16A09DBE /* CalendarSyncServiceEnvironment.swift */; };
 		19CBA570F000C158B6A832A9 /* MilestoneEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC4984B59FDD409822A6632 /* MilestoneEngine.swift */; };
 		1B86E6CC2C858F8F0D916109 /* PrayerWindowCatchUp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC84EAB561F02058E4159004 /* PrayerWindowCatchUp.swift */; };
+		1BF5E666DD1CD206422268D0 /* PrayerNotificationScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E7AC94653EF3D830A0191E9 /* PrayerNotificationScheduler.swift */; };
 		1F6A2E3FDDFF1250BD2AE6BD /* AuthUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9717C1EEA4C0ADA0751D6F72 /* AuthUser.swift */; };
 		20611B2D79CBE113E61B9393 /* BestDayTimeStreakDistributionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 827CCA0E998C638D1C3A7992 /* BestDayTimeStreakDistributionCard.swift */; };
 		20C407A650E8850652C0EE78 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0C67F3ACD4D8E2FD015C9B5E /* Assets.xcassets */; };
@@ -79,6 +80,7 @@
 		7DA3F5635750F9A148E33C8E /* Habit+Prayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC2367F63412E7CF20E17D7D /* Habit+Prayer.swift */; };
 		7EA756B805334B8948AFC093 /* TemplateSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 355DE92A884A2D3821E0891E /* TemplateSection.swift */; };
 		7F52ABAC4C00AF800231BC84 /* PrayerWindowResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD2600B96B36937CE19716DD /* PrayerWindowResolverTests.swift */; };
+		7FFA78DBFE28BA69724B0B72 /* PrayerNotificationSchedulerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1DD9A66F6362610E8BF28A6 /* PrayerNotificationSchedulerTests.swift */; };
 		82429A14DD0CF704E402C804 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB60CE24270AFE5C68343A7 /* AuthService.swift */; };
 		82F266BE9C1EBD4BC372B66F /* Coordinate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80DC6CEF3E60EA44AD3C1A31 /* Coordinate.swift */; };
 		85CFD7CD27D199549EBF4184 /* VacationSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7099B990E33E0CF17E0CCA7D /* VacationSettings.swift */; };
@@ -233,6 +235,7 @@
 		49050EC9E801D216DE2AF1CA /* TemplateSectionConfigurationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSectionConfigurationModel.swift; sourceTree = "<group>"; };
 		495D3DF7046CC93FD79B629F /* EditSectionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditSectionDetailView.swift; sourceTree = "<group>"; };
 		4D2B276E5CD4FF30B23D83DB /* CompletionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionModel.swift; sourceTree = "<group>"; };
+		4E7AC94653EF3D830A0191E9 /* PrayerNotificationScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerNotificationScheduler.swift; sourceTree = "<group>"; };
 		528A80329520F9914A990E6B /* HabitFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitFormView.swift; sourceTree = "<group>"; };
 		52F729991EE5F18892158B34 /* EventKitCalendarSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventKitCalendarSyncService.swift; sourceTree = "<group>"; };
 		535FF11F9F11E7F934A0B3E0 /* PointsLedger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointsLedger.swift; sourceTree = "<group>"; };
@@ -294,6 +297,7 @@
 		AF86847E6D0665429ABF0BB9 /* StreakLinesStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakLinesStripView.swift; sourceTree = "<group>"; };
 		AF87E0CD5D3AC5355C26AC28 /* PrayerAnchor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerAnchor.swift; sourceTree = "<group>"; };
 		B032223927D6733174F1A1DE /* ForgeIconv1.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = ForgeIconv1.icon; sourceTree = "<group>"; };
+		B1DD9A66F6362610E8BF28A6 /* PrayerNotificationSchedulerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerNotificationSchedulerTests.swift; sourceTree = "<group>"; };
 		B1F709B02A6743B4BF03AB27 /* ForgeWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ForgeWidgets.entitlements; sourceTree = "<group>"; };
 		B49B14E3FE87DC84C214A030 /* PrayerWindowResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerWindowResolver.swift; sourceTree = "<group>"; };
 		B5155B403B8AF8D17DA1C249 /* EntitlementResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementResolver.swift; sourceTree = "<group>"; };
@@ -360,6 +364,7 @@
 				7AD2020E9966C7045248DF33 /* HabitNotificationScheduler.swift */,
 				2EC63C385AD41C6C4E9E0F82 /* MoodCheckInRouter.swift */,
 				90E056ABC0397BA133AA6FEB /* MoodNotificationScheduler.swift */,
+				4E7AC94653EF3D830A0191E9 /* PrayerNotificationScheduler.swift */,
 				35CEFEDB1A64C69B9E67F953 /* WeeklyReflectionRouter.swift */,
 				121D1A3926FB559936FB9AFA /* WeeklyReflectionScheduler.swift */,
 			);
@@ -539,6 +544,7 @@
 			children = (
 				8BE64662BC45C8E932901DB5 /* EntitlementResolverTests.swift */,
 				2AD9B0F8FC64023349AFF9FB /* PrayerDayStateTests.swift */,
+				B1DD9A66F6362610E8BF28A6 /* PrayerNotificationSchedulerTests.swift */,
 				3B986212557869B3998328F6 /* PrayerTimeServiceTests.swift */,
 				06FF00299EB01C628209097F /* PrayerWindowCatchUpTests.swift */,
 				CD2600B96B36937CE19716DD /* PrayerWindowResolverTests.swift */,
@@ -854,6 +860,7 @@
 			files = (
 				C454B059EFEA8586066E9267 /* EntitlementResolverTests.swift in Sources */,
 				4A61C42DF8DA16C16CEF6FFE /* PrayerDayStateTests.swift in Sources */,
+				7FFA78DBFE28BA69724B0B72 /* PrayerNotificationSchedulerTests.swift in Sources */,
 				4EDC13BD010A135CDD0A21EC /* PrayerTimeServiceTests.swift in Sources */,
 				EAA507AB374DA6FBD006A073 /* PrayerWindowCatchUpTests.swift in Sources */,
 				7F52ABAC4C00AF800231BC84 /* PrayerWindowResolverTests.swift in Sources */,
@@ -944,6 +951,7 @@
 				65B752BAA121B23C3EEB1466 /* PrayerCalculationMethod.swift in Sources */,
 				D9CCF830E5CB1277EDCAA497 /* PrayerDayState.swift in Sources */,
 				A2458A15EE9660AAD4C51EF9 /* PrayerName.swift in Sources */,
+				1BF5E666DD1CD206422268D0 /* PrayerNotificationScheduler.swift in Sources */,
 				FDA21371EEA55127CFDE92AF /* PrayerPreferences.swift in Sources */,
 				35AA615A728986C9705EFDDB /* PrayerSchedule.swift in Sources */,
 				BD01DFBACB5B6427EBD07F9A /* PrayerTimeService.swift in Sources */,
