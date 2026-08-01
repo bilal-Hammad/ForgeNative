@@ -1,15 +1,6 @@
 import Foundation
 import Adhan
 
-// Adhan's `CalculationMethod`/`Madhab` are trivial immutable value enums (no
-// associated values, no reference storage) — genuinely `Sendable`, just not
-// declared so in Adhan 1.5.0. Retroactive `@unchecked` conformance lets the
-// `Sendable` `PrayerTimeService` store them without leaking a concurrency
-// hole. If a future Adhan version adds its own `Sendable` conformance, delete
-// these two lines (the compiler will flag them as redundant).
-extension Adhan.CalculationMethod: @retroactive @unchecked Sendable {}
-extension Adhan.Madhab: @retroactive @unchecked Sendable {}
-
 /// Computes prayer times + resolves a prayer-relative habit's concrete clock
 /// time for a given day/location (P1 Phase 2). The single boundary that
 /// touches the Adhan package — everything else works against the Adhan-free
@@ -32,32 +23,39 @@ protocol PrayerTimeService: Sendable {
 
 /// Concrete Adhan-backed implementation.
 ///
-/// **Asr madhab: Shafi'i** (explicit product decision — TASKS.md). Calculation
-/// **method defaults to Muslim World League** — a sensible global default;
-/// the method affects Fajr/Isha twilight angles and is a reasonable candidate
-/// for a future user/region setting (flagged, not a silent choice).
+/// **Asr madhab: Shafi'i** — a fixed product decision (TASKS.md), hardcoded
+/// below rather than exposed. The calculation **method is user-configurable**
+/// (`PrayerPreferences`, a Settings picker) with **Muslim World League** as
+/// the default, since the method affects Fajr/Isha twilight angles and the
+/// "right" one varies by region. Stores the Adhan-free `PrayerCalculationMethod`
+/// (mapped to Adhan's `CalculationMethod` internally), so this `Sendable`
+/// service holds no Adhan value type.
 struct AdhanPrayerTimeService: PrayerTimeService {
-    var method: CalculationMethod
-    var madhab: Madhab
+    var method: PrayerCalculationMethod
     /// Used to derive the year/month/day Adhan needs. Defaults to
     /// `Calendar.current` so "today" is the user's local day; tests inject a
     /// fixed-timezone calendar for deterministic assertions.
     var calendar: Calendar
 
     init(
-        method: CalculationMethod = .muslimWorldLeague,
-        madhab: Madhab = .shafi,
+        method: PrayerCalculationMethod = .muslimWorldLeague,
         calendar: Calendar = .current
     ) {
         self.method = method
-        self.madhab = madhab
         self.calendar = calendar
+    }
+
+    /// A service configured from the user's saved calculation-method
+    /// preference — the entry point non-view code (Phase 3 catch-up, Phase 4
+    /// notifications) uses so it always reflects the Settings choice.
+    static func fromPreferences() -> AdhanPrayerTimeService {
+        AdhanPrayerTimeService(method: PrayerPreferences.calculationMethod)
     }
 
     func schedule(for date: Date, at coordinate: Coordinate) -> PrayerSchedule? {
         let components = calendar.dateComponents([.year, .month, .day], from: date)
-        var params = method.params
-        params.madhab = madhab
+        var params = method.adhanMethod.params
+        params.madhab = .shafi
         guard let times = PrayerTimes(
             coordinates: Coordinates(latitude: coordinate.latitude, longitude: coordinate.longitude),
             date: components,
@@ -78,5 +76,27 @@ struct AdhanPrayerTimeService: PrayerTimeService {
     func resolvedTime(for anchor: PrayerAnchor, on date: Date, at coordinate: Coordinate) -> Date? {
         guard let schedule = schedule(for: date, at: coordinate) else { return nil }
         return schedule.time(for: anchor.prayer).addingTimeInterval(Double(anchor.offsetMinutes) * 60)
+    }
+}
+
+/// The one place the Adhan-free `PrayerCalculationMethod` maps to Adhan's own
+/// `CalculationMethod` — kept in this Adhan-importing file so the enum itself
+/// stays dependency-free.
+private extension PrayerCalculationMethod {
+    var adhanMethod: Adhan.CalculationMethod {
+        switch self {
+        case .muslimWorldLeague: .muslimWorldLeague
+        case .egyptian: .egyptian
+        case .karachi: .karachi
+        case .ummAlQura: .ummAlQura
+        case .dubai: .dubai
+        case .moonsightingCommittee: .moonsightingCommittee
+        case .northAmerica: .northAmerica
+        case .kuwait: .kuwait
+        case .qatar: .qatar
+        case .singapore: .singapore
+        case .tehran: .tehran
+        case .turkey: .turkey
+        }
     }
 }

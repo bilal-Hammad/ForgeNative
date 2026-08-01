@@ -207,9 +207,12 @@ habit IDs stable and sensible so it can reference them later without rework.
       mis-mapped), plus chronology, `time(for:)` mapping, and signed-offset anchor resolution;
       entitlement tests still green (13 total). **Deferred (correctly):** environment injection of the
       two services waits for Phase 3's first real consumer (avoids unused `@MainActor` env-default
-      plumbing now); the prayer-habit *creation UI* is Phase 7. **Open for Bilal:** calculation
-      **method** defaults to Muslim World League (affects Fajr/Isha angles) — a reasonable global
-      default, but a candidate for a user/region setting later; flag if a specific method is wanted.
+      plumbing now); the prayer-habit *creation UI* is Phase 7. **Calculation method — now a user
+      setting** (Bilal confirmed 2026-08-01): a "Prayer Times → Calculation Method" picker in
+      `SettingsView` over the 12 Adhan methods, default Muslim World League, backed by
+      `PrayerPreferences` (shared UserDefaults source of truth `PrayerTimeService.fromPreferences()`
+      reads). Asr stays fixed Shafi'i. This also let the earlier retroactive `@unchecked Sendable` hack
+      be removed (the service now stores the Adhan-free `PrayerCalculationMethod`, not an Adhan type).
 - [ ] **Phase 3 — Time-windowed completion + auto-miss catch-up.** Per-prayer windows above; auto-miss
       + immediate consequence + fully-locked UI; self-healing catch-up; Qiyam cross-midnight window.
 - [ ] **Phase 4 — Notification system for prayer habits.** Mandatory, one per prayer, at

@@ -63,6 +63,7 @@
 		5FEEDD19108800DEA99EAB63 /* HabitCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 186272623D7828B105255AC2 /* HabitCategory.swift */; };
 		60F40BE5A955290F85C338B3 /* HealthKitServiceEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0757EA390D62EA27B15EE20D /* HealthKitServiceEnvironment.swift */; };
 		63CB7CE8C640E988F336AE65 /* PointsLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535FF11F9F11E7F934A0B3E0 /* PointsLedger.swift */; };
+		65B752BAA121B23C3EEB1466 /* PrayerCalculationMethod.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFFD8C526DAD6D9136DB583B /* PrayerCalculationMethod.swift */; };
 		66FD7E8F91DD085B9A192717 /* MoodCheckInRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EC63C385AD41C6C4E9E0F82 /* MoodCheckInRouter.swift */; };
 		68CEF4EE224DBCEC9565685A /* ToggleTimerPauseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD47285F2AB85FD492718B60 /* ToggleTimerPauseIntent.swift */; };
 		6AC67C157675E33631011CF5 /* SharedTimerStopSignal.swift in Sources */ = {isa = PBXBuildFile; fileRef = E80754CED57CB3CFA20D6678 /* SharedTimerStopSignal.swift */; };
@@ -137,6 +138,7 @@
 		F7EFB4283CD093333B5E95C9 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945C0ED6499DE1D14328DDED /* ProfileView.swift */; };
 		FB28A4B021E4049859DB02BA /* AppNotificationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EBDE919B369BA7ACBE2B66 /* AppNotificationDelegate.swift */; };
 		FB4252BA3986E8E1544BA3CC /* MoodLevel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41598F96D0FE8F9EF9D5924C /* MoodLevel.swift */; };
+		FDA21371EEA55127CFDE92AF /* PrayerPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47EDADA4510A9A28483EE0DD /* PrayerPreferences.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -216,6 +218,7 @@
 		427AAE5C01BA77D4A32B4CDA /* ArchivedHabitsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchivedHabitsView.swift; sourceTree = "<group>"; };
 		44A518074DB64E2804AE3A02 /* PrayerTimeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerTimeService.swift; sourceTree = "<group>"; };
 		472FBCA831132A6C569C5D65 /* CategoryPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryPickerView.swift; sourceTree = "<group>"; };
+		47EDADA4510A9A28483EE0DD /* PrayerPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerPreferences.swift; sourceTree = "<group>"; };
 		49050EC9E801D216DE2AF1CA /* TemplateSectionConfigurationModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSectionConfigurationModel.swift; sourceTree = "<group>"; };
 		495D3DF7046CC93FD79B629F /* EditSectionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditSectionDetailView.swift; sourceTree = "<group>"; };
 		4D2B276E5CD4FF30B23D83DB /* CompletionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionModel.swift; sourceTree = "<group>"; };
@@ -286,6 +289,7 @@
 		CA832DE5528D2FA0DC893F14 /* TimeMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeMode.swift; sourceTree = "<group>"; };
 		CDDA16EB6B7B2BF0F81079B1 /* MilestoneRepositoryEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneRepositoryEnvironment.swift; sourceTree = "<group>"; };
 		CE44E9DE33B83E77F19895EB /* InMemoryTemplateSectionRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryTemplateSectionRepository.swift; sourceTree = "<group>"; };
+		CFFD8C526DAD6D9136DB583B /* PrayerCalculationMethod.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerCalculationMethod.swift; sourceTree = "<group>"; };
 		D2F7E3AA2B3CD47505A0E877 /* WeeklyPagerSwipeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyPagerSwipeTests.swift; sourceTree = "<group>"; };
 		D3A4D78AFD385DD3E494224A /* WeeklyRingsPagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyRingsPagerView.swift; sourceTree = "<group>"; };
 		D4295D6EE380F992FC14F4BC /* CompletionFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompletionFeedback.swift; sourceTree = "<group>"; };
@@ -655,6 +659,8 @@
 			children = (
 				80DC6CEF3E60EA44AD3C1A31 /* Coordinate.swift */,
 				A4A831053F941A36F00C4833 /* LocationService.swift */,
+				CFFD8C526DAD6D9136DB583B /* PrayerCalculationMethod.swift */,
+				47EDADA4510A9A28483EE0DD /* PrayerPreferences.swift */,
 				5DFD0708FF4499CF071359BA /* PrayerSchedule.swift */,
 				44A518074DB64E2804AE3A02 /* PrayerTimeService.swift */,
 			);
@@ -907,7 +913,9 @@
 				63CB7CE8C640E988F336AE65 /* PointsLedger.swift in Sources */,
 				48BB658E2E1B743B449F5B8E /* PointsLedgerModel.swift in Sources */,
 				35BC14121B4D3E13B9546640 /* PrayerAnchor.swift in Sources */,
+				65B752BAA121B23C3EEB1466 /* PrayerCalculationMethod.swift in Sources */,
 				A2458A15EE9660AAD4C51EF9 /* PrayerName.swift in Sources */,
+				FDA21371EEA55127CFDE92AF /* PrayerPreferences.swift in Sources */,
 				35AA615A728986C9705EFDDB /* PrayerSchedule.swift in Sources */,
 				BD01DFBACB5B6427EBD07F9A /* PrayerTimeService.swift in Sources */,
 				DF19D3A6912F6BB383936B66 /* ProductIdentifiers.swift in Sources */,

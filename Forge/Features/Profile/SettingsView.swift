@@ -60,6 +60,11 @@ struct SettingsView: View {
     /// weekday 1 = Sunday (`Calendar`/`DateComponents.weekday` convention,
     /// 1...7 = Sun...Sat) at 18:00 — "Sunday evening" per §13's shipped
     /// default, still fully user-configurable.
+    /// Prayer-time calculation method (P1 Phase 2) — the method affects
+    /// Fajr/Isha angles and the right one varies by region, so it's a user
+    /// setting (default Muslim World League). Backed by `PrayerPreferences`'s
+    /// key so `PrayerTimeService` reads the same value.
+    @AppStorage(PrayerPreferences.calculationMethodKey) private var prayerCalculationMethod: PrayerCalculationMethod = .muslimWorldLeague
     @AppStorage("weeklyReflectionEnabled") private var weeklyReflectionEnabled: Bool = false
     @AppStorage("weeklyReflectionWeekday") private var weeklyReflectionWeekday: Int = 1
     @AppStorage("weeklyReflectionHour") private var weeklyReflectionHour: Int = 18
@@ -189,6 +194,18 @@ struct SettingsView: View {
                 }
             } footer: {
                 Text("A weekly summary of how your habits went — mute it for individual habits from that habit's own Notifications screen above.")
+            }
+
+            Section {
+                Picker("Calculation Method", selection: $prayerCalculationMethod) {
+                    ForEach(PrayerCalculationMethod.allCases) { method in
+                        Text(method.displayName).tag(method)
+                    }
+                }
+            } header: {
+                Text("Prayer Times")
+            } footer: {
+                Text("Different authorities use different twilight angles for Fajr and Isha. Pick the one used in your region — Asr always uses the Shafi'i method.")
             }
 
             Section("Data") {

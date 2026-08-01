@@ -2351,3 +2351,29 @@ module `Adhan`, package `batoulapps/adhan-swift`, latest 1.5.0 (MIT).
 
 Next: Phase 3 — time-windowed completion + auto-miss catch-up (the strict per-prayer windows), which
 will consume `PrayerTimeService` + `LocationService` and inject them into the environment.
+
+## 2026-08-01 — Phase 2 follow-up: calculation method is now a user setting (Bilal confirmed)
+
+Per Bilal's decision, the prayer-time calculation method is user-configurable (not the fixed MWL value
+Phase 2 shipped), same pattern the Phase 4 notification offsets will use.
+
+- `PrayerCalculationMethod` — Adhan-free `String` enum over the 12 pickable Adhan methods (omitting
+  `.other`, a manual-angles escape hatch), each with a region-recognizable display name
+  ("Umm al-Qura, Makkah", "ISNA (North America)", "Diyanet (Turkey)", …).
+- `PrayerPreferences` — the shared UserDefaults home for prayer settings (calculation method now; the
+  Phase 4 per-prayer offsets later), so the SwiftUI `@AppStorage` picker and non-view code
+  (`PrayerTimeService`, Phase 4 scheduler) read one source of truth.
+- `AdhanPrayerTimeService` now stores `PrayerCalculationMethod` (mapped to Adhan's `CalculationMethod`
+  in a single private extension in the one Adhan-importing file) and hardcodes the fixed Shafi'i madhab
+  inside `schedule()`. Added `.fromPreferences()`. **Bonus cleanup:** because no Adhan value type is
+  stored anymore, the earlier retroactive `@unchecked Sendable` on Adhan's `CalculationMethod`/`Madhab`
+  is gone.
+- `SettingsView`: new "Prayer Times" section with a "Calculation Method" `Picker` (default MWL) and a
+  footer explaining it only affects Fajr/Isha angles and that Asr stays Shafi'i.
+
+**Verified:** Simulator build succeeds; all 5 `PrayerTimeServiceTests` still pass (the reference case's
+Asr 2:42 PM still confirms Shafi'i under the refactor). The picker itself is a standard SwiftUI
+`@AppStorage`-bound control (no gesture) — its state persistence is the same `@AppStorage` mechanism the
+rest of `SettingsView` already relies on. **Judgment call:** the "Prayer Times" section shows for all
+users, not gated behind owning the Islamic pack — a legitimate always-valid preference and trivial to
+gate later if Bilal wants it hidden for non-prayer users.
