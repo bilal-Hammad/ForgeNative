@@ -27,6 +27,7 @@
 		17DE37310C9728953B781EEC /* Milestone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 746A87217726DBA2E1846157 /* Milestone.swift */; };
 		18CB3AC2CEA99A2CC772DF68 /* CalendarSyncServiceEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DD42B2927F8D0DA16A09DBE /* CalendarSyncServiceEnvironment.swift */; };
 		19CBA570F000C158B6A832A9 /* MilestoneEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC4984B59FDD409822A6632 /* MilestoneEngine.swift */; };
+		1B86E6CC2C858F8F0D916109 /* PrayerWindowCatchUp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC84EAB561F02058E4159004 /* PrayerWindowCatchUp.swift */; };
 		1F6A2E3FDDFF1250BD2AE6BD /* AuthUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9717C1EEA4C0ADA0751D6F72 /* AuthUser.swift */; };
 		20611B2D79CBE113E61B9393 /* BestDayTimeStreakDistributionCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 827CCA0E998C638D1C3A7992 /* BestDayTimeStreakDistributionCard.swift */; };
 		20C407A650E8850652C0EE78 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0C67F3ACD4D8E2FD015C9B5E /* Assets.xcassets */; };
@@ -75,6 +76,7 @@
 		7A262FD66DA6E4AEBF44C05A /* ConsistencyHeatmapCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09B1EBF58043D4C3CE83A8DA /* ConsistencyHeatmapCard.swift */; };
 		7A82452E35B00C32BFC66E03 /* MoodRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 635C61F86F05E11DF4B5BB93 /* MoodRepository.swift */; };
 		7BD030D59429180024E24A5D /* TemplateCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91A703FE817D83C2CEFE30F /* TemplateCatalog.swift */; };
+		7DA3F5635750F9A148E33C8E /* Habit+Prayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC2367F63412E7CF20E17D7D /* Habit+Prayer.swift */; };
 		7EA756B805334B8948AFC093 /* TemplateSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 355DE92A884A2D3821E0891E /* TemplateSection.swift */; };
 		7F52ABAC4C00AF800231BC84 /* PrayerWindowResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD2600B96B36937CE19716DD /* PrayerWindowResolverTests.swift */; };
 		82429A14DD0CF704E402C804 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EB60CE24270AFE5C68343A7 /* AuthService.swift */; };
@@ -135,6 +137,7 @@
 		E2151A08582279120F5EB65A /* SectionIndexStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ECB5365B291706A6611E298 /* SectionIndexStrip.swift */; };
 		E7DA78F0306128A442C09EB2 /* MoodEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E8CCB651EE9A0CBD4F2B9F6 /* MoodEntry.swift */; };
 		EA3B2ED8D182C65A7D255D35 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EF8DCE6457041D274B3C2DA /* SettingsView.swift */; };
+		EAA507AB374DA6FBD006A073 /* PrayerWindowCatchUpTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06FF00299EB01C628209097F /* PrayerWindowCatchUpTests.swift */; };
 		F08AAE9569910315BBA247AC /* HabitRepositoryEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = E00AA58EC17458B87202A166 /* HabitRepositoryEnvironment.swift */; };
 		F3CCB10F12AF3D0F206976D9 /* RecentlyDeletedSectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E1B774779BBA00590D8E9D /* RecentlyDeletedSectionsView.swift */; };
 		F4B534D9BB531A40290457A6 /* AppTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4928F50DE255831E032B0C /* AppTabView.swift */; };
@@ -188,6 +191,7 @@
 		043DFE20CAE57716105CD05F /* HabitTimerRingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitTimerRingView.swift; sourceTree = "<group>"; };
 		0599F8B0C35D67760C344C06 /* ProductIdentifiers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductIdentifiers.swift; sourceTree = "<group>"; };
 		05D32CFC452F3B8BE51265ED /* InMemoryHabitRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InMemoryHabitRepository.swift; sourceTree = "<group>"; };
+		06FF00299EB01C628209097F /* PrayerWindowCatchUpTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerWindowCatchUpTests.swift; sourceTree = "<group>"; };
 		0757EA390D62EA27B15EE20D /* HealthKitServiceEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitServiceEnvironment.swift; sourceTree = "<group>"; };
 		080186DF3EEEAE1691690CBA /* EntitlementServiceEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementServiceEnvironment.swift; sourceTree = "<group>"; };
 		083616D473CEA14CCE83E1B6 /* ForgeTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ForgeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -285,6 +289,7 @@
 		A7B188FF827204DDB10B2751 /* AddSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSectionView.swift; sourceTree = "<group>"; };
 		A974A03E706CD2185017D430 /* SwiftDataMilestoneRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataMilestoneRepository.swift; sourceTree = "<group>"; };
 		A9A8461332CF1132351706FC /* MilestoneKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestoneKind.swift; sourceTree = "<group>"; };
+		AC2367F63412E7CF20E17D7D /* Habit+Prayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Habit+Prayer.swift"; sourceTree = "<group>"; };
 		AD47285F2AB85FD492718B60 /* ToggleTimerPauseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToggleTimerPauseIntent.swift; sourceTree = "<group>"; };
 		AF86847E6D0665429ABF0BB9 /* StreakLinesStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakLinesStripView.swift; sourceTree = "<group>"; };
 		AF87E0CD5D3AC5355C26AC28 /* PrayerAnchor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerAnchor.swift; sourceTree = "<group>"; };
@@ -293,6 +298,7 @@
 		B49B14E3FE87DC84C214A030 /* PrayerWindowResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerWindowResolver.swift; sourceTree = "<group>"; };
 		B5155B403B8AF8D17DA1C249 /* EntitlementResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementResolver.swift; sourceTree = "<group>"; };
 		B8C9A59E5B07C7D1B2F352E1 /* Forge.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Forge.entitlements; sourceTree = "<group>"; };
+		BC84EAB561F02058E4159004 /* PrayerWindowCatchUp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerWindowCatchUp.swift; sourceTree = "<group>"; };
 		C1E3E67806D936D09B66BEE6 /* TemplateSectionRepositoryEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSectionRepositoryEnvironment.swift; sourceTree = "<group>"; };
 		C76503079FC9851FCDFFEB4B /* TimerMiniPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerMiniPlayer.swift; sourceTree = "<group>"; };
 		CA832DE5528D2FA0DC893F14 /* TimeMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeMode.swift; sourceTree = "<group>"; };
@@ -534,6 +540,7 @@
 				8BE64662BC45C8E932901DB5 /* EntitlementResolverTests.swift */,
 				2AD9B0F8FC64023349AFF9FB /* PrayerDayStateTests.swift */,
 				3B986212557869B3998328F6 /* PrayerTimeServiceTests.swift */,
+				06FF00299EB01C628209097F /* PrayerWindowCatchUpTests.swift */,
 				CD2600B96B36937CE19716DD /* PrayerWindowResolverTests.swift */,
 			);
 			path = ForgeTests;
@@ -670,6 +677,7 @@
 			isa = PBXGroup;
 			children = (
 				80DC6CEF3E60EA44AD3C1A31 /* Coordinate.swift */,
+				AC2367F63412E7CF20E17D7D /* Habit+Prayer.swift */,
 				A4A831053F941A36F00C4833 /* LocationService.swift */,
 				CFFD8C526DAD6D9136DB583B /* PrayerCalculationMethod.swift */,
 				7AC81E3C357A752B310A9E53 /* PrayerDayState.swift */,
@@ -677,6 +685,7 @@
 				5DFD0708FF4499CF071359BA /* PrayerSchedule.swift */,
 				44A518074DB64E2804AE3A02 /* PrayerTimeService.swift */,
 				3D7678A1EA0DCBDA23CA00EB /* PrayerWindow.swift */,
+				BC84EAB561F02058E4159004 /* PrayerWindowCatchUp.swift */,
 				B49B14E3FE87DC84C214A030 /* PrayerWindowResolver.swift */,
 			);
 			path = Prayer;
@@ -846,6 +855,7 @@
 				C454B059EFEA8586066E9267 /* EntitlementResolverTests.swift in Sources */,
 				4A61C42DF8DA16C16CEF6FFE /* PrayerDayStateTests.swift in Sources */,
 				4EDC13BD010A135CDD0A21EC /* PrayerTimeServiceTests.swift in Sources */,
+				EAA507AB374DA6FBD006A073 /* PrayerWindowCatchUpTests.swift in Sources */,
 				7F52ABAC4C00AF800231BC84 /* PrayerWindowResolverTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -882,6 +892,7 @@
 				CF3DBA248E1C43B0B5526BA6 /* EntitlementServiceEnvironment.swift in Sources */,
 				947CC17F61B1FAC37B2A8972 /* EventKitCalendarSyncService.swift in Sources */,
 				23C454AB11A7E777C571ED1D /* ForgeApp.swift in Sources */,
+				7DA3F5635750F9A148E33C8E /* Habit+Prayer.swift in Sources */,
 				D506B0238329699E4BA79283 /* Habit.swift in Sources */,
 				5FEEDD19108800DEA99EAB63 /* HabitCategory.swift in Sources */,
 				4F5337F69C13EBC57DD40ACC /* HabitColor.swift in Sources */,
@@ -937,6 +948,7 @@
 				35AA615A728986C9705EFDDB /* PrayerSchedule.swift in Sources */,
 				BD01DFBACB5B6427EBD07F9A /* PrayerTimeService.swift in Sources */,
 				B1C6A32EBA0799703E36BF5E /* PrayerWindow.swift in Sources */,
+				1B86E6CC2C858F8F0D916109 /* PrayerWindowCatchUp.swift in Sources */,
 				D509D4FD744643ED28EC5623 /* PrayerWindowResolver.swift in Sources */,
 				DF19D3A6912F6BB383936B66 /* ProductIdentifiers.swift in Sources */,
 				F7EFB4283CD093333B5E95C9 /* ProfileView.swift in Sources */,

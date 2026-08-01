@@ -2377,3 +2377,51 @@ Asr 2:42 PM still confirms Shafi'i under the refactor). The picker itself is a s
 rest of `SettingsView` already relies on. **Judgment call:** the "Prayer Times" section shows for all
 users, not gated behind owning the Islamic pack — a legitimate always-valid preference and trivial to
 gate later if Bilal wants it hidden for non-prayer users.
+
+## 2026-08-01 — Phase 3: time-windowed completion + auto-miss catch-up (mechanism)
+
+Built the complete, unit-tested engine for strict prayer completion windows and self-healing auto-miss.
+Window boundaries follow the fiqh sources cited in TASKS.md (IslamQA / SeekersGuidance).
+
+### Built
+- **`PrayerWindow`** + **`PrayerWindowResolver`** — the per-prayer completion windows: Fajr→sunrise,
+  Dhuhr→Asr, Asr→Maghrib, Maghrib→Isha, and **Isha→the *next* calendar day's Fajr** with a
+  `preferredEnd` at local midnight (after which Isha reads "late" but stays completable). The Isha/night
+  window (also what Witr/Qiyam use) explicitly crosses midnight — handled, not assumed same-day. A
+  habit's window is its *anchor prayer's* window regardless of the anchor's minute offset (a
+  "10 min before Dhuhr" sunnah and a dhikr-after-Dhuhr both complete within Dhuhr's window).
+- **`PrayerDayState`** — pure resolution of `upcoming / open / openLate / completed / missed` from
+  `(window, completion, now)`, with `isCompletable` / `isMissedLocked`. Degrades to `.open` when no
+  location/schedule is available (don't block the user or force a false miss).
+- **`Completion.missed`** (+ `CompletionModel` persistence, `= false` lightweight migration) — a closed,
+  uncompleted prayer window is persisted as missed **at closing time**, when the location that
+  determined the window is known, so a later location/schedule change can't retroactively reopen a past
+  miss. A persisted miss is authoritative in `PrayerDayState.resolve`.
+- **`PrayerWindowCatchUp`** — the self-healing sweep (same shape as `MilestoneEngine.runCatchUp()` /
+  `HomeView.checkTimerCompletions()`): finds prayer days whose window closed without completion and
+  persists them missed. **Bounded** to a `lookbackDays` window (default 7) per Engineering standard #1
+  (never scans full history); **prayer-habit-only** (early-returns for the common no-prayer-habits
+  user); **idempotent** (a second sweep creates no duplicates and never reopens an existing miss); uses
+  the current coordinate for recent past days (minute-accurate; past locations aren't stored).
+- `Habit.isPrayerRelative` / `Habit.prayerAnchor` convenience accessors.
+
+### Verified (and how)
+- **Simulator build succeeds**; **28 unit tests pass** (up from 13): +4 `PrayerWindowResolverTests`
+  (daytime windows match adjacent prayer boundaries; **Isha spans midnight to next-day Fajr**;
+  open/closed/upcoming logic; Isha past-preferred-but-still-open), +7 `PrayerDayStateTests` (every
+  transition incl. persisted-miss authority and nil-window graceful degrade), +4
+  `PrayerWindowCatchUpTests` (marks closed uncompleted windows missed while leaving completed days
+  alone; never touches non-prayer habits; bounded by lookback; idempotent).
+
+### Deferred to Phase 7 (deliberate, documented sequencing)
+The **HomeView consumption** — rendering a prayer row as upcoming / completable / late / missed-locked,
+gating the tap handlers so a missed day has *zero* interactive options — and the **foreground
+invocation** of the catch-up (plus injecting `LocationService`/`PrayerTimeService` into the environment
+and the location-permission prompt) are built end-to-end **with the Phase 7 prayer content**. Rationale:
+none of it can be rendered, prompted-for, or verified until prayer habits actually *exist* (Phase 7), so
+wiring it now would be dormant, untestable plumbing. The engine those consume is complete and fully
+tested here — the hard, novel, verifiable part is done. This keeps the location-permission prompt from
+ever firing for a user with no prayer habits, too.
+
+Next: Phase 4 — the mandatory one-per-prayer notification system (adhan + iqama-delay + prayer-duration,
+per-prayer configurable offsets in the `PrayerPreferences` home; Isha post-midnight indicator).

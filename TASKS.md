@@ -213,8 +213,22 @@ habit IDs stable and sensible so it can reference them later without rework.
       `PrayerPreferences` (shared UserDefaults source of truth `PrayerTimeService.fromPreferences()`
       reads). Asr stays fixed Shafi'i. This also let the earlier retroactive `@unchecked Sendable` hack
       be removed (the service now stores the Adhan-free `PrayerCalculationMethod`, not an Adhan type).
-- [ ] **Phase 3 — Time-windowed completion + auto-miss catch-up.** Per-prayer windows above; auto-miss
-      + immediate consequence + fully-locked UI; self-healing catch-up; Qiyam cross-midnight window.
+- [x] **Phase 3 — Time-windowed completion + auto-miss catch-up (mechanism).** Done 2026-08-01 (see
+      RESULTS.md). Built the complete, tested engine: `PrayerWindow` + `PrayerWindowResolver` (the strict
+      per-prayer windows — Fajr→sunrise, Dhuhr→Asr, Asr→Maghrib, Maghrib→Isha, Isha→**next-day** Fajr
+      with a local-midnight preferred-end; the Isha/night window explicitly spans midnight for Qiyam);
+      `PrayerDayState` (pure upcoming/open/openLate/completed/missed resolution); `Completion.missed`
+      (+ persistence, `= false` lightweight migration) persisted at window-close so a later location
+      change can't reopen a past miss; and `PrayerWindowCatchUp` (self-healing, bounded lookback,
+      prayer-habit-only, idempotent — mirrors `MilestoneEngine.runCatchUp()`). **Verified:** build
+      succeeds; **28 unit tests pass** (added 4 window + 7 day-state + 4 catch-up), incl. cross-midnight
+      Isha, every state transition, and catch-up idempotency/bounding/completed-day-safety.
+      **Deferred to Phase 7 (deliberate sequencing):** the HomeView row rendering (upcoming/late/
+      missed-locked visuals + tap-gating so a missed day has zero interactive options) and the
+      foreground *invocation* of the catch-up (+ LocationService/PrayerTimeService env injection) —
+      these need prayer habits to *exist* to render/prompt-location-for, so they're built end-to-end
+      with the Phase 7 content rather than as dormant, untestable plumbing now. The engine they consume
+      is done and fully tested.
 - [ ] **Phase 4 — Notification system for prayer habits.** Mandatory, one per prayer, at
       adhan+iqama+duration with per-prayer configurable offsets; post-midnight Isha indicator.
 - [ ] **Phase 5 — Progressive / auto-increasing goals (generalized).** `goalAtCompletion` snapshot;
