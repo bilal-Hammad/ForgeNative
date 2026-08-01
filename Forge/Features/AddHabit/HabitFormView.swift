@@ -397,6 +397,31 @@ struct HabitFormView: View {
                                 .labelsHidden()
                         }
 
+                        // Tasbih/dhikr preset goals (P1 Phase 6) — one tap to
+                        // set the classic counts, shown for count-based habits
+                        // (the counter reuses the quantity tap-to-increment
+                        // pattern; these are just quick goal presets).
+                        if unit == .count {
+                            HStack(spacing: 8) {
+                                Text("Quick set")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                ForEach([33.0, 99.0, 100.0], id: \.self) { preset in
+                                    Button {
+                                        goal = preset
+                                    } label: {
+                                        Text(Int(preset), format: .number)
+                                            .font(.subheadline.weight(.medium))
+                                            .frame(minWidth: 40)
+                                            .padding(.vertical, 4)
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .tint(goal == preset ? color.color : .secondary)
+                                    .accessibilityIdentifier("goalPreset.\(Int(preset))")
+                                }
+                            }
+                        }
+
                         Picker("Unit", selection: $unit) {
                             ForEach(HabitUnit.pickerOptions) { option in
                                 Text(option.displayName).tag(option)

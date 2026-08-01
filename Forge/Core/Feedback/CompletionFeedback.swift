@@ -33,13 +33,17 @@ enum CompletionFeedback {
     }
 
     /// A quantity habit's routine increment while still below goal —
-    /// subtle, repeatable feedback (a habit like "drink water" might get
-    /// tapped 8 times in a row) distinct from the one-time completion
-    /// moment above. No sound: an audible tick on every one of those taps
-    /// would get grating fast, so the audible moment is reserved for
-    /// `complete()`.
+    /// subtle, repeatable feedback (a habit like "drink water", or a
+    /// tasbih/dhikr counter tapped 33/99 times in a row — P1 Phase 6)
+    /// distinct from the one-time completion moment above. Uses a
+    /// **selection tick** (`UISelectionFeedbackGenerator`, the same crisp
+    /// detent haptic pickers use) rather than a `.light` impact: it's the
+    /// more satisfying, distinct per-tap "count advanced" feel for rapid
+    /// counting, which is the highest-tap-rate use of the quantity pattern.
+    /// No sound: an audible tick on every one of these taps would get
+    /// grating fast, so the audible moment is reserved for `complete()`.
     static func incrementStep() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        UISelectionFeedbackGenerator().selectionChanged()
     }
 
     /// `AudioServicesPlaySystemSound` IDs for short, dry system UI sounds —

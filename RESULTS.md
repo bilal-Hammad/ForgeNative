@@ -2512,3 +2512,42 @@ prior commit). This adds the *automatic* increase mode; manual mode already work
   example). The bump notification is best-effort (only if notifications authorized) and delivered
   immediately (nil trigger). The chart's goal `RuleMark` still shows the *current* goal as a reference
   line (a deliberate "where you are now" marker, not per-day history).
+
+## 2026-08-01 — Phase 6: dhikr/tasbih counter (quantity habit + presets + counting haptic)
+
+Realized the dhikr counter as a `.count` quantity habit rather than a new data-model type — faithful to
+the spec's own "reuses the quantity-habit tap-to-increment pattern, not a special panel/screen"
+decision (which superseded an earlier idea of a dhikr row inside the timer mini-player panel). Two
+concrete changes:
+- **Preset goal shortcuts** (`HabitFormView`): a "Quick set" row with 33 / 99 / 100 bordered buttons,
+  shown for count-unit habits, one tap to set the classic tasbih counts (accessibility ids
+  `goalPreset.<n>` for a future form test).
+- **Distinct per-tap counting haptic**: `CompletionFeedback.incrementStep()` now fires a
+  `UISelectionFeedbackGenerator().selectionChanged()` — the crisp picker-detent "tick", the more
+  satisfying/distinct feel for rapid counting — instead of the old `.light` impact. This serves every
+  quantity increment (the shared pattern dhikr reuses); rapid tasbih counting is its highest-tap-rate
+  use.
+
+No new `Habit` field/unit: a tasbih is a count habit with goal 33/99/100. Phase 7's Group-2 dhikr
+templates (SubhanAllah 33, Alhamdulillah 33, Allahu Akbar 33, Istighfar, Salawat) will be count habits
+with these goals + a prayer-beads SF Symbol — no extra engineering, exactly as the spec groups them.
+
+### Verified (and how)
+- Build succeeds.
+- `ResetHabitTests` **quantity** cases both pass (`testQuantityHabitPartialProgressDialogAndReset`,
+  `testQuantityHabitCompleteDialogOffersOnlyReset`) — they exercise the exact tap-to-increment +
+  long-press dialog path the haptic change touches, so the interaction is confirmed intact.
+- **Honest flaky-test note:** `ResetHabitTests.testTimerHabitRunningLongPressDialogAndReset` failed
+  (both an initial run and a rerun). Root-caused as **not a Phase 6 regression**: it's a *timer* test
+  that starts the 3-second "Timer Test Habit" and expects it to still be running when the long-press
+  dialog is checked — a race CLAUDE.md already documents (which is why the Stop-button test seeds a
+  longer-goal habit), and this run hit severe Simulator slowness (142s vs the normal ~30s), losing the
+  race so the timer auto-completed before the assertion. The two quantity tests on the *same* dialog
+  code pass, and nothing in Phase 6 touches the timer long-press path. Flagged as a separate flaky-test
+  cleanup (give it its own longer-goal seeded habit), not fixed here to stay scoped.
+
+### Judgment call
+"Its own habit type" is interpreted as a distinct *presentation/feel* (presets + counting tick + a
+beads icon on the templates) over the shared quantity mechanics, not a new model type — the cleaner
+design the spec itself points at. If Bilal wants a genuinely separate type (e.g. a full-screen counter),
+that's a follow-up, flagged.

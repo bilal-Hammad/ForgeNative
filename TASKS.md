@@ -259,8 +259,22 @@ habit IDs stable and sensible so it can reference them later without rework.
       build succeeds; **41 unit tests pass** (+8: snapshot used/fallback, a day completed at goal 30
       stays 1.0 after goal→40, engine bumps per elapsed interval, no premature bump, no retroactive bump
       on enable, ignores non-progression habits, bounded by max-bumps).
-- [ ] **Phase 6 — Dhikr counter habit type.** Tap-to-increment, per-tap haptic, 33/99/100 shortcuts,
-      reusing the quantity pattern.
+- [x] **Phase 6 — Dhikr counter habit type.** Done 2026-08-01 (see RESULTS.md). Realized as a `.count`
+      quantity habit (per the spec's own "reuses the quantity tap-to-increment pattern" decision — no
+      new data-model type): (1) **preset goal shortcuts 33 / 99 / 100** as one-tap "Quick set" buttons in
+      `HabitFormView` (shown for count habits); (2) a **distinct per-tap counting haptic** —
+      `CompletionFeedback.incrementStep()` now uses a `UISelectionFeedbackGenerator` selection *tick*
+      (the crisp picker-detent haptic, apt for rapid tasbih counting) instead of a `.light` impact. The
+      Phase 7 Group-2 dhikr templates (SubhanAllah 33, etc.) will be count habits with these goals + a
+      beads icon. **Verified:** build succeeds; the two `ResetHabitTests` quantity tests
+      (`testQuantityHabitPartialProgressDialogAndReset`, `...CompleteDialogOffersOnlyReset`) — which
+      exercise the same tap-to-increment + long-press dialog path — **pass**.
+      **Pre-existing flaky test flagged (not a Phase 6 regression):**
+      `ResetHabitTests.testTimerHabitRunningLongPressDialogAndReset` failed — it uses the 3-second
+      "Timer Test Habit" and races the long-press against auto-completion (a fragility CLAUDE.md already
+      documents), and this run was severely Simulator-slowed (142s). It's unrelated to Phase 6 (the
+      quantity tests on the identical dialog pass); a candidate for a separate flaky-test fix (seed a
+      longer-goal timer habit for it, like the Stop-button test already does).
 - [ ] **Phase 7 — Islamic template content (English), organized into the 4 groups.** Delete
       `good-islamic` first; new sub-grouped pack; 5 Fard prayers as suggested starter.
 - [ ] **Phase 8 — Remote config + paywall UI.** Static JSON fetch/cache/fallback (hosting+security
