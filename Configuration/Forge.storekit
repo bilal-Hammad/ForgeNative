@@ -1,0 +1,98 @@
+{
+  "identifier" : "F0R6E0001",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "A1000001",
+      "localizations" : [
+        {
+          "description" : "Unlock the full Islamic template pack: prayer-window habits, dhikr counters, Quran and character habits.",
+          "displayName" : "Islamic Pack",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.bilalhammad.forge.native.pack.islamic",
+      "referenceName" : "Islamic Pack",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "0",
+    "_developerTeamID" : "53T98NLS49",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "S1000001",
+      "localizations" : [
+
+      ],
+      "name" : "Forge Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "B1000001",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "All premium features and every template pack, billed monthly.",
+              "displayName" : "Forge Premium (Monthly)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.bilalhammad.forge.native.premium.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Forge Premium Monthly",
+          "subscriptionGroupID" : "S1000001",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "19.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "B1000002",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "All premium features and every template pack, billed yearly.",
+              "displayName" : "Forge Premium (Yearly)",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.bilalhammad.forge.native.premium.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Forge Premium Yearly",
+          "subscriptionGroupID" : "S1000001",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 2,
+    "minor" : 0
+  }
+}

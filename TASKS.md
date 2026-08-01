@@ -174,9 +174,24 @@ habit IDs stable and sensible so it can reference them later without rework.
       `recurrenceRule(for:)` returns `nil` for `.timesPerWeek`/`.everyXHours`/`.timesADay`. Goal-
       comparison sites enumerated (see the progressive-goals section above). **Verified:** by reading
       each named file this pass, not from memory.
-- [ ] **Phase 1 — Real `EntitlementService` + StoreKit setup.** StoreKit 2 entitlements +
-      `Transaction.updates` listener + restore; `.storekit` test config; consolidate
-      `SuggestedSectionTier` gate behind the service. **Verify current StoreKit 2 API before coding.**
+- [x] **Phase 1 — Real `EntitlementService` + StoreKit setup.** Done 2026-08-01 (see RESULTS.md).
+      Built `StoreKitEntitlementService` (StoreKit 2: `Product.products(for:)`, `product.purchase()`
+      → `PurchaseResult`, `Transaction.currentEntitlements` scan, `Transaction.updates` listener,
+      `AppStore.sync()` restore, canonical `checkVerified` verification) behind the existing
+      `EntitlementService` protocol; `ProductIdentifiers` (monthly/yearly sub + Islamic non-consumable)
+      + pure `EntitlementResolver` ("premium OR owns pack"); `Configuration/Forge.storekit` test config
+      (schema verified against a real RevenueCat example, not assumed); consolidated the
+      `AddSectionView` premium gate to read `EntitlementService.isPremiumUnlocked()` (was a cosmetic-
+      only lock that still let anyone add). New hosted `ForgeTests` unit-test target + shared `Forge`
+      scheme (StoreKit config attached to Run). **Verified:** current StoreKit 2 API confirmed via
+      Apple-forum/community docs before coding (standing rule); Simulator **build succeeds**; 8/8
+      `EntitlementResolverTests` pass; `ForgeUITests` command still green under the new scheme
+      (`testLongPressInstantlyCompletesWithoutTimer`). **NOT verified here (needs device sandbox +
+      Bilal):** the live purchase/restore sheet — no App Store/sandbox account is reachable from an
+      automated run, so the real purchase→unlock flow and an end-to-end gating UI test are Phase 9 /
+      on-device. **Open for Bilal:** final prices in `Forge.storekit` are placeholders (monthly 2.99 /
+      yearly 19.99 / Islamic pack 4.99) — set the real ones in App Store Connect; app renders
+      `displayPrice` live so no code change needed.
 - [ ] **Phase 2 — Prayer-time architecture.** Adhan Swift (SPM), CoreLocation (foreground/one-time,
       Shafi'i), the prayer-relative time-source concept on `Habit`, daily recomputation, Calendar-sync
       disabled for prayer-relative.

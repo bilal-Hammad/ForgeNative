@@ -2202,3 +2202,83 @@ code) to make that entry reference the actual codebase, not assumptions.
 
 Next: Phase 1 — real StoreKit 2 `EntitlementService`, verifying the current StoreKit 2 API before
 coding (standing "verify APIs" rule).
+
+## 2026-08-01 — Phase 1: Real StoreKit 2 EntitlementService + gate consolidation
+
+First implementation phase of the P1 initiative. Verified the current StoreKit 2 API against
+Apple-forum/community docs **before** writing (standing "verify APIs, don't assume" rule): confirmed
+`Product.products(for:)`, `product.purchase()` → `Product.PurchaseResult`
+(`.success(VerificationResult<Transaction>)` / `.userCancelled` / `.pending`),
+`Transaction.currentEntitlements` (authoritative active-entitlement set, cross-device),
+`Transaction.updates` (out-of-band changes), `AppStore.sync()` (restore), and the canonical
+`.verified`/`.unverified` `checkVerified` unwrap. Also verified the exact `.storekit` JSON schema
+against a real RevenueCat example file (`RecurringSubscription`/`NonConsumable`, `recurringSubscription
+Period` "P1M"/"P1Y", `subscriptionGroups`, `settings`, `version {major:2,minor:0}`) rather than
+hand-guessing the format.
+
+### Built
+- `ProductIdentifiers.swift` — the one source of truth for product ids (monthly + yearly subscription,
+  Islamic pack non-consumable) and the pack-id→product-id map. Both `"islamic"` and the catalog id
+  `"good-islamic"` alias to the Islamic non-consumable.
+- `EntitlementResolver.swift` — pure "given owned product ids → premium? pack unlocked?" logic (no
+  StoreKit types), so it's unit-testable without a live store. Rule: premium = any subscription owned;
+  pack unlocked = premium OR that pack's non-consumable owned.
+- `StoreKitEntitlementService.swift` — real `@MainActor @Observable` implementation of the existing
+  `EntitlementService` protocol: initial `currentEntitlements` scan + long-lived `Transaction.updates`
+  listener keeping a reactive `purchasedProductIDs`, plus `loadProducts()`/`purchase()`/`restore()`
+  for the Phase 8 paywall. Gating reads re-scan `currentEntitlements` for freshness. No `deinit`
+  cancel of the listener — it's an app-lifetime singleton and a nonisolated `deinit` can't touch a
+  MainActor property under Swift 6 anyway (documented in the code).
+- `EntitlementService` protocol gained `isPackUnlocked(_:)`; `StubEntitlementService` gained a
+  `premiumOverride` (drives the new `-premiumUnlocked` UI-test launch arg).
+- `Configuration/Forge.storekit` — local StoreKit Testing config (Forge Premium monthly/yearly +
+  Islamic Pack non-consumable). Prices are placeholders (2.99 / 19.99 / 4.99); the app always renders
+  `displayPrice` live so real App Store Connect prices need no app update.
+- `ForgeApp` now injects `StoreKitEntitlementService` in normal runs; the `-uiTesting` fixture keeps
+  the stub (optionally force-unlocked via `-premiumUnlocked`), so no automated run touches real
+  StoreKit.
+- **Gate consolidation** (`AddSectionView`): the premium lock was previously **cosmetic only** — a
+  `.premium` section showed a lock icon but tapping it still added the section. Now `isLocked` reads
+  `EntitlementService.isPremiumUnlocked()` (resolved in `.task`), a locked row can't be added, and
+  tapping it surfaces a placeholder premium prompt (the Phase 8 paywall replaces it). This is the §10
+  "consolidate the direct-flag read behind the service" TODO that `EntitlementService`'s own doc
+  comment flagged.
+- **Project**: new hosted `ForgeTests` unit-test target (so `@testable import Forge` works — also the
+  future home for Phase 2 prayer-time and Phase 5 goal-snapshot math tests) + an explicit shared
+  `Forge` scheme (previously Xcode auto-created it) so the `.storekit` config attaches to the Run
+  action. The scheme's test action deliberately keeps **both** ForgeTests and ForgeUITests so the
+  `-only-testing:ForgeUITests/...` verification command every phase relies on still works.
+
+### Verified (and how)
+- **Simulator build succeeds** — the real StoreKit 2 code compiles against the SDK (the strongest
+  "APIs are correct" check available here). One real fix along the way: the type-checker timed out on
+  a ternary-heavy `AddSectionView` row, split into a `suggestedRow(_:)` helper with the lock state
+  precomputed.
+- **8/8 `EntitlementResolverTests` pass** (hosted unit tests): nothing-owned locks all; monthly and
+  yearly each unlock premium + all packs; owning only the Islamic pack unlocks that pack but NOT
+  generic premium; the `"islamic"`/`"good-islamic"` alias resolves the same; an unknown pack is locked
+  without premium and unlocked with it; an unrelated product unlocks nothing.
+- **ForgeUITests still green under the new scheme** — ran
+  `TimerHabitTests/testLongPressInstantlyCompletesWithoutTimer` to confirm the shared-scheme change
+  didn't break the UI-test command. `.storekit` validated as well-formed JSON with the expected
+  product ids.
+
+### NOT verified here (honest gaps)
+- **Live purchase/restore flow**: the system purchase sheet + a StoreKit sandbox account can't be
+  driven by any automated tool in this environment (same class of limitation as the Live Activity
+  Lock-Screen tap). The `currentEntitlements`/`updates`/`purchase` code is verified-compiling and the
+  resolution logic is unit-tested, but the actual purchase→entitlement→unlock round trip is Phase 9 /
+  Bilal's device (run the app from Xcode with the attached `.storekit`, or a sandbox account).
+- **End-to-end gating UI test**: navigating Home → Add Habit → Category Picker → Category Detail →
+  Edit Sections → Add Section is 5+ levels deep and fragile; deferred to Phase 9's dedicated
+  entitlement-gating tests. The `-premiumUnlocked` launch arg is already wired for it. The gate logic
+  itself is unit-tested + build-verified.
+
+### Open for Bilal (not blocking)
+- Real prices go in App Store Connect (placeholders in the `.storekit` file). App renders live
+  `displayPrice`.
+- The paywall UI (anchor pricing, "or free with Premium", featured pack) is Phase 8 — this phase built
+  only the entitlement/purchase *engine* behind it.
+
+Next: Phase 2 — prayer-time architecture (Adhan Swift, CoreLocation, prayer-relative time-source),
+verifying the Adhan package API before use.

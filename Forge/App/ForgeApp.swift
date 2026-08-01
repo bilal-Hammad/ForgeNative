@@ -103,7 +103,17 @@ struct ForgeApp: App {
         healthKitService = HealthKitService(habitRepository: habitRepository, milestoneEngine: milestoneEngine)
         calendarSyncService = EventKitCalendarSyncService(habitRepository: habitRepository)
         moodRepository = SwiftDataMoodRepository(modelContainer: modelContainer)
-        entitlementService = StubEntitlementService()
+        // Real StoreKit 2 entitlements in normal runs; the stub only for the
+        // in-memory UI-test fixture (no live App Store / sandbox account is
+        // reachable from an automated run). `-premiumUnlocked` forces the
+        // stub to report everything unlocked, so entitlement *gating* can be
+        // exercised both locked and unlocked in ForgeUITests.
+        if isUITesting {
+            let forcePremium = ProcessInfo.processInfo.arguments.contains("-premiumUnlocked")
+            entitlementService = StubEntitlementService(premiumOverride: forcePremium)
+        } else {
+            entitlementService = StoreKitEntitlementService()
+        }
         // `-uiTesting` gets the always-signed-out stand-in, matching the
         // in-memory `ModelConfiguration` above — a real Sign in with Apple
         // flow needs genuine user interaction with a system sheet and has

@@ -3,31 +3,34 @@ import Foundation
 /// The single boundary premium-feature checks go through (APP_REDESIGN_SPEC.md
 /// §10: "gate premium-section visibility through the same repository-pattern
 /// boundary... so entitlement checks are centralized rather than scattered
-/// across views"). §10's actual StoreKit 2 purchase/entitlement flow is
-/// Phase 4+ — this protocol is the architecture that flow will drop behind
-/// later, matching the same "resolved during Phase 3: only the data-model
-/// tier flag exists so far" pattern §10 already used for premium suggested
-/// sections.
+/// across views"). As of the P1 "StoreKit + Islamic Template" initiative the
+/// real StoreKit 2 implementation (`StoreKitEntitlementService`) lives behind
+/// this protocol; `StubEntitlementService` remains the previews/tests default.
 ///
-/// Async, not a plain `Bool` property, on purpose — a real StoreKit 2
-/// implementation needs to check `Transaction.currentEntitlements` (an
-/// async sequence), so the boundary is shaped for that from the start
-/// rather than needing every call site to change later.
+/// Async, not a plain `Bool` property, on purpose — the real StoreKit 2
+/// implementation checks `Transaction.currentEntitlements` (an async
+/// sequence), so the boundary is shaped for that.
 protocol EntitlementService: Sendable {
-    /// Whether the current user has an active premium entitlement — gates
-    /// Progress's "Best Day/Time & Streak Distribution" card (this pass)
-    /// and, per §10, premium suggested sections (not yet wired to this
-    /// boundary — that gate still reads its own `SuggestedSectionTier` flag
-    /// directly; consolidating it behind this same protocol is a
-    /// reasonable follow-up, not attempted here to keep this pass scoped to
-    /// what was actually asked for).
+    /// Whether the current user has an active **Forge Premium** subscription
+    /// — gates every generic-premium feature (Progress's "Best Day/Time &
+    /// Streak Distribution" card, `.premium`-tier suggested sections, etc.).
     func isPremiumUnlocked() async -> Bool
+
+    /// Whether a specific template pack is unlocked — true if the user has
+    /// premium **or** owns that pack's standalone non-consumable. `packID`
+    /// is a `TemplateSection`/pack id (see `ProductIdentifiers.packProductID`).
+    func isPackUnlocked(_ packID: String) async -> Bool
 }
 
-/// Stub implementation — always locked. This is intentionally the only
-/// implementation that exists right now; real StoreKit 2 `Transaction`/
-/// `Product` wiring is Phase 4+ per §10, alongside the other "sensitive
-/// integrations" (Calendar/Reminders/Notifications/HealthKit).
+/// Stub — locked by default. Kept as the previews/tests default (the
+/// environment's `defaultValue`) and as the `-uiTesting` fixture's
+/// entitlement source. `premiumOverride` lets a UI test launch with
+/// everything unlocked (the `-premiumUnlocked` launch argument, see
+/// `ForgeApp`) so entitlement *gating* can be exercised both ways without a
+/// live App Store / sandbox account, which no automated run in this
+/// environment has.
 struct StubEntitlementService: EntitlementService {
-    func isPremiumUnlocked() async -> Bool { false }
+    var premiumOverride: Bool = false
+    func isPremiumUnlocked() async -> Bool { premiumOverride }
+    func isPackUnlocked(_ packID: String) async -> Bool { premiumOverride }
 }

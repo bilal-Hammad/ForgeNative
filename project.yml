@@ -112,3 +112,50 @@ targets:
     dependencies:
       - target: Forge
     testTargetID: Forge
+
+  # Logic/unit tests (hosted in the Forge app so `@testable import Forge`
+  # works). Added in P1 for the entitlement-resolution logic; also the home
+  # for later pure-math tests the initiative needs (prayer-time accuracy in
+  # Phase 2, point-in-time goal snapshot math in Phase 5) — the kind of
+  # correctness that's far better checked with real assertions than with a
+  # Simulator screenshot. Depending on the Forge application target makes
+  # xcodegen wire TEST_HOST/BUNDLE_LOADER automatically.
+  ForgeTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: ForgeTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.bilalhammad.forge.native.unittests
+    dependencies:
+      - target: Forge
+
+# Shared "Forge" scheme. Previously Xcode auto-created this (no shared scheme
+# was in the repo); it's declared explicitly now so the local StoreKit
+# configuration is attached to the Run action for on-device/Simulator sandbox
+# testing of purchases without live App Store Connect products. The test
+# action must keep BOTH test targets so `xcodebuild test -scheme Forge
+# -only-testing:ForgeUITests/...` (used to verify every phase) still works.
+schemes:
+  Forge:
+    build:
+      targets:
+        Forge: all
+        ForgeTests: [test]
+        ForgeUITests: [test]
+    run:
+      config: Debug
+      storeKitConfiguration: Configuration/Forge.storekit
+    test:
+      config: Debug
+      targets:
+        - ForgeTests
+        - ForgeUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
