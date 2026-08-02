@@ -139,6 +139,12 @@ targets:
     deploymentTarget: "26.0"
     sources:
       - path: ForgeTests
+      # The StoreKit test config is bundled into the unit-test bundle so
+      # `SKTestSession(configurationFileNamed: "Forge")` can drive real
+      # StoreKit transactions through `StoreKitEntitlementService` on-device
+      # (StoreKitEntitlementServiceTests). Same file the Run action attaches.
+      - path: Configuration/Forge.storekit
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.bilalhammad.forge.native.unittests

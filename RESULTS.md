@@ -2744,3 +2744,48 @@ never crashes the fixture.
 The 3-second-timer / launch flakiness in `testMiniPlayerAppearsWhenTimerRunning` and
 `testTimerHabitRunningLongPressDialogAndReset` should get its own longer-goal-seed fix so it stops
 intermittently failing under Simulator load.
+
+## 2026-08-02 — Paywall entry points: one was wired (but deeply buried), one was missing (built + tested)
+
+Bilal asked whether the paywall is actually reachable in the running build. Verified concretely (code
+trace + a real touch-injection test), not from the plan:
+
+### Finding 1 — Islamic pack paywall: WIRED, but 7 taps deep (was correct, just buried)
+The premium Islamic sections **do** reach the paywall. `availableSuggestedSections` applies no tier
+filter, so the four `good-islamic-*` sections (premium, not in the free defaults) appear in
+`AddSectionView` as **locked** rows, and tapping one sets `paywallTarget` → `.sheet { PaywallView(packID:) }`
+(AddSectionView.swift:66). Confirmed by reading every hop of the path. It's genuinely reachable but
+buried: Home → "+" → Add Habit → Good → "•••" → Edit → Add Section → tap a locked section.
+
+### Finding 2 — general "Upgrade to Premium" entry: WAS MISSING, now built
+`PaywallView` was presented from **exactly one place** (AddSectionView) — nothing in Profile/Settings
+opened it, so there was no way to subscribe without going through the Add-Section flow for a specific
+pack. This was a real "done" gap. **Fixed:** added a prominent **"Upgrade to Forge Premium"** card to
+`ProfileView` (it had an empty body area) that opens the generic (subscription) `PaywallView()`; it
+shows an "Active" state once premium is unlocked, and re-checks entitlement on the sheet's dismiss.
+
+### Verified (real touch injection, not code-reading alone)
+- New `ForgeUITests/PaywallEntryTests.testProfilePremiumCardOpensPaywall`: launches, taps the **Profile**
+  tab, taps the **"Upgrade to Forge Premium"** card, and asserts the paywall opened (its unique "Restore
+  Purchases" button appears). **Passes.** This also proves the shared `PaywallView` opens + renders — the
+  same component Finding 1's path opens with a `packID` — so Finding 1's paywall is confirmed functional
+  too (its only path-specific link, AddSectionView→sheet, is the code-verified line above).
+- Build succeeds.
+
+### Exact navigation steps for Bilal (labels as they literally appear in the running app)
+**(a) General subscribe paywall (new, easiest):** **Profile** tab (bottom-right, person icon) → tap the
+**"Upgrade to Forge Premium"** card near the top (crown icon). Shows the monthly/yearly subscription
+options.
+
+**(b) Islamic pack paywall (subscribe OR buy just the pack, with the "or free with Premium" callout):**
+**Home** tab → tap the **"+"** (Add Habit) button under the habit list → on **"Add Habit"**, tap
+**"Good"** → on the **"Good"** screen, tap the **"•••"** menu (top-right) → **"Edit"** → on **"Edit Good
+Sections"**, tap **"Add Section"** → under **"Suggested Sections"**, tap any **locked (🔒)** Islamic
+section: **"Prayers"**, **"Dhikr & Tasbih"**, **"Quran & Character"**, or **"Weekly Practices"**. The
+pack paywall opens with the subscription options + the standalone **Islamic Pack** price + **"or free
+with Premium"**.
+
+### Note
+The Islamic-pack path (b) is functional but deep; making the pack more directly discoverable (e.g. a
+featured-pack card driven by the remote-config `featuredPackID`) is a reasonable follow-up, flagged —
+not done here since the task was to confirm/fix reachability, which both paths now have.

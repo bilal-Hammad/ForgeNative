@@ -26,8 +26,14 @@ import SwiftUI
 /// signed in.
 struct ProfileView: View {
     @Environment(\.authService) private var authService
+    @Environment(\.entitlementService) private var entitlementService
     @State private var currentUser: AuthUser?
     @State private var scrollOffset: CGFloat = 0
+    /// The general subscribe entry point (P1 Phase 8 wiring gap fixed 2026-08-02):
+    /// PaywallView was only reachable via the deep Add-Section flow. This card
+    /// opens the generic (subscription) paywall directly from Profile.
+    @State private var isPremium = false
+    @State private var showingPaywall = false
 
     private var isSignedIn: Bool { currentUser != nil }
 
@@ -46,7 +52,10 @@ struct ProfileView: View {
                         .scaleEffect(1 - 0.3 * collapseProgress, anchor: .top)
                         .padding(.top, 12)
 
-                    Spacer(minLength: 400)
+                    premiumCard
+                        .padding(.horizontal)
+
+                    Spacer(minLength: 300)
                 }
             }
             .onScrollGeometryChange(for: CGFloat.self) { geometry in
@@ -76,7 +85,54 @@ struct ProfileView: View {
             }
             .task {
                 currentUser = await authService.restoreSession()
+                isPremium = await entitlementService.isPremiumUnlocked()
             }
+            .sheet(isPresented: $showingPaywall, onDismiss: {
+                Task { isPremium = await entitlementService.isPremiumUnlocked() }
+            }) {
+                PaywallView()
+            }
+        }
+    }
+
+    /// "Forge Premium" card — the general subscribe entry point. Shows an
+    /// active state once premium is unlocked, otherwise a tappable upgrade
+    /// button that opens the (subscription) paywall.
+    @ViewBuilder
+    private var premiumCard: some View {
+        if isPremium {
+            HStack(spacing: 12) {
+                Image(systemName: "crown.fill").foregroundStyle(.yellow)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Forge Premium").font(.headline)
+                    Text("Active — all features and packs unlocked")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+        } else {
+            Button {
+                showingPaywall = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "crown.fill").foregroundStyle(.yellow)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Upgrade to Forge Premium").font(.headline)
+                        Text("Unlock every feature and template pack")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.footnote).foregroundStyle(.secondary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(.tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("profile.upgradeToPremium")
         }
     }
 
