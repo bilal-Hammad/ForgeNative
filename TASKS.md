@@ -261,8 +261,11 @@ habit IDs stable and sensible so it can reference them later without rework.
       on enable, ignores non-progression habits, bounded by max-bumps).
 - [x] **Phase 6 — Dhikr counter habit type.** Done 2026-08-01 (see RESULTS.md). Realized as a `.count`
       quantity habit (per the spec's own "reuses the quantity tap-to-increment pattern" decision — no
-      new data-model type): (1) **preset goal shortcuts 33 / 99 / 100** as one-tap "Quick set" buttons in
-      `HabitFormView` (shown for count habits); (2) a **distinct per-tap counting haptic** —
+      new data-model type): (1) ~~**preset goal shortcuts 33 / 99 / 100** as one-tap "Quick set" buttons
+      in `HabitFormView` (shown for count habits)~~ — **the Quick set feature was removed entirely on
+      2026-08-02** (see the timer-redesign entry below); the dhikr templates still seed the same 33/99/
+      100-style goals from `TemplateCatalog`, they just aren't one-tap-settable in the form anymore;
+      (2) a **distinct per-tap counting haptic** —
       `CompletionFeedback.incrementStep()` now uses a `UISelectionFeedbackGenerator` selection *tick*
       (the crisp picker-detent haptic, apt for rapid tasbih counting) instead of a `.light` impact. The
       Phase 7 Group-2 dhikr templates (SubhanAllah 33, etc.) will be count habits with these goals + a
@@ -418,6 +421,50 @@ habit IDs stable and sensible so it can reference them later without rework.
       (`Transaction.currentEntitlements`'s async sequence, when the test's injected transaction actually
       becomes enumerable) rather than guess-fixing with an arbitrary delay. Do not assume the working
       theory above is correct without that evidence.
+
+- [x] **In-app timer experience redesign (2026-08-02).** Mini-player / card row / expanded options
+      panel — **in-app only**, the Lock Screen Live Activity (`HabitTimerLiveActivity.swift`,
+      `ForgeWidgets`) deliberately untouched. (1) **Removed the duplicate ring from the habit card row**:
+      `HomeView.timerStatusIndicator`'s running branch rendered a second live `HabitTimerRingView`,
+      duplicating the countdown the pinned mini-player already shows — now a static `stopwatch.fill`
+      glyph in the habit's color, matching the paused branch's own static-glyph treatment (kept the
+      `timerStatus.running` identifier, so existing tests query the same thing, just find a different
+      view). (2) **Mini-player expands on tap, not long-press** (`.onTapGesture` replacing
+      `.onLongPressGesture(minimumDuration: 0.3)`), with the accessibility hint updated to match; the
+      pause/resume button remains an unaffected sibling tap target. (3) **`TimerExpandedPanel`
+      redesigned** as an Apple-Workout-style Liquid Glass control screen: a **140pt countdown ring** at
+      top (live-ticking while running via the now-`size`-parameterized `HabitTimerRingView`; a static
+      frozen ring + "Paused" caption while paused — a live `TimelineView` would be actively *wrong*
+      there, since a paused timer's remaining time doesn't change), over **icon-only circular glass
+      buttons** with no text labels. **Stop no longer cancels** — it calls the existing
+      `HomeView.pauseTimer` (banking elapsed time, mirroring the Live Activity, exactly as the
+      mini-player's own pause button already did), so the *same* sheet reactively swaps to the paused
+      button set (Resume / Cancel) instead of dismissing; only Cancel fully discards. The panel reads
+      the **live** `selectedDayCompletions[habit.id]` (not a snapshot captured at present-time), so it
+      also stays correct if the timer is paused/resumed from the Lock Screen while the sheet is open.
+      (4) Icon-only buttons carry real `accessibilityLabel`s ("Complete now"/"Restart timer"/"Stop
+      timer"/"Resume timer"/"Cancel timer") with `timerOptions.*` identifiers, incl. new
+      `timerOptions.resume`/`.cancel`. **Also removed project-wide: the "Quick set" 33/99/100 preset-goal
+      buttons** (Phase 6) — only ever referenced in `HabitFormView.swift`, confirmed by grep with zero
+      test references before and after. **Liquid Glass API verified against the real SDK before coding**
+      (standing rule): `.buttonStyle(.glass)`/`.glassProminent` + `.buttonBorderShape(.circle)` +
+      `.clipShape(Circle())` (Apple's documented fix for a prominent+circle rendering artifact), with
+      the 3-button row wrapped in a `GlassEffectContainer` per Apple's guidance that glass can't
+      correctly sample adjacent glass without a shared container — build-verified, and this project's
+      iOS 26.0 deployment target means no `#available` fallback branch is needed (it would be dead
+      code). **Verified:** build succeeds; **real Simulator screenshots captured via XCUITest attachments
+      confirm both states visually** (running: live ring + checkmark/restart/red-stop; paused: frozen
+      ring + "Paused" + checkmark/blue-play/red-X) — not trusted from code alone; **8/8
+      `TimerOptionsSheetTests` pass** (rewritten: tap-not-long-press opens the panel; Stop pauses and
+      swaps the button set *without* dismissing; Resume continues and dismisses; Cancel fully discards;
+      plus the pre-existing appears/pause-resume/complete/restart cases), and `TimerHabitTests` (2/2) +
+      `ResetHabitTests` still pass, confirming the card-row change didn't break the `timerStatus.running`
+      queries. One real bug found in my own new test code along the way (two cases tapped "Stop timer"
+      with no `waitForExistence` first) — fixed, not papered over. **Note for later, do NOT build now:**
+      this glass-panel + big-ring + icon-only-button pattern is intended to be **reused for the future
+      dhikr/adhkar counter UI** (a separate, later feature — see the Islamic template pack's Group 2);
+      flagged here and in `TimerExpandedPanel`'s own doc comment, with no counter-specific code written
+      this pass.
 
 **Localization (Arabic/Turkish) is intentionally NOT part of this initiative** (Bilal, 2026-08-01):
 translation happens later as its own separate pass, once the *entire app* is finished — not part of the

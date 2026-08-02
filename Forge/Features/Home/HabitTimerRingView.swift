@@ -47,6 +47,16 @@ struct HabitTimerRingView: View {
     let start: Date
     let end: Date
     let tint: Color
+    /// Overall frame (width = height). Defaults to the original row-glyph
+    /// size (44pt); the countdown text and its containing frame scale
+    /// proportionally from that same 44pt/12pt/38pt ratio, so a caller that
+    /// doesn't pass `size` gets pixel-identical output to before this was
+    /// generalized (2026-08-02, for `TimerExpandedPanel`'s ~140pt display —
+    /// see that type's doc comment).
+    var size: CGFloat = 44
+
+    private var fontSize: CGFloat { size * (12.0 / 44.0) }
+    private var textFrameWidth: CGFloat { size * (38.0 / 44.0) }
 
     var body: some View {
         ZStack {
@@ -63,25 +73,30 @@ struct HabitTimerRingView: View {
                 .tint(tint)
             }
 
-            // 12pt is the primary sizing strategy, not `minimumScaleFactor`
-            // — a real-device screenshot with the original 9pt base showed
-            // it shrinking as far as 4.5pt (illegible) for anything past a
-            // couple digits. 12pt fits a "mm:ss"-length string cleanly in
-            // this frame on its own; `minimumScaleFactor` stays only as a
-            // safety net for genuine edge cases (e.g. Dynamic Type), same
-            // legibility class as `quantityProgressIndicator`'s text below,
-            // which this view's frame/stroke width now also matches.
+            // 12pt-at-44pt-frame is the primary sizing strategy, not
+            // `minimumScaleFactor` — a real-device screenshot with the
+            // original 9pt base showed it shrinking as far as 4.5pt
+            // (illegible) for anything past a couple digits. Scaling both
+            // the font and its frame together (rather than just the font)
+            // keeps the same fit ratio at any `size`; `minimumScaleFactor`
+            // stays only as a safety net for genuine edge cases (e.g.
+            // Dynamic Type), same legibility class as
+            // `quantityProgressIndicator`'s text, which this view's
+            // frame/stroke width originally matched at the default size.
             Text(timerInterval: start...end, countsDown: true)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: fontSize, weight: .semibold))
                 .monospacedDigit()
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
-                .frame(width: 38)
+                .frame(width: textFrameWidth)
         }
-        .frame(width: 44, height: 44)
+        .frame(width: size, height: size)
     }
 }
 
 #Preview {
-    HabitTimerRingView(start: .now, end: .now.addingTimeInterval(600), tint: .blue)
+    VStack(spacing: 24) {
+        HabitTimerRingView(start: .now, end: .now.addingTimeInterval(600), tint: .blue)
+        HabitTimerRingView(start: .now, end: .now.addingTimeInterval(600), tint: .blue, size: 140)
+    }
 }

@@ -7,10 +7,13 @@ import SwiftUI
 /// whenever *any* timer-type habit is active (running or paused).
 ///
 /// Collapsed it mirrors the Live Activity pill (icon circle · countdown ·
-/// pause/resume). **Touch-and-hold** expands it — via the caller's `onExpand`,
-/// which presents `TimerExpandedPanel` as a bottom sheet — matching how
-/// Apple's own Workout Live Activity touch-and-holds the pill into a fuller
-/// card. Replaced the earlier `.confirmationDialog` (2026-07-31).
+/// pause/resume). **A tap** expands it — via the caller's `onExpand`, which
+/// presents `TimerExpandedPanel` as a bottom sheet. Replaced the earlier
+/// `.confirmationDialog` (2026-07-31); tap replaced an initial touch-and-hold
+/// (2026-08-02) — a plain tap is the more discoverable, lower-friction
+/// gesture for a bar that's persistently visible and has no other tap
+/// target competing for a single tap (the pause/resume button is a
+/// separate, sibling tap target, unaffected by this change).
 struct TimerMiniPlayerBar: View {
     let habit: Habit
     let completion: Completion
@@ -55,13 +58,13 @@ struct TimerMiniPlayerBar: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .contentShape(Rectangle())
-            // Touch-and-hold to expand — a short 0.3s hold, the system's own
-            // long-press feel. The pause button (sibling) keeps its own tap.
-            .onLongPressGesture(minimumDuration: 0.3) { onExpand() }
+            // A plain tap expands the panel. The pause button (sibling)
+            // keeps its own separate tap target.
+            .onTapGesture { onExpand() }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("timerMiniPlayer")
             .accessibilityAddTraits(.isButton)
-            .accessibilityHint("Touch and hold for timer options")
+            .accessibilityHint("Opens timer options")
 
             Button(action: onPauseResume) {
                 Image(systemName: isPaused ? "arrow.clockwise" : "pause.fill")
@@ -104,75 +107,228 @@ struct TimerMiniPlayerBar: View {
     }
 }
 
-/// The touch-and-hold expansion of `TimerMiniPlayerBar` — a bottom sheet of
-/// full-width action rows. Deliberately a simple, **extensible** vertical
-/// stack (not a hardcoded 3-option layout): a future StoreKit "Islamic
-/// template" is planned to add a dhikr/tasbih counter row here, so new rows
-/// drop in without restructuring. Each action dismisses the panel.
+/// The tap-to-expand panel for `TimerMiniPlayerBar` (redesigned 2026-08-02) —
+/// a native-feeling Liquid Glass control screen modeled on Apple's own
+/// Workout app control screen: a large countdown ring at top, icon-only
+/// circular glass buttons below (no text labels in the button row — each
+/// button carries a real `accessibilityLabel` instead, since a screen reader
+/// user needs the same information a sighted user gets from a printed
+/// label).
+///
+/// Reads the habit's **live** `Completion` — the caller passes
+/// `HomeView.selectedDayCompletions[habit.id]` directly, not a snapshot
+/// captured when the sheet was presented — so this view reactively swaps
+/// between the running and paused button sets, including if the timer is
+/// paused/resumed from the **Lock Screen** while this sheet happens to be
+/// open (the existing scene-phase-foreground drain already keeps
+/// `selectedDayCompletions` in sync on return to the app; this view just
+/// needs to read that live value, which passing the dictionary lookup in
+/// directly — rather than a value captured once — accomplishes).
+///
+/// **Stop no longer cancels the timer.** It now *pauses* it (banking
+/// elapsed time, mirroring the Live Activity — the exact same
+/// `HomeView.pauseTimer` the mini-player's own pause button already calls),
+/// which is why tapping it transitions this same sheet to the paused button
+/// set (Resume / Cancel) instead of dismissing it. Only Cancel (paused
+/// state) fully discards progress.
+///
+/// **Liquid Glass API verified against the current SDK before use** (not
+/// assumed) — `.buttonStyle(.glass)` / `.glassProminent` +
+/// `.buttonBorderShape(.circle)` is the exact pattern this codebase already
+/// uses for its one other circular glass button (`HomeView`'s "+" Add Habit
+/// button); `GlassEffectContainer` wraps the row of 3 adjacent glass buttons
+/// per Apple's own documented guidance (glass can't correctly sample
+/// adjacent glass without a shared container); `.clipShape(Circle())` is
+/// Apple's documented workaround for a `.glassProminent` +
+/// `.buttonBorderShape(.circle)` rendering-artifact issue. This project's
+/// deployment target is iOS 26.0 (`project.yml`) — every device this app
+/// runs on has this API, so there's no `#available`/material-fallback
+/// branch here; one would be dead code that could never execute (see
+/// `glassButton`'s own doc comment).
+///
+/// **Reuse note, for later — do not build yet**: this glass-panel / big-ring
+/// / icon-only-button shape is intended to be reused for the future dhikr/
+/// adhkar counter UI (a separate, later feature per TASKS.md's Islamic
+/// template pack) — no counter-specific code exists here, this is only a
+/// flag for whoever picks that work up.
 struct TimerExpandedPanel: View {
-    let habitTitle: String
+    let habit: Habit
+    /// Live — see the type's doc comment on why this must be a passed-in
+    /// dictionary lookup, not a value captured once.
+    let completion: Completion?
+    let goalDuration: TimeInterval
+    /// Both states.
     let onCompleteNow: () -> Void
+    /// Running state only.
     let onRestart: () -> Void
-    let onStop: () -> Void
+    /// Running state only — pauses (see the type's doc comment), never cancels.
+    let onPause: () -> Void
+    /// Paused state only — resumes from banked time, not a fresh restart.
+    let onResume: () -> Void
+    /// Paused state only — full discard.
+    let onCancel: () -> Void
 
     @Environment(\.dismiss) private var dismiss
 
+    /// The ring's frame (width = height) — Apple's own Workout control
+    /// screen uses a large, immediately-readable ring; 140pt is roughly 3x
+    /// the row glyph's original 44pt.
+    private let ringSize: CGFloat = 140
+
+    private var isPaused: Bool { completion?.isTimerPaused == true }
+
+    /// Same "shift start back by banked elapsed" formula
+    /// `TimerMiniPlayerBar` already uses, so the two stay in lockstep.
+    private var effectiveStart: Date? {
+        completion?.startedAt.map { $0.addingTimeInterval(-(completion?.accumulatedElapsed ?? 0)) }
+    }
+    private var end: Date? { effectiveStart.map { $0.addingTimeInterval(goalDuration) } }
+    private var pausedRemaining: TimeInterval {
+        max(0, goalDuration - (completion?.accumulatedElapsed ?? 0))
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            Text(habitTitle)
+        VStack(spacing: 28) {
+            Text(habit.title)
                 .font(.headline)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20)
                 .padding(.top, 22)
-                .padding(.bottom, 8)
 
-            VStack(spacing: 0) {
-                actionRow("Complete Now", systemImage: "checkmark.circle.fill", tint: .primary) {
-                    onCompleteNow()
+            ringDisplay
+
+            GlassEffectContainer {
+                HStack(spacing: 20) {
+                    if isPaused {
+                        pausedButtons
+                    } else {
+                        runningButtons
+                    }
                 }
-                .accessibilityIdentifier("timerOptions.complete")
-
-                Divider().padding(.leading, 56)
-
-                actionRow("Restart Timer", systemImage: "arrow.counterclockwise", tint: .primary) {
-                    onRestart()
-                }
-                .accessibilityIdentifier("timerOptions.restart")
-
-                Divider().padding(.leading, 56)
-
-                actionRow("Stop Timer", systemImage: "stop.circle.fill", tint: .red) {
-                    onStop()
-                }
-                .accessibilityIdentifier("timerOptions.stop")
             }
-            .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .padding(.horizontal, 16)
-
-            Spacer(minLength: 12)
+            .padding(.bottom, 28)
         }
-        .presentationDetents([.height(260)])
+        .presentationDetents([.height(340)])
         .presentationDragIndicator(.visible)
     }
 
-    private func actionRow(_ title: String, systemImage: String, tint: Color, action: @escaping () -> Void) -> some View {
-        Button {
-            action()
-            dismiss()
-        } label: {
-            HStack(spacing: 16) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 20))
-                    .frame(width: 24)
-                Text(title)
-                    .font(.body)
-                Spacer()
+    /// Running: the live, ticking `HabitTimerRingView` (generalized with a
+    /// `size` parameter for this exact use — see that type's doc comment).
+    /// Paused: a **static** frozen ring — a paused timer's remaining time
+    /// doesn't change until resumed, so a live `TimelineView`/
+    /// `Text(timerInterval:)` would be actively wrong here, not just
+    /// unnecessary. Reuses `HabitTimerRingView`'s Gauge/`.accessoryCircular
+    /// Capacity`/fraction math (the same `remaining / total` formula, same
+    /// gauge style) without forcing a live-vs-frozen dual mode onto that
+    /// shared, doc-commented component — and reuses `TimerMiniPlayerBar
+    /// .countdownString` for the static digits rather than a second string
+    /// formatter.
+    @ViewBuilder
+    private var ringDisplay: some View {
+        if !isPaused, let effectiveStart, let end {
+            HabitTimerRingView(start: effectiveStart, end: end, tint: habit.color.color, size: ringSize)
+        } else {
+            VStack(spacing: 6) {
+                ZStack {
+                    Gauge(value: goalDuration > 0 ? pausedRemaining / goalDuration : 0, in: 0...1) {
+                        EmptyView()
+                    } currentValueLabel: {
+                        EmptyView()
+                    }
+                    .gaugeStyle(.accessoryCircularCapacity)
+                    .tint(habit.color.color)
+
+                    Text(TimerMiniPlayerBar.countdownString(pausedRemaining))
+                        .font(.system(size: ringSize * (12.0 / 44.0), weight: .semibold))
+                        .monospacedDigit()
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(1)
+                        .frame(width: ringSize * (38.0 / 44.0))
+                }
+                .frame(width: ringSize, height: ringSize)
+
+                Text("Paused")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
-            .foregroundStyle(tint)
-            .padding(.horizontal, 16)
-            .frame(height: 52)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var runningButtons: some View {
+        glassButton(systemImage: "checkmark", label: "Complete now", tint: .primary, prominent: false) {
+            onCompleteNow()
+            dismiss()
+        }
+        .accessibilityIdentifier("timerOptions.complete")
+
+        // Unchanged from before this redesign: Restart dismisses after
+        // acting (a fresh run has started; nothing more to show here).
+        glassButton(systemImage: "arrow.counterclockwise", label: "Restart timer", tint: .primary, prominent: false) {
+            onRestart()
+            dismiss()
+        }
+        .accessibilityIdentifier("timerOptions.restart")
+
+        // Deliberately no `dismiss()` — this pauses, transitioning this same
+        // sheet to `pausedButtons` in place (see the type's doc comment).
+        glassButton(systemImage: "stop.fill", label: "Stop timer", tint: .red, prominent: true) {
+            onPause()
+        }
+        .accessibilityIdentifier("timerOptions.stop")
+    }
+
+    @ViewBuilder
+    private var pausedButtons: some View {
+        glassButton(systemImage: "checkmark", label: "Complete now", tint: .primary, prominent: false) {
+            onCompleteNow()
+            dismiss()
+        }
+        .accessibilityIdentifier("timerOptions.complete")
+
+        // The most emphasized action while paused — this project's "one
+        // accent action per view" convention — tinted with the habit's own
+        // color, matching the mini-player's own pause/resume button.
+        glassButton(systemImage: "play.fill", label: "Resume timer", tint: habit.color.color, prominent: true) {
+            onResume()
+            dismiss()
+        }
+        .accessibilityIdentifier("timerOptions.resume")
+
+        glassButton(systemImage: "xmark", label: "Cancel timer", tint: .red, prominent: false) {
+            onCancel()
+            dismiss()
+        }
+        .accessibilityIdentifier("timerOptions.cancel")
+    }
+
+    /// One icon-only circular glass button. `@ViewBuilder` branches on
+    /// `prominent` (rather than trying to type-erase `.glass` vs.
+    /// `.glassProminent` into one call) since they're distinct concrete
+    /// `ButtonStyle` types — the same shape this codebase already uses
+    /// elsewhere for per-bucket conditional view construction.
+    @ViewBuilder
+    private func glassButton(systemImage: String, label: String, tint: Color, prominent: Bool, action: @escaping () -> Void) -> some View {
+        if prominent {
+            Button(action: action) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 22, weight: .semibold))
+                    .frame(width: 64, height: 64)
+            }
+            .buttonStyle(.glassProminent)
+            .tint(tint)
+            .buttonBorderShape(.circle)
+            .clipShape(Circle())
+            .accessibilityLabel(label)
+        } else {
+            Button(action: action) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 22, weight: .semibold))
+                    .frame(width: 64, height: 64)
+            }
+            .buttonStyle(.glass)
+            .tint(tint)
+            .buttonBorderShape(.circle)
+            .clipShape(Circle())
+            .accessibilityLabel(label)
+        }
     }
 }

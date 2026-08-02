@@ -2995,3 +2995,99 @@ The "Mosque-completion tracking + double points" TASKS.md entry named this work 
 said "applies to all 11" — that dependency is now satisfied (a `CorePrayerTemplate` classification
 exists), and the stale "11" count is corrected to **12** in TASKS.md (Qiyam is a 12th core-prayer
 template that didn't exist when that entry was first written).
+
+## 2026-08-02 — In-app timer redesign: mini-player, card row, and Liquid Glass options panel
+
+In-app only — the Lock Screen Live Activity (`HabitTimerLiveActivity.swift`, `ForgeWidgets` target) was
+deliberately not touched.
+
+### 1. Duplicate ring removed from the habit card row
+`HomeView.timerStatusIndicator`'s running branch rendered a second live `HabitTimerRingView` directly on
+the row, duplicating the countdown the pinned `TimerMiniPlayerBar` already shows for the one active
+timer. Replaced with a static `stopwatch.fill` glyph in the habit's color — the same static-glyph
+treatment the paused branch right below it already used. Kept the `timerStatus.running` accessibility
+identifier so `TimerHabitTests`/`ResetHabitTests` query the same thing and only find a different view
+(no test churn needed, confirmed by re-running both suites).
+
+### 2. Mini-player expands on tap
+`.onLongPressGesture(minimumDuration: 0.3)` → `.onTapGesture`, with the now-inaccurate "Touch and hold
+for timer options" accessibility hint updated to "Opens timer options". The pause/resume button is a
+separate sibling view with its own tap target, unaffected.
+
+### 3. `TimerExpandedPanel` redesigned (Apple-Workout-style glass control screen)
+- **140pt countdown ring** at top. `HabitTimerRingView` was generalized with a `size` parameter (font
+  size and text frame scale proportionally from the original 44pt/12pt/38pt ratio, so the default-size
+  call site is pixel-identical to before) rather than duplicating its Gauge/`.accessoryCircularCapacity`
+  math.
+- **Running** → live-ticking ring. **Paused** → a *static* frozen ring + "Paused" caption. A live
+  `TimelineView`/`Text(timerInterval:)` while paused would be actively wrong (a paused timer's
+  remaining time doesn't change), so the paused ring reuses the same fraction/gauge math with a frozen
+  value and reuses `TimerMiniPlayerBar.countdownString` for the digits rather than adding a second
+  formatter.
+- **Icon-only circular glass buttons**, no text labels anywhere in the button row.
+- **Stop no longer cancels.** It calls the existing `HomeView.pauseTimer(for:)` — which already banks
+  elapsed time correctly and already mirrors the Live Activity, the exact function the mini-player's own
+  pause button calls — so tapping it transitions the *same* sheet in place to the paused button set
+  (Resume / Cancel) rather than dismissing. Only Cancel (paused state) fully discards.
+- The panel takes the **live** `completion:` (`selectedDayCompletions[habit.id]` passed in from
+  `HomeView`, re-read on each body evaluation, not a value captured when the sheet was presented), so
+  it reactively swaps button sets — including if the timer is paused/resumed from the **Lock Screen**
+  while this sheet happens to be open.
+- Paused-state Resume is the accent-tinted, most-emphasized action (habit color, `.glassProminent`),
+  per this project's "one accent action per view" convention; Stop and Cancel are red-tinted.
+
+### 4. Accessibility
+Every icon-only button carries a real `accessibilityLabel` ("Complete now", "Restart timer", "Stop
+timer", "Resume timer", "Cancel timer"). Existing `timerOptions.complete`/`.restart`/`.stop`
+identifiers kept; `timerOptions.resume`/`.cancel` added for the paused set.
+
+### Also: "Quick set" removed project-wide
+The Phase 6 tasbih 33/99/100 preset-goal buttons are gone from `HabitFormView.swift` — grep-confirmed
+both before and after that no other file (including every test target) ever referenced `goalPreset` or
+the feature. The dhikr templates still seed those goals from `TemplateCatalog`; they just aren't
+one-tap-settable in the form anymore. The now-stale part of TASKS.md's Phase 6 entry was struck through
+and corrected rather than left misleading.
+
+### Liquid Glass API — verified against the real SDK before coding (standing rule)
+`.buttonStyle(.glass)` (secondary) / `.buttonStyle(.glassProminent)` (primary) + `.tint()` +
+`.buttonBorderShape(.circle)` + `.clipShape(Circle())` — the last being Apple's documented workaround
+for a known `.glassProminent`-with-`.circle` rendering artifact. The row of 3 adjacent glass buttons is
+wrapped in a `GlassEffectContainer`, per Apple's own guidance that glass cannot correctly sample other
+glass without a shared sampling region. All of it **build-verified against the installed SDK**, and
+consistent with the one circular glass button this codebase already had (`HomeView`'s "+" Add Habit
+button, `.glassProminent` + `.buttonBorderShape(.circle)`).
+
+**No `#available`/`.ultraThinMaterial` fallback branch was added, deliberately** — the prompt asked for
+a graceful-degradation pattern "for older iOS", but this project's deployment target is **iOS 26.0**
+(`project.yml`, all targets), so every device the app can install on has this API. A fallback branch
+would be unreachable dead code; flagged here rather than silently omitted. If the deployment target ever
+drops below 26.0, that branch becomes genuinely necessary.
+
+### Verified
+- **Build succeeds** (which is itself the proof the glass APIs resolve against the real SDK).
+- **Real Simulator screenshots, captured via XCUITest attachments and visually inspected** — not
+  trusted from code alone, per this project's established practice. Confirmed: the panel opens on a
+  plain tap; running state shows the live ring (ticking 1:56 → 1:54 across captures) with
+  checkmark/restart/red-stop glass buttons; paused state shows the frozen ring + "Paused" caption with
+  checkmark/blue-play/red-X. (Temporary screenshot-capture instrumentation was removed from the test
+  file afterward.)
+- **8/8 `TimerOptionsSheetTests` pass** (rewritten): tap-not-long-press opens the panel; Stop pauses and
+  swaps to the paused button set *without dismissing* (asserting Restart/Stop are gone and Resume/Cancel
+  present); Resume returns to running and dismisses; Cancel fully discards (row idle, bar gone); plus
+  the pre-existing appears / pause-resume-from-bar / complete / restart cases.
+- **`TimerHabitTests` 2/2 pass** and `ResetHabitTests` pass — confirming the card-row static-icon change
+  didn't break the existing `timerStatus.running` queries.
+- **A real bug in my own new test code, found and fixed rather than papered over:** two new cases
+  (`testResumeFromPanelContinuesFromBankedTime`, `testCancelFromPanelFullyDiscards`) tapped "Stop timer"
+  immediately after `bar.tap()` with no `waitForExistence` first, racing the sheet presentation — they
+  failed for that reason, not because of the feature. Fixed by waiting for the button, matching the
+  pattern the passing tests already used.
+- **Flaky-launch noise, unrelated (pre-existing, documented elsewhere in this file):**
+  `testMiniPlayerAppearsWhenTimerRunning` and `ResetHabitTests.testQuantityHabitCompleteDialogOffers
+  OnlyReset` each failed once at the "seeded habit row never appeared" launch step — i.e. before any of
+  the changed code runs — and both passed on isolated rerun. Not regressions.
+
+### Note for later — do NOT build now
+This glass-panel + big-ring + icon-only-button pattern is intended to be **reused for the future dhikr/
+adhkar counter UI** (a separate, later feature — the Islamic pack's Group 2). Flagged in
+`TimerExpandedPanel`'s own doc comment and in TASKS.md; no counter-specific code was written this pass.

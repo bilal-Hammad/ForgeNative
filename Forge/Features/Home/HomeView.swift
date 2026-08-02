@@ -311,11 +311,19 @@ struct HomeView: View {
                 }
             }
             .sheet(item: $timerPanelHabit) { habit in
+                // `completion:` reads the live dictionary value (not a
+                // snapshot captured at present-time) so the panel reactively
+                // swaps to the paused button set — see
+                // `TimerExpandedPanel`'s own doc comment.
                 TimerExpandedPanel(
-                    habitTitle: habit.title,
+                    habit: habit,
+                    completion: selectedDayCompletions[habit.id],
+                    goalDuration: durationSeconds(for: habit),
                     onCompleteNow: { Task { await handleLongPress(habit) } },
                     onRestart: { Task { await restartTimer(for: habit) } },
-                    onStop: { Task { await cancelTimer(for: habit) } }
+                    onPause: { Task { await pauseTimer(for: habit) } },
+                    onResume: { Task { await startTimer(for: habit) } },
+                    onCancel: { Task { await cancelTimer(for: habit) } }
                 )
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -1458,25 +1466,27 @@ private struct HabitCardRow: View {
     }
 
     /// Four states for a time-unit habit, gated purely on `habit.unit`
-    /// (see `HomeView.handleTap`) — idle (never tapped today), running (the
-    /// live native countdown ring), paused (a pause glyph, so a paused timer
-    /// doesn't misread as "not started"), and complete. Managing a
-    /// running/paused timer is the pinned mini-player bar's job now
-    /// (`TimerMiniPlayerBar`), so the row's indicator is purely a
-    /// per-habit status glyph — no nested control.
+    /// (see `HomeView.handleTap`) — idle (never tapped today), running,
+    /// paused (a pause glyph, so a paused timer doesn't misread as "not
+    /// started"), and complete. Managing a running/paused timer is the
+    /// pinned mini-player bar's job now (`TimerMiniPlayerBar`), so the row's
+    /// indicator is purely a per-habit status glyph — no nested control.
+    ///
+    /// The running state used to render a second live `HabitTimerRingView`
+    /// directly on the row — a duplicate countdown, since the pinned
+    /// mini-player bar already shows the live time for the one active timer
+    /// (2026-08-02: removed in favor of a static glyph here, matching the
+    /// paused branch's own static-glyph treatment right below).
     @ViewBuilder
     private var timerStatusIndicator: some View {
         if isComplete {
             simpleCompletionIcon
                 .accessibilityIdentifier("timerStatus.complete")
-        } else if let startedAt = completion?.startedAt {
-            HabitTimerRingView(
-                start: startedAt.addingTimeInterval(-(completion?.accumulatedElapsed ?? 0)),
-                end: startedAt.addingTimeInterval(-(completion?.accumulatedElapsed ?? 0))
-                    .addingTimeInterval(habit.goal * habit.unit.secondsPerUnit),
-                tint: habit.color.color
-            )
-            .accessibilityIdentifier("timerStatus.running")
+        } else if completion?.startedAt != nil {
+            Image(systemName: "stopwatch.fill")
+                .font(.title2)
+                .foregroundStyle(habit.color.color)
+                .accessibilityIdentifier("timerStatus.running")
         } else if completion?.isTimerPaused == true {
             Image(systemName: "pause.circle.fill")
                 .font(.title2)
