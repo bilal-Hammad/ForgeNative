@@ -663,7 +663,19 @@ struct HomeView: View {
         // second, separately-derived "did this just complete" check.
         let wasComplete = completion.isComplete
 
-        if habit.timeMode != .none {
+        // `&& !habit.isPrayerRelative` (2026-08-02 fix, found while wiring the
+        // core-prayer template rules): this "record a start time instead of
+        // completing" branch predates `.prayerRelative` `TimeMode` and was
+        // never updated to exclude it — every prayer-relative habit (all 12
+        // core prayer templates, plus the 5 "Adhkar after <prayer>" templates,
+        // since both use `.prayerRelative`) has `timeMode != .none`, so a tap
+        // was silently falling into this branch and only ever setting
+        // `startedAt`, never `isComplete` — tap-to-complete was completely
+        // broken for every prayer-relative habit. Excluding them here routes
+        // the tap into the ordinary goal>1/binary logic below, exactly like
+        // any other habit (a normal single tap completes a binary prayer;
+        // the generic quantity clamp handles the multi-tap buckets).
+        if habit.timeMode != .none && !habit.isPrayerRelative {
             completion.startedAt = .now
         } else if habit.goal > 1 {
             // Already at/over goal: a further tap is a no-op, not another

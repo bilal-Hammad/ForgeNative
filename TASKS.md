@@ -332,38 +332,68 @@ habit IDs stable and sensible so it can reference them later without rework.
       flakiness in `testMiniPlayerAppearsWhenTimerRunning` + `testTimerHabitRunningLongPressDialogAndReset`
       deserves its own longer-goal-seed fix.
 
-- [x] **Core prayer template behavior (2026-08-02 follow-up).** Custom rules for the 11 core Islamic
-      prayer templates in the "Prayers" section (5 Fard + 5 Sunnah + Witr — **not** the 5 "Adhkar after
-      &lt;prayer&gt;" templates in the same section, which stay fully editable). New
-      `Forge/Core/Prayer/CorePrayerTemplate.swift` is the single source of truth for the three buckets
-      (`.binary`, `.qabliyahDhuhrSunnah`, `.witr`) and their enforcement, consulted by both
-      `HabitFormView` and `CategoryDetailView` rather than duplicating the id list. **Shared rules (all
-      11, create + edit):** title rendered as static `Text` (never renameable); singleton enforcement —
-      `CategoryDetailView` checks non-archived habits for an existing `sourceTemplateID` match and
-      renders that row disabled with an "Added" badge instead of navigating to the form (archiving/
-      deleting frees the slot — not a lifetime-once lock); Repeat and Time sections hidden entirely from
-      the form (repeat always persists `.daily`; the `PrayerAnchor` keeps riding the existing
-      `preservedPrayerAnchor` mechanism into `timeMode` on save, unchanged); no Goal Progression UI/
-      state; End Date stays fully visible/functional (the one scheduling control users keep). **Per-
-      bucket:** binary (5 Fard + 4 plain Sunnah) hides the Goal section entirely, fixed goal 1/count/
-      step 1; Qabliyah Dhuhr (`islamic-sunnah-before-dhuhr`) shows an editable Goal + Increment (no Unit
-      picker, no Quick-set), seed goal 4/step 2 in `TemplateCatalog.swift` (two sets of 2 rak'ah — a
-      single tap can't complete it); Witr (`islamic-witr`) shows an editable Goal odd-clamped via
-      `CorePrayerTemplate.nearestOddGoal` (both the Stepper, which steps by 2, and a typed value via
-      `.onChange(of: goal)`) with Increment fixed/non-editable at 2, seed goal 1/step 2. All enforcement
-      funnels through one call — `HabitFormView.buildHabit()` now runs its raw output through
-      `CorePrayerTemplate.enforce(_:)` as the last step, so it's the single authoritative place both the
-      UI and the persisted `Habit` agree with. Confirmed (not assumed): `EditSectionDetailView`'s custom-
-      template flow uses `UUID().uuidString` ids, which can never collide with the fixed `islamic-*` ids
-      — no change needed there. **Verified:** Simulator build succeeds; **7/7 new
-      `CorePrayerTemplateTests`** (bucket classification incl. confirming the 5 adhkar templates and
-      other habits are `nil`; odd-clamp — 4→5, 7→7, 2→3, 0→1; `enforce()` per bucket — binary strips a
-      tampered title/goal/step/repeatMode/progression down to canonical while preserving the
-      `PrayerAnchor`, Qabliyah Dhuhr keeps the user's goal/step, Witr odd-clamps + fixes step 2; a non-
-      core template passes through `enforce()` unchanged; `addedSingletonIDs` correctly excludes an
-      archived habit and a non-core-prayer habit). **This work does not touch any StoreKit code** — see
-      the separate flagged item immediately below for the pre-existing `StoreKitEntitlementServiceTests`
-      failures encountered (but not caused, and not fixed) while running the full suite this pass.
+- [x] **~~Core prayer template behavior (2026-08-02 follow-up)~~ — SUPERSEDED, see the entry
+      immediately below.** That first pass (3 buckets — `.binary`/`.qabliyahDhuhrSunnah`/`.witr`, 11
+      templates, Qabliyah Dhuhr and Witr both user-editable) was replaced wholesale by a later,
+      consolidated, self-contained spec from the same chat thread — the two were never meant to be
+      merged. Kept here only so the history isn't silently erased; do not build against this description.
+
+- [x] **Core prayer template behavior — consolidated spec (2026-08-02, supersedes the entry above).**
+      Custom rules for the **12** core Islamic prayer templates in the "Prayers" section (5 Fard + 5
+      Sunnah + Witr + **Qiyam al-Layl, new**) — **not** the 5 "Adhkar after &lt;prayer&gt;" templates in
+      the same section, which stay fully editable. `Forge/Core/Prayer/CorePrayerTemplate.swift` rewritten
+      for **4 buckets**: `binaryComplete` (9: 5 Fard + 4 plain Sunnah), `witrLike` (1), `qabliyahDhuhr`
+      (1), `qiyam` (1, new). **Also removed project-wide:** the Phase 6 tasbih "Quick set" (33/99/100)
+      preset buttons — only ever referenced in `HabitFormView.swift`, confirmed by grep with zero test
+      references before and after removal. **Shared rules (all 12):** title forced to static `Text`
+      (never renameable); singleton enforcement in `CategoryDetailView` (unchanged, auto-generalizes to
+      all 4 buckets since it keys off `CorePrayerTemplate.isCorePrayerTemplate`); Repeat/Time sections
+      hidden entirely, repeat always `.daily`, the `PrayerAnchor` still rides the existing
+      `preservedPrayerAnchor` mechanism untouched; no Goal Progression; End Date stays visible; window-
+      closed gating (`prayerInteractionAllowed`) unchanged. **Per-bucket (changed from the superseded
+      pass):** `binaryComplete` — Goal section fully hidden, fixed 1/count/1, single tap completes (same
+      as any binary habit). `qabliyahDhuhr` — **now also fully hidden** (was editable in the superseded
+      pass), fixed goal 4/step 2 regardless of any input, two taps complete it. `witrLike` — Goal shown,
+      odd-clamped (`nearestOddGoal`); **Increment field removed from the form entirely**; `step` is kept
+      programmatically equal to the (clamped) `goal` in `CorePrayerTemplate.enforcedQuantity`, so a
+      single tap completes it at *any* configured goal. `qiyam` (**new**) — Goal shown, even-clamped
+      (`nearestEvenGoal`); Increment shown as a **segmented 2-or-4-only picker** (never a free Stepper/
+      TextField), defensively snapped in `enforce()` too (`nearestQiyamStep`) for any value that didn't
+      come through the picker. New `TemplateCatalog` entry `islamic-qiyam` ("Qiyam al-Layl",
+      `star.and.crescent.fill`, goal 2/step 2, anchored `.isha` +60min) — reuses the **existing**
+      Isha→next-day-Fajr cross-midnight window automatically (`PrayerWindowResolver` keys a habit's
+      window purely on `anchor.prayer`, never the offset — confirmed by reading the resolver, not
+      assumed), so no new window logic was needed. **Real bug found and fixed while wiring Part 3's
+      "single tap completes" requirement:** `HomeView.handleTap`'s `if habit.timeMode != .none` branch
+      (which only records `startedAt`, never sets `isComplete`) predates `.prayerRelative` `TimeMode` and
+      was never updated to exclude it — **every** prayer-relative habit (all 12 core templates *and* the
+      5 adhkar-after-prayer ones, since both share `.prayerRelative`) was silently falling into that
+      branch, meaning **tap-to-complete was completely broken for every prayer habit** before this fix
+      (a real, pre-existing production bug, not something this pass introduced — just newly required to
+      actually work by this spec's explicit Part 3). Fixed with a one-line `&& !habit.isPrayerRelative`
+      exclusion, routing prayer taps into the same generic goal>1/binary logic every other habit uses —
+      fixing completion for the adhkar-after-prayer habits too, as a correct side effect of the shared
+      root cause, not scope creep. **Verified:** Simulator build succeeds; **16 `CorePrayerTemplateTests`
+      pass** (bucket classification for all 12 + confirming adhkar/other habits stay `nil`; odd AND even
+      clamp tests; qiyam step-snap; `enforce()` per bucket incl. qabliyahDhuhr now ignoring tampered
+      user input entirely, witrLike's step-mirrors-goal invariant at goals 1/3/5/7/9, qiyam's even-clamp
+      + 2-or-4 step-snap; a sweep over all 12 ids confirming title/repeat/progression/PrayerAnchor
+      enforcement; the 5 adhkar templates confirmed untouched by `enforce()`; singleton derivation across
+      all 4 buckets). **Tap-to-complete arithmetic verified via a direct mirror of `handleTap`'s real
+      `count = min(count+step, goal)` formula** (not a guess — copied from the actual code): binaryComplete
+      completes in 1 tap, witrLike in 1 tap at every tested goal, qabliyahDhuhr in exactly 2 taps, qiyam
+      in `⌈goal/step⌉` taps for several goal/increment combinations. **Full unit suite: 66 tests, 63
+      pass** — the only 3 failures are the pre-existing, already-flagged `StoreKitEntitlementServiceTests`
+      (see the separate item below; untouched, unaffected by this pass). **Deliberately not added: a new
+      on-device/XCUITest exercising the tap fix end-to-end** — the `handleTap` fix is traced/verified by
+      direct code reading + the arithmetic-mirror unit tests above, which is what this prompt's own
+      Testing section asked for (framed these exact checks as unit tests, not a new XCUITest); a real
+      device UI test would additionally require navigating the CoreLocation permission-prompt system
+      dialog (a known source of Simulator/XCUITest flakiness elsewhere in this project's history) for a
+      test that's tangential to what's actually under test (goal/step arithmetic, not location). Flagged
+      as a judgment call, not hidden. **Dependency check for the mosque-tracking item below:** it already
+      says "Applies to all 11 (Fard + Sunnah + Witr)" — that count is now stale too (Qiyam is a 12th
+      core-prayer template as of this pass); updated in place below.
 
 - [ ] **NEEDS INVESTIGATION — 3 `StoreKitEntitlementServiceTests` fail with `"notEntitled"`
       (pre-existing, unrelated to the core-prayer work above).** Discovered 2026-08-02 while running the
@@ -713,11 +743,14 @@ there is deliberately no translation phase here anymore.)
 
 - [ ] **Mosque-completion tracking + double points.** Planned in a 2026-08-02 chat pass, NOT started —
       queued here so a future session picks it up automatically per the Autonomous operation policy.
-      **Depends on** the (also not-yet-started, same chat pass) prayer-template lock-down work — fixed
-      title, singleton-per-template, hidden Repeat/Time/Goal sections for the 11 core prayer templates
-      (5 Fard + 5 Sunnah + Witr in `TemplateCatalog.swift`'s "Prayers" group) — do that first, since this
-      feature assumes a `CorePrayerTemplate`-style classification already exists to know which habits are
-      eligible. Applies to **all 11** (Fard + Sunnah + Witr), not Fard-only.
+      **Dependency now satisfied (2026-08-02):** this originally depended on the (then not-yet-started)
+      prayer-template lock-down work — fixed title, singleton-per-template, hidden Repeat/Time/Goal
+      sections, a `CorePrayerTemplate`-style classification to know which habits are eligible. That work
+      is now done (see the consolidated-spec entry above) — `Forge/Core/Prayer/CorePrayerTemplate.swift`
+      exists with exactly this classification. **Count corrected**: applies to **all 12** core prayer
+      templates (5 Fard + 5 Sunnah + Witr + **Qiyam al-Layl**, which didn't exist when this entry was
+      originally written), not the "11" this entry said before — Qiyam is a real prayer a mosque
+      completion is just as meaningful for. Not Fard-only.
       - New `MosqueLocation` model + repository (protocol + SwiftData + InMemory, matching
         `HabitRepository`/`MoodRepository`'s established shape) — user-named saved locations (reuses the
         existing `Coordinate` type from `Forge/Core/Prayer/Coordinate.swift`). Small CRUD screen to add/

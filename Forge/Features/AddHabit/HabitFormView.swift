@@ -371,6 +371,13 @@ struct HabitFormView: View {
         CorePrayerTemplate.kind(for: sourceTemplateID)
     }
     private var isCorePrayer: Bool { corePrayerKind != nil }
+    /// The Goal section is hidden entirely for the two fully-fixed buckets
+    /// (`binaryComplete`, `qabliyahDhuhr`) and shown (in a trimmed,
+    /// bucket-specific form) for everything else, including `witrLike`/
+    /// `qiyam` and every non-core-prayer habit.
+    private var showsGoalSection: Bool {
+        corePrayerKind != .binaryComplete && corePrayerKind != .qabliyahDhuhr
+    }
 
     var body: some View {
         NavigationStack {
@@ -420,12 +427,12 @@ struct HabitFormView: View {
                     }
                 }
 
-                // The binary core-prayer bucket (5 Fard + 4 plain Sunnah) has
-                // NO goal section at all — it's a fixed goal-1 done/not-done
-                // habit. The two quantity exceptions get a trimmed section
-                // (editable Goal + Increment, no Unit/Quick-set); everything
-                // else is unchanged.
-                if corePrayerKind != .binary {
+                // The two fully-fixed core-prayer buckets (binaryComplete: 5
+                // Fard + 4 plain Sunnah; qabliyahDhuhr) have NO goal section
+                // at all — their goal/step are locked under the hood by
+                // `CorePrayerTemplate.enforce`. `witrLike` and `qiyam` get a
+                // trimmed section (see below); everything else is unchanged.
+                if showsGoalSection {
                     Section {
                         if isHealthKitTracked {
                             HStack {
@@ -440,28 +447,11 @@ struct HabitFormView: View {
                                 Text(unit.displayName)
                                     .foregroundStyle(.secondary)
                             }
-                        } else if corePrayerKind == .qabliyahDhuhrSunnah {
-                            HStack {
-                                Text("Goal")
-                                Spacer()
-                                TextField("Goal", value: $goal, format: .number)
-                                    .keyboardType(.numberPad)
-                                    .multilineTextAlignment(.trailing)
-                                    .frame(width: 80)
-                                Stepper("", value: $goal, in: 1...100000)
-                                    .labelsHidden()
-                            }
-                            HStack {
-                                Text("Increment")
-                                Spacer()
-                                TextField("Step", value: $step, format: .number)
-                                    .keyboardType(.numberPad)
-                                    .multilineTextAlignment(.trailing)
-                                    .frame(width: 80)
-                                Stepper("", value: $step, in: 1...10000)
-                                    .labelsHidden()
-                            }
-                        } else if corePrayerKind == .witr {
+                        } else if corePrayerKind == .witrLike {
+                            // Goal only — odd-clamped. No Increment field at
+                            // all (step mirrors goal internally, see
+                            // CorePrayerTemplate.enforce), so a single tap
+                            // always completes it.
                             HStack {
                                 Text("Goal")
                                 Spacer()
@@ -470,15 +460,35 @@ struct HabitFormView: View {
                                     .multilineTextAlignment(.trailing)
                                     .frame(width: 80)
                                     .accessibilityIdentifier("witrGoal")
-                                // Step 2 keeps the goal odd via the +/- buttons;
-                                // a typed value is odd-clamped by `.onChange`.
                                 Stepper("", value: $goal, in: 1...999, step: 2)
                                     .labelsHidden()
                             }
+                        } else if corePrayerKind == .qiyam {
+                            // Goal — even-clamped.
+                            HStack {
+                                Text("Goal")
+                                Spacer()
+                                TextField("Goal", value: $goal, format: .number)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(width: 80)
+                                    .accessibilityIdentifier("qiyamGoal")
+                                Stepper("", value: $goal, in: 2...998, step: 2)
+                                    .labelsHidden()
+                            }
+                            // Increment — a constrained 2-or-4 picker, never a
+                            // free Stepper/TextField for this one.
                             HStack {
                                 Text("Increment")
                                 Spacer()
-                                Text("2").foregroundStyle(.secondary) // fixed, non-editable
+                                Picker("", selection: $step) {
+                                    Text("2").tag(2.0)
+                                    Text("4").tag(4.0)
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.segmented)
+                                .frame(width: 120)
+                                .accessibilityIdentifier("qiyamIncrementPicker")
                             }
                         } else {
                             HStack {
@@ -490,31 +500,6 @@ struct HabitFormView: View {
                                     .frame(width: 80)
                                 Stepper("", value: $goal, in: 1...100000)
                                     .labelsHidden()
-                            }
-
-                            // Tasbih/dhikr preset goals (P1 Phase 6) — one tap to
-                            // set the classic counts, shown for count-based habits
-                            // (the counter reuses the quantity tap-to-increment
-                            // pattern; these are just quick goal presets).
-                            if unit == .count {
-                                HStack(spacing: 8) {
-                                    Text("Quick set")
-                                        .foregroundStyle(.secondary)
-                                    Spacer()
-                                    ForEach([33.0, 99.0, 100.0], id: \.self) { preset in
-                                        Button {
-                                            goal = preset
-                                        } label: {
-                                            Text(Int(preset), format: .number)
-                                                .font(.subheadline.weight(.medium))
-                                                .frame(minWidth: 40)
-                                                .padding(.vertical, 4)
-                                        }
-                                        .buttonStyle(.bordered)
-                                        .tint(goal == preset ? color.color : .secondary)
-                                        .accessibilityIdentifier("goalPreset.\(Int(preset))")
-                                    }
-                                }
                             }
 
                             Picker("Unit", selection: $unit) {
@@ -546,10 +531,10 @@ struct HabitFormView: View {
                     } footer: {
                         if isHealthKitTracked {
                             Text("Fixed by this habit's HealthKit type — not editable.")
-                        } else if corePrayerKind == .qabliyahDhuhrSunnah {
-                            Text("Prayed as two sets of 2 rak'ah — it takes more than one tap to complete.")
-                        } else if corePrayerKind == .witr {
-                            Text("Witr is an odd number of rak'ah, so the goal stays odd and changes by 2.")
+                        } else if corePrayerKind == .witrLike {
+                            Text("Witr is an odd number of rak'ah — the goal stays odd, and a single tap always completes it.")
+                        } else if corePrayerKind == .qiyam {
+                            Text("Qiyam al-Layl's goal must be even; choose an increment of 2 or 4 rak'ah per tap.")
                         }
                     }
                 }
@@ -711,12 +696,16 @@ struct HabitFormView: View {
                 }
             }
             .onChange(of: goal) { _, _ in
-                // Witr: snap a typed goal to the nearest valid odd value. The
-                // +/- stepper already steps by 2, so this only ever corrects a
-                // manually-typed even number; clamping an odd value is a no-op,
-                // so there's no feedback loop.
-                if corePrayerKind == .witr {
+                // Witr/Qiyam: snap a typed goal to the nearest valid odd/even
+                // value. The +/- stepper already steps by 2, so this only ever
+                // corrects a manually-typed value of the wrong parity;
+                // clamping an already-valid value is a no-op, so there's no
+                // feedback loop.
+                if corePrayerKind == .witrLike {
                     let clamped = CorePrayerTemplate.nearestOddGoal(goal)
+                    if clamped != goal { goal = clamped }
+                } else if corePrayerKind == .qiyam {
+                    let clamped = CorePrayerTemplate.nearestEvenGoal(goal)
                     if clamped != goal { goal = clamped }
                 }
             }

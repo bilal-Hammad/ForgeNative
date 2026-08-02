@@ -2887,3 +2887,111 @@ guess-fix with an arbitrary `Task.sleep`.
 **Deliberately NOT touched this pass** — queued in TASKS.md as its own unchecked item, per explicit
 instruction to keep it fully separate from the core-prayer close-out and give it its own dedicated,
 evidence-based investigation rather than a guess-fix.
+
+## 2026-08-02 — Core prayer templates: consolidated 4-bucket spec (supersedes the earlier 3-bucket pass)
+
+This session's earlier "Core prayer template behavior" entry (3 buckets, 11 templates,
+`.binary`/`.qabliyahDhuhrSunnah`/`.witr`, Qabliyah Dhuhr and Witr both user-editable) was **never final**
+— the user sent a consolidated, self-contained spec explicitly superseding it, with instructions not to
+merge the two. This entry documents what was actually built against that consolidated spec.
+
+### Part 1 — Quick Set removed project-wide
+The Phase 6 tasbih "Quick set" (33/99/100) preset-goal buttons, deleted from `HabitFormView.swift`.
+Confirmed via grep both before AND after the change that no other file (including every test target)
+ever referenced `goalPreset` or the feature — a clean removal, no test updates needed.
+
+### Part 2 — Reclassified into 4 buckets, 12 templates
+`Forge/Core/Prayer/CorePrayerTemplate.swift` rewritten. New `CorePrayerTemplateKind`: `binaryComplete`
+(9: 5 Fard + 4 plain Sunnah), `witrLike` (1), `qabliyahDhuhr` (1), `qiyam` (1, new). `allIDs.count == 12`.
+Shared rules across all 12 (title fixed, singleton enforcement, Repeat/Time hidden, no Goal Progression,
+End Date stays visible, window-gating unchanged) are structurally identical to the superseded pass —
+`isCorePrayer`/`CategoryDetailView`'s singleton logic both key off `CorePrayerTemplate.kind(for:)`/
+`isCorePrayerTemplate`, so they auto-generalized to the new bucket set with zero code changes needed in
+`CategoryDetailView.swift`.
+
+### Part 3 — Per-bucket behavior (the actual changes from the superseded pass)
+- **`qabliyahDhuhr` is now fully hidden**, not editable — `enforcedQuantity` ignores the user's raw
+  goal/step entirely and always returns `(4, 2, .count)`, matching `binaryComplete`'s "hide the whole
+  Goal section" treatment. Verified with a test that feeds `enforce()` a tampered goal 99/step 50 and
+  confirms it's still forced back to 4/2.
+- **`witrLike` loses its Increment field entirely.** `step` is computed programmatically to always equal
+  the (odd-clamped) `goal` in `enforcedQuantity` — never a separate fixed "2" shown in the form anymore.
+  This is what makes a single tap complete Witr regardless of the configured goal (1, 3, 5, 7, ... all
+  complete in exactly one tap, verified for each).
+- **`qiyam` (new bucket, new template):** Goal shown, even-clamped (`nearestEvenGoal` — odd rounds up,
+  min 2); Increment shown as a genuine **segmented picker with only "2"/"4"** (`Picker(...).pickerStyle
+  (.segmented)`), never a free Stepper/TextField — `enforce()` defensively snaps any stray step value to
+  the nearest of {2, 4} via `nearestQiyamStep` (>=3 → 4, else → 2) for correctness even against a
+  non-UI-originated value.
+
+### Part 5 — New "Qiyam al-Layl" template
+Added to `TemplateCatalog.swift`'s Prayers group: id `islamic-qiyam`, title "Qiyam al-Layl", icon
+`star.and.crescent.fill` (confirmed not already used anywhere in the Prayers section — the other 15
+templates there use sunrise/sun/sunset/moon/hands-sparkles icons), goal 2/step 2, anchored
+`PrayerAnchor(prayer: .isha, offsetMinutes: 60)`. **Confirmed, not assumed:** `PrayerWindowResolver.window
+(for anchor:...)` keys the completion window purely on `anchor.prayer` — read the resolver directly —
+so anchoring Qiyam to `.isha` automatically reuses the *exact* existing Isha→next-day-Fajr cross-midnight
+window (with the local-midnight `preferredEnd`) already built in Phase 3, with zero new window logic.
+`offsetMinutes: 60` is a judgment call (later than Witr's +30, matching Qiyam's real-world timing later
+in the night) — it only affects display/notification copy, never the window itself.
+
+### A real bug found and fixed: prayer habits could not be completed via tap at all
+While wiring Part 3's explicit requirement ("a plain single tap completes prayer habits, same as any
+other habit — confirmed explicitly"), traced `HomeView.handleTap` and found: `if habit.timeMode != .none
+{ completion.startedAt = .now }` — a branch that predates `.prayerRelative` `TimeMode` (it was written
+for the older fixedTime/everyXHours/timesADay "record a start time" habits) and was never updated to
+exclude the newer `.prayerRelative` case. Since **every** prayer-relative habit (all 12 core templates,
+and the 5 "Adhkar after &lt;prayer&gt;" templates too, since both use `.prayerRelative`) has `timeMode !=
+.none`, every single one of them was falling into this branch on tap — which only ever sets `startedAt`,
+never `isComplete`. **This meant tap-to-complete was completely broken for every prayer habit in the app
+before this fix** — a real, pre-existing production bug that predates this session's prayer-template
+work entirely, just never actually exercised/required until this spec's Part 3 made "does a tap complete
+it" an explicit, testable requirement.
+
+**Fix:** `if habit.timeMode != .none && !habit.isPrayerRelative` — one line, routes every prayer-relative
+tap into the same generic goal>1/binary completion logic every other habit already uses. This also fixes
+tap-to-complete for the 5 adhkar-after-prayer habits as a direct, correct consequence of the shared root
+cause (not scope creep — same bug, same fix, no separate code path touched for them).
+
+### Verified
+- Simulator build succeeds.
+- **16/16 `CorePrayerTemplateTests` pass** (rewritten): bucket classification for all 12 ids + the 5
+  adhkar templates and other habits confirmed `nil`; every id classifies to exactly one bucket (9+1+1+1
+  = 12, no overlap); odd-clamp (4→5, 7→7, 2→3, 0→1) AND even-clamp (3→4, 6→6, 5→6, 0→2, 1→2) tests;
+  Qiyam's step-snap-to-{2,4} test; a 12-id sweep confirming `enforce()` forces canonical title +
+  `.daily` repeat + no progression + preserves the `PrayerAnchor` untouched for every single template;
+  per-bucket `enforce()` tests (binaryComplete; qabliyahDhuhr now ignoring tampered input entirely;
+  witrLike's step-always-mirrors-clamped-goal invariant at goals 1/3/5/7/9; qiyam's even-clamp +
+  step-snap); non-core-prayer AND adhkar-after-prayer templates confirmed to pass through `enforce()`
+  byte-for-byte unchanged; singleton derivation across all 4 buckets (one active habit per bucket
+  correctly occupies its slot; an archived habit and a non-core habit do not).
+- **Tap-to-complete arithmetic verified via a direct mirror of `handleTap`'s real completion formula**
+  (`count = min(count + step, goal)`, complete once `count >= goal` — copied from the actual production
+  code, not reinvented): binaryComplete completes in 1 application; witrLike completes in 1 application
+  at every tested goal (1 through 9); qabliyahDhuhr completes in exactly 2 applications (goal 4/step 2);
+  qiyam completes in the expected number of applications for goal/increment combinations (2/2→1, 4/2→2,
+  2/4→1-clamped, 6/4→2).
+- **Full unit suite: 66 tests, 63 pass.** The only 3 failures are the pre-existing, already-flagged
+  `StoreKitEntitlementServiceTests` (unrelated `"notEntitled"` issue, documented separately, deliberately
+  untouched this pass — confirmed by running the suite both before scoping this task and after finishing
+  it, same 3 failures both times, nothing else changed).
+
+### Deliberately not added this pass, flagged as a judgment call (not hidden)
+A new on-device/XCUITest exercising the `handleTap` fix end-to-end (seed a prayer habit, tap it, assert
+`prayerStatus.completed` appears). The `handleTap` fix itself is verified two ways: direct code tracing
+(the exact branch condition, confirmed against `Habit.isPrayerRelative`'s real implementation) and the
+arithmetic-mirror unit tests above, which is what this prompt's own Testing section explicitly asked for
+— it listed "binaryComplete tap-completes on one tap (regression)" alongside the other CorePrayerTemplate-
+level assertions (title immutability, clamp behavior, etc.), not as a request for a new XCUITest. A real
+device UI test for this specifically would also need to navigate the CoreLocation when-in-use permission
+system dialog that `reloadPrayerData` triggers on first prayer-habit load — a documented source of
+Simulator/XCUITest flakiness elsewhere in this project's history (the HealthKit consent-sheet
+investigations) — for a test that's tangential to what's actually being verified (goal/step arithmetic,
+not location permission flow). If real end-to-end tap verification is wanted later, it's a reasonable
+follow-up, not done here.
+
+### Dependency check (per explicit instruction)
+The "Mosque-completion tracking + double points" TASKS.md entry named this work as its dependency and
+said "applies to all 11" — that dependency is now satisfied (a `CorePrayerTemplate` classification
+exists), and the stale "11" count is corrected to **12** in TASKS.md (Qiyam is a 12th core-prayer
+template that didn't exist when that entry was first written).

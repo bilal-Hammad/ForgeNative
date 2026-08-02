@@ -164,7 +164,11 @@ enum TemplateCatalog {
         // gets the strict completion window + auto-miss lock from Phase 3. The
         // offset is a display/notification hint; the completion window is the
         // anchor prayer's window regardless (a "before"/"after" sunnah still
-        // completes within that prayer's window).
+        // completes within that prayer's window). 12 of these templates (5
+        // Fard + 5 Sunnah + Witr + Qiyam al-Layl) get restricted, bucket-
+        // specific editing rules in `HabitFormView`/`CategoryDetailView` — see
+        // `CorePrayerTemplate`. The 5 "Adhkar after <prayer>" templates below
+        // deliberately stay fully editable/unrestricted.
         TemplateSection(
             id: "good-islamic-prayers",
             category: .good,
@@ -177,17 +181,38 @@ enum TemplateCatalog {
                 HabitTemplate(id: "islamic-maghrib-fard", title: "Maghrib Prayer", category: .good, iconSystemName: "sunset.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .maghrib, offsetMinutes: 0))),
                 HabitTemplate(id: "islamic-isha-fard", title: "Isha Prayer", category: .good, iconSystemName: "moon.stars.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .isha, offsetMinutes: 0))),
                 HabitTemplate(id: "islamic-sunnah-before-fajr", title: "Sunnah before Fajr (2 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .fajr, offsetMinutes: -15))),
-                // Qabliyah Dhuhr — genuinely two sets of 2 rak'ah, so goal 4 /
-                // step 2 means a single tap never completes it (needs 2 taps).
-                // See CorePrayerTemplate (.qabliyahDhuhrSunnah bucket).
+                // Qabliyah Dhuhr — genuinely two sets of 2 rak'ah; goal 4 /
+                // step 2 is now fully fixed under the hood (Goal + Increment
+                // both hidden from the form, same as the binary bucket) —
+                // needs exactly 2 taps to complete. See CorePrayerTemplate
+                // (.qabliyahDhuhr bucket).
                 HabitTemplate(id: "islamic-sunnah-before-dhuhr", title: "Sunnah before Dhuhr (4 rak'ah)", category: .good, iconSystemName: "moon.fill", goal: 4, step: 2, timeMode: .prayerRelative(PrayerAnchor(prayer: .dhuhr, offsetMinutes: -15))),
                 HabitTemplate(id: "islamic-sunnah-after-dhuhr", title: "Sunnah after Dhuhr (2 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .dhuhr, offsetMinutes: 25))),
                 HabitTemplate(id: "islamic-sunnah-after-maghrib", title: "Sunnah after Maghrib (2 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .maghrib, offsetMinutes: 15))),
                 HabitTemplate(id: "islamic-sunnah-after-isha", title: "Sunnah after Isha (2 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .isha, offsetMinutes: 15))),
-                // Witr — odd-only rak'ah count; step 2 preserves odd parity
-                // from the seed goal 1 (the minimum valid Witr). See
-                // CorePrayerTemplate (.witr bucket).
-                HabitTemplate(id: "islamic-witr", title: "Witr Prayer", category: .good, iconSystemName: "moon.circle.fill", goal: 1, step: 2, timeMode: .prayerRelative(PrayerAnchor(prayer: .isha, offsetMinutes: 30))),
+                // Witr — odd-only rak'ah count, no Increment field in the
+                // form at all: `step` is kept in sync with `goal`
+                // programmatically by CorePrayerTemplate.enforce (never a
+                // separate user-facing value), so a single tap always
+                // completes it regardless of the configured goal. Seed
+                // goal 1 (the minimum valid Witr) / step 1 to match — this
+                // raw seed value never actually survives past the first
+                // save (enforce() always recomputes it), kept in sync here
+                // purely for a future reader's clarity. See
+                // CorePrayerTemplate (.witrLike bucket).
+                HabitTemplate(id: "islamic-witr", title: "Witr Prayer", category: .good, iconSystemName: "moon.circle.fill", goal: 1, step: 1, timeMode: .prayerRelative(PrayerAnchor(prayer: .isha, offsetMinutes: 30))),
+                // Qiyam al-Layl (new) — even-only rak'ah count, Increment
+                // constrained to a 2-or-4 segmented picker in the form.
+                // Anchored to Isha like Witr — `PrayerWindowResolver` keys a
+                // habit's completion window purely on `anchor.prayer`, not
+                // the offset, so this automatically reuses the exact same
+                // Isha→next-day-Fajr cross-midnight window already built for
+                // Qiyam al-layl (see PrayerWindowResolver's own doc comment)
+                // — no new window logic needed. `offsetMinutes: 60` (an hour
+                // after Isha, later than Witr's +30) is a judgment call for
+                // display/notification purposes only; it doesn't affect the
+                // window. See CorePrayerTemplate (.qiyam bucket).
+                HabitTemplate(id: "islamic-qiyam", title: "Qiyam al-Layl", category: .good, iconSystemName: "star.and.crescent.fill", goal: 2, step: 2, timeMode: .prayerRelative(PrayerAnchor(prayer: .isha, offsetMinutes: 60))),
                 HabitTemplate(id: "islamic-dhikr-after-fajr", title: "Adhkar after Fajr", category: .good, iconSystemName: "hands.sparkles.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .fajr, offsetMinutes: 5))),
                 HabitTemplate(id: "islamic-dhikr-after-dhuhr", title: "Adhkar after Dhuhr", category: .good, iconSystemName: "hands.sparkles.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .dhuhr, offsetMinutes: 10))),
                 HabitTemplate(id: "islamic-dhikr-after-asr", title: "Adhkar after Asr", category: .good, iconSystemName: "hands.sparkles.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .asr, offsetMinutes: 5))),
