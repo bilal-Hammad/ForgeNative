@@ -20,11 +20,16 @@ struct CategoryDetailView: View {
     var onHabitCreated: () -> Void
 
     @Environment(\.templateSectionRepository) private var sectionRepository
+    @Environment(\.habitRepository) private var habitRepository
     @State private var searchText = ""
     @State private var selectedTemplate: HabitTemplate?
     @State private var sections: [TemplateSection] = []
     @State private var deletedSectionCount = 0
     @State private var isPresentingResetConfirm = false
+    /// Core-prayer template ids that already have a non-archived habit — those
+    /// can't be added again (you can't pray two Fajrs in a day). Their rows
+    /// render as "Added" and non-tappable. See `CorePrayerTemplate`.
+    @State private var addedSingletonIDs: Set<String> = []
 
     /// Drives Reset's destructive styling in the confirmation dialog — same
     /// formula `EditSectionsView` used before Reset moved up to this
@@ -57,12 +62,20 @@ struct CategoryDetailView: View {
                 ForEach(filteredSections) { section in
                     Section {
                         ForEach(section.templates) { template in
-                            Button {
-                                selectedTemplate = template
-                            } label: {
-                                TemplateRow(template: template)
+                            if addedSingletonIDs.contains(template.id) {
+                                // Core-prayer singleton already added (non-
+                                // archived) — non-tappable, with an "Added"
+                                // indicator. Frees up again if archived/deleted.
+                                TemplateRow(template: template, isAdded: true)
+                                    .accessibilityIdentifier("templateRow.added.\(template.id)")
+                            } else {
+                                Button {
+                                    selectedTemplate = template
+                                } label: {
+                                    TemplateRow(template: template)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     } header: {
                         HStack {
@@ -145,6 +158,11 @@ struct CategoryDetailView: View {
         guard let config = try? await sectionRepository.fetchConfiguration(for: category) else { return }
         sections = config.resolvedActiveSections(for: category)
         deletedSectionCount = config.deletedSectionIDs.count
+        // Which core-prayer templates are already occupied (non-archived) —
+        // refreshed on every appear, so archiving/deleting a prayer frees its
+        // slot the next time this screen opens.
+        let habits = (try? await habitRepository.fetchAll()) ?? []
+        addedSingletonIDs = CorePrayerTemplate.addedSingletonIDs(from: habits)
     }
 
     private func reset() async {
@@ -155,21 +173,30 @@ struct CategoryDetailView: View {
 
 private struct TemplateRow: View {
     let template: HabitTemplate
+    /// A core-prayer singleton that's already been added (non-archived) —
+    /// dimmed, with an "Added" label, and not tappable (P1 core-prayer rules).
+    var isAdded: Bool = false
 
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: template.iconSystemName)
                 .font(.title3)
-                .foregroundStyle(.primary)
+                .foregroundStyle(isAdded ? .secondary : .primary)
                 .frame(width: 32)
 
             Text(template.title)
                 .font(.body)
+                .foregroundStyle(isAdded ? .secondary : .primary)
 
             Spacer()
 
-            // §4: small Health badge for HealthKit-tracked templates.
-            if template.isHealthKitTracked {
+            if isAdded {
+                Label("Added", systemImage: "checkmark.circle.fill")
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if template.isHealthKitTracked {
+                // §4: small Health badge for HealthKit-tracked templates.
                 HealthKitBadgeView()
                     .font(.caption)
             }

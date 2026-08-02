@@ -95,6 +95,8 @@
 		8A848402AC9796EC42259C42 /* MilestonesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4BDBA976019695A5CFA9CA9 /* MilestonesListView.swift */; };
 		8B2301F6DD4C892AA84C6F91 /* MilestoneRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AB60F6E62E32CD49FFA56B2 /* MilestoneRepository.swift */; };
 		8BDECEDBE928F19106CF148C /* HabitTimerLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB8814AD0BAAEF7CD6572E1D /* HabitTimerLiveActivity.swift */; };
+		8D60E694F5A6DABF90C1223E /* CorePrayerTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A43D685A102DA791F9ECB1C /* CorePrayerTemplate.swift */; };
+		8EB548FDF317201863C86EB0 /* CorePrayerTemplateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6186F467F4D2AFC70EF413EC /* CorePrayerTemplateTests.swift */; };
 		8EBBAB87EE8B02B7E214EB26 /* DeleteHabitAnimationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 985585D8D01194E42FC2947A /* DeleteHabitAnimationTests.swift */; };
 		90926934F1B9AD8B9CE18F49 /* AuthServiceEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922D0BF85189F988261B7D29 /* AuthServiceEnvironment.swift */; };
 		916CB33F04B36C97E9C950BE /* WeeklyRingsPagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3A4D78AFD385DD3E494224A /* WeeklyRingsPagerView.swift */; };
@@ -224,6 +226,7 @@
 		2011D3E460734BFCA01A6F7D /* TemplateSectionConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateSectionConfiguration.swift; sourceTree = "<group>"; };
 		2556327218A50F0CD12FF4B6 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
 		29AB0D25C8E6742B44F8D567 /* RepeatMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepeatMode.swift; sourceTree = "<group>"; };
+		2A43D685A102DA791F9ECB1C /* CorePrayerTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorePrayerTemplate.swift; sourceTree = "<group>"; };
 		2AD9B0F8FC64023349AFF9FB /* PrayerDayStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerDayStateTests.swift; sourceTree = "<group>"; };
 		2DD42B2927F8D0DA16A09DBE /* CalendarSyncServiceEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSyncServiceEnvironment.swift; sourceTree = "<group>"; };
 		2E277B7D0FEE0E86A8627F02 /* RemoteConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteConfigTests.swift; sourceTree = "<group>"; };
@@ -259,6 +262,7 @@
 		5E1ADE5948619653B4083016 /* Completion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Completion.swift; sourceTree = "<group>"; };
 		5EF132C9FA46A0A810337A21 /* MoodEntryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodEntryModel.swift; sourceTree = "<group>"; };
 		5EF8DCE6457041D274B3C2DA /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		6186F467F4D2AFC70EF413EC /* CorePrayerTemplateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorePrayerTemplateTests.swift; sourceTree = "<group>"; };
 		62894A0DEF98DD472A06BDA4 /* Habit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Habit.swift; sourceTree = "<group>"; };
 		635C61F86F05E11DF4B5BB93 /* MoodRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodRepository.swift; sourceTree = "<group>"; };
 		64247AFFFDC5281461579D71 /* PrayerName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrayerName.swift; sourceTree = "<group>"; };
@@ -592,6 +596,7 @@
 		A8EDD928972BE9F7AD6E8768 /* ForgeTests */ = {
 			isa = PBXGroup;
 			children = (
+				6186F467F4D2AFC70EF413EC /* CorePrayerTemplateTests.swift */,
 				8BE64662BC45C8E932901DB5 /* EntitlementResolverTests.swift */,
 				B11731C4AAF5404D60F5286A /* GoalProgressionEngineTests.swift */,
 				2AD9B0F8FC64023349AFF9FB /* PrayerDayStateTests.swift */,
@@ -748,6 +753,7 @@
 			isa = PBXGroup;
 			children = (
 				80DC6CEF3E60EA44AD3C1A31 /* Coordinate.swift */,
+				2A43D685A102DA791F9ECB1C /* CorePrayerTemplate.swift */,
 				AC2367F63412E7CF20E17D7D /* Habit+Prayer.swift */,
 				A4A831053F941A36F00C4833 /* LocationService.swift */,
 				CFFD8C526DAD6D9136DB583B /* PrayerCalculationMethod.swift */,
@@ -932,6 +938,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8EB548FDF317201863C86EB0 /* CorePrayerTemplateTests.swift in Sources */,
 				C454B059EFEA8586066E9267 /* EntitlementResolverTests.swift in Sources */,
 				4860BFAADB858D6E7E6EABFE /* GoalProgressionEngineTests.swift in Sources */,
 				4A61C42DF8DA16C16CEF6FFE /* PrayerDayStateTests.swift in Sources */,
@@ -967,6 +974,7 @@
 				056BEB2EF498DABD48EFF13E /* CompletionModel.swift in Sources */,
 				7A262FD66DA6E4AEBF44C05A /* ConsistencyHeatmapCard.swift in Sources */,
 				82F266BE9C1EBD4BC372B66F /* Coordinate.swift in Sources */,
+				8D60E694F5A6DABF90C1223E /* CorePrayerTemplate.swift in Sources */,
 				4955EA80AAE523C9EFB36C8E /* DebugCalendarSyncView.swift in Sources */,
 				05E99D153907B04EE9E806C8 /* DebugSeedHealthKitView.swift in Sources */,
 				B602ABDFDB21C9FA6A82ED1E /* DebugSeedHistoryView.swift in Sources */,

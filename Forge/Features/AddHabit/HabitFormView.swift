@@ -364,11 +364,29 @@ struct HabitFormView: View {
         calendarSyncEnabled = habit.calendarSyncEnabled
     }
 
+    /// Which core-prayer bucket this form's habit is (nil for everything
+    /// else) — the single source of truth for the restricted UI/behavior of
+    /// the 11 Islamic prayer templates. See `CorePrayerTemplate`.
+    private var corePrayerKind: CorePrayerTemplateKind? {
+        CorePrayerTemplate.kind(for: sourceTemplateID)
+    }
+    private var isCorePrayer: Bool { corePrayerKind != nil }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section("Habit") {
-                    TextField("Title", text: $title)
+                    if isCorePrayer {
+                        // Title is fixed for a core prayer — static, never a
+                        // TextField (can't rename Fajr, etc.).
+                        HStack {
+                            Text("Title")
+                            Spacer()
+                            Text(title).foregroundStyle(.secondary)
+                        }
+                    } else {
+                        TextField("Title", text: $title)
+                    }
 
                     if isCreatingNew && sourceTemplateID == nil {
                         Picker("Category", selection: $category) {
@@ -402,69 +420,37 @@ struct HabitFormView: View {
                     }
                 }
 
-                Section {
-                    if isHealthKitTracked {
-                        HStack {
-                            Text("Goal")
-                            Spacer()
-                            Text(goal.formatted())
-                                .foregroundStyle(.secondary)
-                        }
-                        HStack {
-                            Text("Unit")
-                            Spacer()
-                            Text(unit.displayName)
-                                .foregroundStyle(.secondary)
-                        }
-                    } else {
-                        HStack {
-                            Text("Goal")
-                            Spacer()
-                            TextField("Goal", value: $goal, format: .number)
-                                .keyboardType(.numberPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 80)
-                            Stepper("", value: $goal, in: 1...100000)
-                                .labelsHidden()
-                        }
-
-                        // Tasbih/dhikr preset goals (P1 Phase 6) — one tap to
-                        // set the classic counts, shown for count-based habits
-                        // (the counter reuses the quantity tap-to-increment
-                        // pattern; these are just quick goal presets).
-                        if unit == .count {
-                            HStack(spacing: 8) {
-                                Text("Quick set")
-                                    .foregroundStyle(.secondary)
+                // The binary core-prayer bucket (5 Fard + 4 plain Sunnah) has
+                // NO goal section at all — it's a fixed goal-1 done/not-done
+                // habit. The two quantity exceptions get a trimmed section
+                // (editable Goal + Increment, no Unit/Quick-set); everything
+                // else is unchanged.
+                if corePrayerKind != .binary {
+                    Section {
+                        if isHealthKitTracked {
+                            HStack {
+                                Text("Goal")
                                 Spacer()
-                                ForEach([33.0, 99.0, 100.0], id: \.self) { preset in
-                                    Button {
-                                        goal = preset
-                                    } label: {
-                                        Text(Int(preset), format: .number)
-                                            .font(.subheadline.weight(.medium))
-                                            .frame(minWidth: 40)
-                                            .padding(.vertical, 4)
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .tint(goal == preset ? color.color : .secondary)
-                                    .accessibilityIdentifier("goalPreset.\(Int(preset))")
-                                }
+                                Text(goal.formatted())
+                                    .foregroundStyle(.secondary)
                             }
-                        }
-
-                        Picker("Unit", selection: $unit) {
-                            ForEach(HabitUnit.pickerOptions) { option in
-                                Text(option.displayName).tag(option)
+                            HStack {
+                                Text("Unit")
+                                Spacer()
+                                Text(unit.displayName)
+                                    .foregroundStyle(.secondary)
                             }
-                        }
-
-                        // A duration goal has no coherent "increment by a
-                        // fixed step" meaning — minutes/hours habits use the
-                        // native timer interaction instead of tap-to-
-                        // increment (see HomeView.handleTap), so there's
-                        // nothing for this field to configure.
-                        if !unit.isTimeBased {
+                        } else if corePrayerKind == .qabliyahDhuhrSunnah {
+                            HStack {
+                                Text("Goal")
+                                Spacer()
+                                TextField("Goal", value: $goal, format: .number)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(width: 80)
+                                Stepper("", value: $goal, in: 1...100000)
+                                    .labelsHidden()
+                            }
                             HStack {
                                 Text("Increment")
                                 Spacer()
@@ -475,20 +461,103 @@ struct HabitFormView: View {
                                 Stepper("", value: $step, in: 1...10000)
                                     .labelsHidden()
                             }
+                        } else if corePrayerKind == .witr {
+                            HStack {
+                                Text("Goal")
+                                Spacer()
+                                TextField("Goal", value: $goal, format: .number)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(width: 80)
+                                    .accessibilityIdentifier("witrGoal")
+                                // Step 2 keeps the goal odd via the +/- buttons;
+                                // a typed value is odd-clamped by `.onChange`.
+                                Stepper("", value: $goal, in: 1...999, step: 2)
+                                    .labelsHidden()
+                            }
+                            HStack {
+                                Text("Increment")
+                                Spacer()
+                                Text("2").foregroundStyle(.secondary) // fixed, non-editable
+                            }
+                        } else {
+                            HStack {
+                                Text("Goal")
+                                Spacer()
+                                TextField("Goal", value: $goal, format: .number)
+                                    .keyboardType(.numberPad)
+                                    .multilineTextAlignment(.trailing)
+                                    .frame(width: 80)
+                                Stepper("", value: $goal, in: 1...100000)
+                                    .labelsHidden()
+                            }
+
+                            // Tasbih/dhikr preset goals (P1 Phase 6) — one tap to
+                            // set the classic counts, shown for count-based habits
+                            // (the counter reuses the quantity tap-to-increment
+                            // pattern; these are just quick goal presets).
+                            if unit == .count {
+                                HStack(spacing: 8) {
+                                    Text("Quick set")
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    ForEach([33.0, 99.0, 100.0], id: \.self) { preset in
+                                        Button {
+                                            goal = preset
+                                        } label: {
+                                            Text(Int(preset), format: .number)
+                                                .font(.subheadline.weight(.medium))
+                                                .frame(minWidth: 40)
+                                                .padding(.vertical, 4)
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .tint(goal == preset ? color.color : .secondary)
+                                        .accessibilityIdentifier("goalPreset.\(Int(preset))")
+                                    }
+                                }
+                            }
+
+                            Picker("Unit", selection: $unit) {
+                                ForEach(HabitUnit.pickerOptions) { option in
+                                    Text(option.displayName).tag(option)
+                                }
+                            }
+
+                            // A duration goal has no coherent "increment by a
+                            // fixed step" meaning — minutes/hours habits use the
+                            // native timer interaction instead of tap-to-
+                            // increment (see HomeView.handleTap), so there's
+                            // nothing for this field to configure.
+                            if !unit.isTimeBased {
+                                HStack {
+                                    Text("Increment")
+                                    Spacer()
+                                    TextField("Step", value: $step, format: .number)
+                                        .keyboardType(.numberPad)
+                                        .multilineTextAlignment(.trailing)
+                                        .frame(width: 80)
+                                    Stepper("", value: $step, in: 1...10000)
+                                        .labelsHidden()
+                                }
+                            }
                         }
-                    }
-                } header: {
-                    Text("Goal")
-                } footer: {
-                    if isHealthKitTracked {
-                        Text("Fixed by this habit's HealthKit type — not editable.")
+                    } header: {
+                        Text("Goal")
+                    } footer: {
+                        if isHealthKitTracked {
+                            Text("Fixed by this habit's HealthKit type — not editable.")
+                        } else if corePrayerKind == .qabliyahDhuhrSunnah {
+                            Text("Prayed as two sets of 2 rak'ah — it takes more than one tap to complete.")
+                        } else if corePrayerKind == .witr {
+                            Text("Witr is an odd number of rak'ah, so the goal stays odd and changes by 2.")
+                        }
                     }
                 }
 
                 // Auto-increasing goal (P1 Phase 5b) — quantity habits only
                 // (a HealthKit-locked goal or a duration timer goal isn't
-                // progressed here).
-                if !isHealthKitTracked && !unit.isTimeBased {
+                // progressed here; core prayers never progress either).
+                if !isHealthKitTracked && !unit.isTimeBased && !isCorePrayer {
                     Section {
                         Toggle("Auto-increase goal", isOn: $autoIncreaseEnabled)
                         if autoIncreaseEnabled {
@@ -565,48 +634,54 @@ struct HabitFormView: View {
                     }
                 }
 
-                Section("Repeat") {
-                    Picker("Repeat", selection: $repeatModeKind) {
-                        ForEach(RepeatModeKind.allCases) { kind in
-                            Text(kind.displayName).tag(kind)
+                // Repeat + Time are hidden entirely for core prayers: repeat is
+                // always daily, and the PrayerAnchor (preserved through save)
+                // drives real scheduling via PrayerWindowResolver — a generic
+                // time control here would only conflict.
+                if !isCorePrayer {
+                    Section("Repeat") {
+                        Picker("Repeat", selection: $repeatModeKind) {
+                            ForEach(RepeatModeKind.allCases) { kind in
+                                Text(kind.displayName).tag(kind)
+                            }
+                        }
+
+                        switch repeatModeKind {
+                        case .daily:
+                            EmptyView()
+                        case .specificDays:
+                            ForEach(0..<7, id: \.self) { weekday in
+                                Toggle(Self.weekdaySymbols[weekday], isOn: Binding(
+                                    get: { specificDays.contains(weekday) },
+                                    set: { isOn in
+                                        if isOn { specificDays.insert(weekday) } else { specificDays.remove(weekday) }
+                                    }
+                                ))
+                            }
+                        case .timesPerWeek:
+                            Stepper("\(timesPerWeek) times per week", value: $timesPerWeek, in: 1...7)
+                        case .everyXDays:
+                            Stepper("Every \(everyXDays) days", value: $everyXDays, in: 2...365)
                         }
                     }
 
-                    switch repeatModeKind {
-                    case .daily:
-                        EmptyView()
-                    case .specificDays:
-                        ForEach(0..<7, id: \.self) { weekday in
-                            Toggle(Self.weekdaySymbols[weekday], isOn: Binding(
-                                get: { specificDays.contains(weekday) },
-                                set: { isOn in
-                                    if isOn { specificDays.insert(weekday) } else { specificDays.remove(weekday) }
-                                }
-                            ))
+                    Section("Time") {
+                        Picker("Time", selection: $timeModeKind) {
+                            ForEach(TimeModeKind.allCases) { kind in
+                                Text(kind.displayName).tag(kind)
+                            }
                         }
-                    case .timesPerWeek:
-                        Stepper("\(timesPerWeek) times per week", value: $timesPerWeek, in: 1...7)
-                    case .everyXDays:
-                        Stepper("Every \(everyXDays) days", value: $everyXDays, in: 2...365)
-                    }
-                }
 
-                Section("Time") {
-                    Picker("Time", selection: $timeModeKind) {
-                        ForEach(TimeModeKind.allCases) { kind in
-                            Text(kind.displayName).tag(kind)
+                        switch timeModeKind {
+                        case .none:
+                            EmptyView()
+                        case .fixedTime:
+                            DatePicker("Time", selection: $fixedTime, displayedComponents: .hourAndMinute)
+                        case .everyXHours:
+                            Stepper("Every \(everyXHours) hours", value: $everyXHours, in: 1...12)
+                        case .timesADay:
+                            Stepper("\(timesADay) times a day", value: $timesADay, in: 1...12)
                         }
-                    }
-
-                    switch timeModeKind {
-                    case .none:
-                        EmptyView()
-                    case .fixedTime:
-                        DatePicker("Time", selection: $fixedTime, displayedComponents: .hourAndMinute)
-                    case .everyXHours:
-                        Stepper("Every \(everyXHours) hours", value: $everyXHours, in: 1...12)
-                    case .timesADay:
-                        Stepper("\(timesADay) times a day", value: $timesADay, in: 1...12)
                     }
                 }
 
@@ -633,6 +708,16 @@ struct HabitFormView: View {
             .task {
                 if healthKitMapping != nil {
                     healthKitConnected = await healthKitService.isConnected(buildHabit())
+                }
+            }
+            .onChange(of: goal) { _, _ in
+                // Witr: snap a typed goal to the nearest valid odd value. The
+                // +/- stepper already steps by 2, so this only ever corrects a
+                // manually-typed even number; clamping an odd value is a no-op,
+                // so there's no feedback loop.
+                if corePrayerKind == .witr {
+                    let clamped = CorePrayerTemplate.nearestOddGoal(goal)
+                    if clamped != goal { goal = clamped }
                 }
             }
         }
@@ -674,7 +759,7 @@ struct HabitFormView: View {
             : nil
         let lastGoalIncreaseDate: Date? = goalProgression != nil ? (existingLastGoalIncreaseDate ?? .now) : nil
 
-        return Habit(
+        let rawHabit = Habit(
             id: habitID,
             title: title,
             category: category,
@@ -699,6 +784,11 @@ struct HabitFormView: View {
             weeklyReflectionEnabled: weeklyReflectionEnabled,
             isArchived: isArchived
         )
+        // Core prayer templates: apply the authoritative enforcement (fixed
+        // title, daily repeat, no progression, bucket goal/step/unit; the
+        // PrayerAnchor in `timeMode` is left untouched). A no-op for everything
+        // else. This is the single source of truth the unit tests exercise.
+        return CorePrayerTemplate.enforce(rawHabit)
     }
 
     private static func formatIncrement(_ value: Double) -> String {

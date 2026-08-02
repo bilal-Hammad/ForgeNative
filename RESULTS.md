@@ -2789,3 +2789,101 @@ with Premium"**.
 The Islamic-pack path (b) is functional but deep; making the pack more directly discoverable (e.g. a
 featured-pack card driven by the remote-config `featuredPackID`) is a reasonable follow-up, flagged —
 not done here since the task was to confirm/fix reachability, which both paths now have.
+
+## 2026-08-02 — Core prayer template behavior (11 templates: Fard, Sunnah, Witr)
+
+Custom rules for the 11 core Islamic prayer templates in the "Prayers" section — the 5 Fard, 5 Sunnah,
+and Witr — deliberately excluding the 5 "Adhkar after &lt;prayer&gt;" templates in that same section,
+which remain fully editable/unrestricted.
+
+### Built
+- **`Forge/Core/Prayer/CorePrayerTemplate.swift`** (new): the single source of truth for which of the
+  11 templates falls into which of three buckets — `.binary` (5 Fard + 4 plain Sunnah),
+  `.qabliyahDhuhrSunnah` (`islamic-sunnah-before-dhuhr`), `.witr` (`islamic-witr`) — plus:
+  - `nearestOddGoal(_:)` — snaps a goal to the nearest odd integer ≥ 1 (even rounds up: 4→5, 6→7; odd
+    stays; below 1 clamps to 1).
+  - `enforcedQuantity(kind:userGoal:userStep:)` — the authoritative (goal, step, unit) per bucket.
+  - `enforce(_ habit: Habit) -> Habit` — applies **every** rule in one place: forces the title back to
+    the canonical `TemplateCatalog.template(withID:)` title (a new lookup added to `TemplateCatalog`),
+    forces `repeatMode = .daily`, clears `goalProgression`/`lastGoalIncreaseDate`, and applies the
+    bucket's goal/step/unit — leaving `timeMode` (the `PrayerAnchor`) untouched. A no-op for any habit
+    that isn't one of the 11.
+  - `addedSingletonIDs(from:)` — the non-archived habits' `sourceTemplateID`s that already occupy a
+    core-prayer slot.
+- **`HabitFormView.swift`**: a `corePrayerKind` computed property gates the UI. Title renders as static
+  `Text` instead of `TextField` for the 11. The Goal section is entirely absent for `.binary`; shows a
+  trimmed editable Goal+Increment (no Unit/Quick-set) for Qabliyah Dhuhr; shows an editable Goal
+  (odd-clamped via a `Stepper(step: 2)` plus an `.onChange(of: goal)` catching a typed even value) with
+  Increment rendered as a fixed, non-interactive "2" for Witr. Goal Progression, Repeat, and Time
+  sections are all wrapped in `!isCorePrayer` and disappear entirely for the 11 (no read-only remnant —
+  genuinely absent, per the request). End Date is untouched — still the one scheduling control shown.
+  `buildHabit()` now pipes its raw `Habit` through `CorePrayerTemplate.enforce(_:)` as its very last
+  step, so the enforcement is centralized in exactly one place the tests can exercise directly.
+- **`CategoryDetailView.swift`**: `reload()` now also fetches all habits and computes
+  `addedSingletonIDs`; a template row whose id is in that set renders via `TemplateRow(isAdded: true)`
+  (dimmed icon/title, a secondary "Added" label with a checkmark, no `Button` wrapper — not tappable) and
+  never opens the form. Archiving/deleting the occupying habit clears it from `addedSingletonIDs` the
+  next time this screen reloads (not a lifetime-once lock).
+- **`TemplateCatalog.swift`**: `islamic-sunnah-before-dhuhr` now seeds `goal: 4, step: 2` (two sets of 2
+  rak'ah — a single tap can't complete it); `islamic-witr` now seeds `goal: 1, step: 2` (the minimum
+  valid odd Witr, with the fixed step that preserves parity). Also added `TemplateCatalog.template
+  (withID:)`, a flat lookup `CorePrayerTemplate.enforce` uses for the canonical title.
+
+### Verified
+- **Simulator build succeeds.**
+- **7/7 new `CorePrayerTemplateTests` pass**:
+  - `testBucketClassification` — all 11 ids classify correctly; the 5 "adhkar after" templates and an
+    unrelated dhikr template both classify `nil` (confirming they're deliberately untouched);
+    `allIDs.count == 11`.
+  - `testNearestOddGoalClamping` — 4→5, 7→7, 2→3, 1→1, 0→1, and a general odd-parity assertion.
+  - `testEnforceBinary` — feeding `enforce()` a habit with a tampered title, goal 5, step 3,
+    `specificDays` repeat, and an active `GoalProgression` confirms the output snaps to the canonical
+    title, goal 1/step 1/count, `repeatMode == .daily`, `goalProgression == nil`, **and the
+    `PrayerAnchor` in `timeMode` survives untouched**.
+  - `testEnforceQabliyahDhuhrKeepsUserQuantity` — the user's goal 4/step 2 pass through unchanged
+    (this bucket is genuinely editable), while title/repeat/progression are still enforced.
+  - `testEnforceWitrOddClampAndFixedStep` — a tampered even goal (4) + wrong step (7) comes out
+    odd-goal/step-2; a legitimately odd input goal (7) is preserved as-is.
+  - `testEnforceIsNoOpForNonCorePrayer` — a Quran-reading habit passes through `enforce()` byte-for-byte
+    unchanged.
+  - `testAddedSingletonIDsExcludesArchivedAndNonCore` — a non-archived Fajr habit occupies its slot; an
+    archived Dhuhr habit and a non-core-prayer dhikr habit do not.
+- **Confirmed (not assumed) that `EditSectionDetailView`'s custom-section template creation is
+  unaffected**: read the file — it generates ids via `UUID().uuidString`, which can never collide with
+  the fixed `islamic-*` ids the 11 templates use, so no `CorePrayerTemplate` change or guard was needed
+  there.
+- **This work does not touch any StoreKit code.** Running the *full* `ForgeTests` suite (57 tests) after
+  this change shows 54 passing (including the 7 new ones) and 3 pre-existing failures confined entirely
+  to `StoreKitEntitlementServiceTests.swift` — see the separate flagged item immediately below; it is
+  not part of, and was not caused by, this entry.
+
+## 2026-08-02 — FLAGGED (separate, pre-existing, NOT fixed this pass): 3 `StoreKitEntitlementServiceTests` fail with `"notEntitled"`
+
+Discovered while running the full `ForgeTests` suite after the core-prayer work above (unrelated —
+flagged separately per explicit instruction, not folded into that entry).
+
+**Failing:** `testSubscriptionUnlocksEverythingIncludingIslamicPack`,
+`testIslamicPackStandaloneUnlocksOnlyThatPack`, `testRestoreReappliesOwnedSubscription` — each throws
+`caught error: "notEntitled"` immediately after `session.buyProduct(identifier:)` followed by a fresh
+`StoreKitEntitlementService()`'s `isPremiumUnlocked()`/`isPackUnlocked()` call.
+
+**Provenance — this predates this session's core-prayer work.** `StoreKitEntitlementServiceTests.swift`
+was added externally (alongside a `project.yml` change bundling `Configuration/Forge.storekit` into the
+`ForgeTests` target specifically so `SKTestSession(configurationFileNamed: "Forge")` can drive real
+StoreKit 2 transactions on-device/Simulator) and was pulled into git by an earlier broad `git add -A` in
+commit `5adea77` (the Profile paywall-entry-point commit) — it was never authored, run, or verified by
+this session before this pass. `EntitlementResolverTests`' 9 hand-built-owned-set cases (the pure
+resolution logic) all still pass, so the *resolution rule itself* is not implicated.
+
+**Working theory (NOT confirmed — flagged explicitly as unverified):** `SKTestSession.buyProduct`
+injects a real `Transaction`, but each test constructs a **brand-new** `StoreKitEntitlementService`
+immediately afterward and calls its gating method right away. The service's `refreshOwnedProductIDs()`
+re-scans `Transaction.currentEntitlements` (an async sequence) — it's plausible the injected transaction
+hasn't yet become enumerable in that sequence by the time the fresh instance's first scan runs, i.e. a
+missing settle/await step, not a defect in the entitlement/resolution logic. This is a hypothesis to be
+verified with real evidence (instrumenting the actual transaction-visibility timeline), not something to
+guess-fix with an arbitrary `Task.sleep`.
+
+**Deliberately NOT touched this pass** — queued in TASKS.md as its own unchecked item, per explicit
+instruction to keep it fully separate from the core-prayer close-out and give it its own dedicated,
+evidence-based investigation rather than a guess-fix.

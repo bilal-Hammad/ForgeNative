@@ -177,11 +177,17 @@ enum TemplateCatalog {
                 HabitTemplate(id: "islamic-maghrib-fard", title: "Maghrib Prayer", category: .good, iconSystemName: "sunset.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .maghrib, offsetMinutes: 0))),
                 HabitTemplate(id: "islamic-isha-fard", title: "Isha Prayer", category: .good, iconSystemName: "moon.stars.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .isha, offsetMinutes: 0))),
                 HabitTemplate(id: "islamic-sunnah-before-fajr", title: "Sunnah before Fajr (2 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .fajr, offsetMinutes: -15))),
-                HabitTemplate(id: "islamic-sunnah-before-dhuhr", title: "Sunnah before Dhuhr (4 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .dhuhr, offsetMinutes: -15))),
+                // Qabliyah Dhuhr — genuinely two sets of 2 rak'ah, so goal 4 /
+                // step 2 means a single tap never completes it (needs 2 taps).
+                // See CorePrayerTemplate (.qabliyahDhuhrSunnah bucket).
+                HabitTemplate(id: "islamic-sunnah-before-dhuhr", title: "Sunnah before Dhuhr (4 rak'ah)", category: .good, iconSystemName: "moon.fill", goal: 4, step: 2, timeMode: .prayerRelative(PrayerAnchor(prayer: .dhuhr, offsetMinutes: -15))),
                 HabitTemplate(id: "islamic-sunnah-after-dhuhr", title: "Sunnah after Dhuhr (2 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .dhuhr, offsetMinutes: 25))),
                 HabitTemplate(id: "islamic-sunnah-after-maghrib", title: "Sunnah after Maghrib (2 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .maghrib, offsetMinutes: 15))),
                 HabitTemplate(id: "islamic-sunnah-after-isha", title: "Sunnah after Isha (2 rak'ah)", category: .good, iconSystemName: "moon.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .isha, offsetMinutes: 15))),
-                HabitTemplate(id: "islamic-witr", title: "Witr Prayer", category: .good, iconSystemName: "moon.circle.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .isha, offsetMinutes: 30))),
+                // Witr — odd-only rak'ah count; step 2 preserves odd parity
+                // from the seed goal 1 (the minimum valid Witr). See
+                // CorePrayerTemplate (.witr bucket).
+                HabitTemplate(id: "islamic-witr", title: "Witr Prayer", category: .good, iconSystemName: "moon.circle.fill", goal: 1, step: 2, timeMode: .prayerRelative(PrayerAnchor(prayer: .isha, offsetMinutes: 30))),
                 HabitTemplate(id: "islamic-dhikr-after-fajr", title: "Adhkar after Fajr", category: .good, iconSystemName: "hands.sparkles.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .fajr, offsetMinutes: 5))),
                 HabitTemplate(id: "islamic-dhikr-after-dhuhr", title: "Adhkar after Dhuhr", category: .good, iconSystemName: "hands.sparkles.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .dhuhr, offsetMinutes: 10))),
                 HabitTemplate(id: "islamic-dhikr-after-asr", title: "Adhkar after Asr", category: .good, iconSystemName: "hands.sparkles.fill", timeMode: .prayerRelative(PrayerAnchor(prayer: .asr, offsetMinutes: 5))),
@@ -360,6 +366,19 @@ enum TemplateCatalog {
 
     static func sections(for category: HabitCategory) -> [TemplateSection] {
         sections.filter { $0.category == category }
+    }
+
+    /// Flat lookup of any built-in template by its id — used by
+    /// `CorePrayerTemplate.enforce` to force the canonical (unrenameable)
+    /// title of the 11 core prayer templates. Returns `nil` for a
+    /// user-created custom template (those live in per-user config, not here).
+    static func template(withID id: String) -> HabitTemplate? {
+        for section in sections {
+            if let match = section.templates.first(where: { $0.id == id }) {
+                return match
+            }
+        }
+        return nil
     }
 
     /// Default active section IDs for a category: free-tier sections, in

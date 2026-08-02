@@ -332,6 +332,63 @@ habit IDs stable and sensible so it can reference them later without rework.
       flakiness in `testMiniPlayerAppearsWhenTimerRunning` + `testTimerHabitRunningLongPressDialogAndReset`
       deserves its own longer-goal-seed fix.
 
+- [x] **Core prayer template behavior (2026-08-02 follow-up).** Custom rules for the 11 core Islamic
+      prayer templates in the "Prayers" section (5 Fard + 5 Sunnah + Witr — **not** the 5 "Adhkar after
+      &lt;prayer&gt;" templates in the same section, which stay fully editable). New
+      `Forge/Core/Prayer/CorePrayerTemplate.swift` is the single source of truth for the three buckets
+      (`.binary`, `.qabliyahDhuhrSunnah`, `.witr`) and their enforcement, consulted by both
+      `HabitFormView` and `CategoryDetailView` rather than duplicating the id list. **Shared rules (all
+      11, create + edit):** title rendered as static `Text` (never renameable); singleton enforcement —
+      `CategoryDetailView` checks non-archived habits for an existing `sourceTemplateID` match and
+      renders that row disabled with an "Added" badge instead of navigating to the form (archiving/
+      deleting frees the slot — not a lifetime-once lock); Repeat and Time sections hidden entirely from
+      the form (repeat always persists `.daily`; the `PrayerAnchor` keeps riding the existing
+      `preservedPrayerAnchor` mechanism into `timeMode` on save, unchanged); no Goal Progression UI/
+      state; End Date stays fully visible/functional (the one scheduling control users keep). **Per-
+      bucket:** binary (5 Fard + 4 plain Sunnah) hides the Goal section entirely, fixed goal 1/count/
+      step 1; Qabliyah Dhuhr (`islamic-sunnah-before-dhuhr`) shows an editable Goal + Increment (no Unit
+      picker, no Quick-set), seed goal 4/step 2 in `TemplateCatalog.swift` (two sets of 2 rak'ah — a
+      single tap can't complete it); Witr (`islamic-witr`) shows an editable Goal odd-clamped via
+      `CorePrayerTemplate.nearestOddGoal` (both the Stepper, which steps by 2, and a typed value via
+      `.onChange(of: goal)`) with Increment fixed/non-editable at 2, seed goal 1/step 2. All enforcement
+      funnels through one call — `HabitFormView.buildHabit()` now runs its raw output through
+      `CorePrayerTemplate.enforce(_:)` as the last step, so it's the single authoritative place both the
+      UI and the persisted `Habit` agree with. Confirmed (not assumed): `EditSectionDetailView`'s custom-
+      template flow uses `UUID().uuidString` ids, which can never collide with the fixed `islamic-*` ids
+      — no change needed there. **Verified:** Simulator build succeeds; **7/7 new
+      `CorePrayerTemplateTests`** (bucket classification incl. confirming the 5 adhkar templates and
+      other habits are `nil`; odd-clamp — 4→5, 7→7, 2→3, 0→1; `enforce()` per bucket — binary strips a
+      tampered title/goal/step/repeatMode/progression down to canonical while preserving the
+      `PrayerAnchor`, Qabliyah Dhuhr keeps the user's goal/step, Witr odd-clamps + fixes step 2; a non-
+      core template passes through `enforce()` unchanged; `addedSingletonIDs` correctly excludes an
+      archived habit and a non-core-prayer habit). **This work does not touch any StoreKit code** — see
+      the separate flagged item immediately below for the pre-existing `StoreKitEntitlementServiceTests`
+      failures encountered (but not caused, and not fixed) while running the full suite this pass.
+
+- [ ] **NEEDS INVESTIGATION — 3 `StoreKitEntitlementServiceTests` fail with `"notEntitled"`
+      (pre-existing, unrelated to the core-prayer work above).** Discovered 2026-08-02 while running the
+      full `ForgeTests` suite after the core-prayer change (57 tests, 3 failures — all in this one file;
+      the other 54, including all 7 new core-prayer tests, pass). Failing:
+      `testSubscriptionUnlocksEverythingIncludingIslamicPack`, `testIslamicPackStandaloneUnlocksOnlyThatPack`,
+      `testRestoreReappliesOwnedSubscription` — each fails with `caught error: "notEntitled"` right after
+      `session.buyProduct(identifier:)` / `service.isPremiumUnlocked()`/`isPackUnlocked()`. This test
+      file predates this session's core-prayer work: it was added externally (alongside a `project.yml`
+      change bundling `Configuration/Forge.storekit` into the `ForgeTests` target for
+      `SKTestSession`-driven on-device StoreKit verification) and was pulled into version control
+      incidentally by an earlier broad `git add -A` in commit `5adea77` — never authored, run, or
+      verified by this session before this pass. **Working theory, not yet confirmed:** the
+      `SKTestSession.buyProduct` call injects a real `Transaction`, but a **freshly-constructed**
+      `StoreKitEntitlementService` (each test builds a new instance right after buying) may re-scan
+      `Transaction.currentEntitlements` before that injected transaction has actually settled/become
+      visible — i.e. a missing await/settle step (possibly needing to await one iteration of
+      `Transaction.updates`, or a short delay, before the fresh service's scan sees it) rather than a
+      bug in the resolution logic itself (which `EntitlementResolverTests`' 9 hand-built-owned-set cases
+      already verify independently and correctly). **Needs its own dedicated, evidence-based
+      investigation pass** — instrument the actual transaction/entitlement timeline
+      (`Transaction.currentEntitlements`'s async sequence, when the test's injected transaction actually
+      becomes enumerable) rather than guess-fixing with an arbitrary delay. Do not assume the working
+      theory above is correct without that evidence.
+
 **Localization (Arabic/Turkish) is intentionally NOT part of this initiative** (Bilal, 2026-08-01):
 translation happens later as its own separate pass, once the *entire app* is finished — not part of the
 StoreKit + Islamic Template definition of done. (This is why Phase 7 builds the content English-first;
@@ -653,6 +710,45 @@ there is deliberately no translation phase here anymore.)
       rows after the fix. New permanent regression test:
       `DeleteHabitAnimationTests.testDeleteButtonShowsConfirmationAndCancelKeepsRow`. Full
       frame-by-frame account in RESULTS.md.
+
+- [ ] **Mosque-completion tracking + double points.** Planned in a 2026-08-02 chat pass, NOT started —
+      queued here so a future session picks it up automatically per the Autonomous operation policy.
+      **Depends on** the (also not-yet-started, same chat pass) prayer-template lock-down work — fixed
+      title, singleton-per-template, hidden Repeat/Time/Goal sections for the 11 core prayer templates
+      (5 Fard + 5 Sunnah + Witr in `TemplateCatalog.swift`'s "Prayers" group) — do that first, since this
+      feature assumes a `CorePrayerTemplate`-style classification already exists to know which habits are
+      eligible. Applies to **all 11** (Fard + Sunnah + Witr), not Fard-only.
+      - New `MosqueLocation` model + repository (protocol + SwiftData + InMemory, matching
+        `HabitRepository`/`MoodRepository`'s established shape) — user-named saved locations (reuses the
+        existing `Coordinate` type from `Forge/Core/Prayer/Coordinate.swift`). Small CRUD screen to add/
+        manage them (name + "use current location" via `LocationService`, or manual pin drop).
+      - **Location precision decision (made 2026-08-02):** the existing `LocationService` is deliberately
+        coarse (`kCLLocationAccuracyThreeKilometers`, one-shot, when-in-use, cached last-known) — correct
+        for prayer-*time* calc but far too imprecise to distinguish a specific mosque. This feature needs
+        its own separate one-shot fix at **10–100m accuracy** (`kCLLocationAccuracyNearestTenMeters` or
+        `...HundredMeters`), requested fresh at the moment a prayer habit is completed — do not reuse the
+        cached coarse coordinate. Still when-in-use only, no new permission tier needed.
+      - **Non-blocking requirement (hard constraint, not optional):** do NOT await the location fix inline
+        before marking the tap complete — this project has an entire documented investigation (CLAUDE.md,
+        "Home tap-to-complete" section) about a synchronous `await` in the tap path adding 870-1080ms of
+        latency, fixed by dispatching non-essential work in a detached fire-and-forget `Task` (see
+        `dispatchMilestoneCheck` in `HomeView.swift` for the exact established pattern). The tap must
+        complete instantly as always; the mosque-proximity check runs in the background afterward and
+        fills in the result once the fix resolves.
+      - Add a field to `Completion` (e.g. `completedAtMosqueID: UUID?`) recording which saved mosque (if
+        any) the completion happened near, set by the background check above. Empty/nil for every existing
+        completion (additive, no migration logic needed beyond a default).
+      - **Points: +2 instead of +1** (decided 2026-08-02) for a prayer completion done at a saved mosque —
+        wire into `MilestoneEngine.catchUpPoints()`'s existing `ledger.cumulativePoints += done ? 1 : -1`
+        line, reading the new `Completion` field for prayer-category completions specifically.
+      - Surface it in stats: a small badge (reuse the existing small-badge visual pattern already used for
+        HealthKit-tracked habits) on Recent Activity / relevant Progress cards showing "prayed at a
+        mosque," plus per-mosque completion counts somewhere reachable (exact placement not yet decided —
+        flag as a judgment call at build time, consistent with this file's usual latitude for routine UI
+        decisions).
+      - Testing per this project's standing bar: unit tests for the distance-threshold classification and
+        the points-doubling math; a lightweight test confirming the tap-to-complete path stays fast with
+        the new background dispatch added (matching the existing tap-latency regression-guard precedent).
 
 ---
 
