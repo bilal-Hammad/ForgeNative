@@ -308,6 +308,13 @@ habit IDs stable and sensible so it can reference them later without rework.
       — one-line change, no auth/signing needed since the payload is public marketing copy with no
       secrets/charged prices); (b) **live purchase/restore sheet** can't be automated here → Phase 9 /
       device.
+- [x] **Paywall entry points (2026-08-02 follow-up).** Verified reachability in the running build. The
+      Islamic-pack paywall was **wired but 7 taps deep** (Home→+→Good→•••→Edit→Add Section→locked
+      section); the **general subscribe entry point was missing entirely** (PaywallView presented from
+      one place only). Fixed: "Upgrade to Forge Premium" card in `ProfileView` → generic paywall;
+      `ForgeUITests/PaywallEntryTests` (real touch injection) confirms it opens. Exact literal nav steps
+      for both paths + a flagged discoverability follow-up (a featured-pack card from the remote-config
+      `featuredPackID`) are in RESULTS.md.
 - [x] **Phase 9 — Testing (everything automatable; StoreKit sandbox left for Bilal).** Done
       2026-08-01 (see RESULTS.md). **Unit: 46/46 pass** — entitlement resolution + pack gating,
       prayer-time accuracy vs. Adhan's own reference (Shafi'i Asr 2:42 PM), window/state/catch-up,
