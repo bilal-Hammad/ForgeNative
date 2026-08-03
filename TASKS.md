@@ -203,6 +203,57 @@ Xcode's own "Distribute App" GUI flow for the actual upload (simplest, no creden
 sharing with any tooling needed) unless he'd rather set up an App Store Connect API key for
 scripted uploads later — flag that as an open choice, don't assume it.
 
+### Phase 6.5 — Full pre-release QA pass (new, added 2026-08-03, runs after Phase 6, before Phase 7's submission) — Track A does most of this, two items are Track B
+**Given TestFlight now waits for the entire P1 initiative (Phases A-I + F.5) to finish, not
+just this P0 section — confirmed above — the app being submitted is much bigger than what
+existed when Phase 0-6 were first scoped.** A dedicated full-app check belongs here, not
+skipped in favor of "each phase already had its own tests." Concretely:
+- **Re-audit every TASKS.md checkbox against the real code one more time**, same discipline
+  as this file's own standing "don't trust the checkbox" rule — a full pass, not spot checks,
+  since months of accumulated feature work is exactly the condition that produces drift.
+- **Run every existing `ForgeUITests` suite together** (`WeeklyPagerSwipeTests`,
+  `MoodCheckInTests`, `DeleteHabitAnimationTests`, plus whatever Phase F-I add — Groups
+  sharing flows, timer/Live Activity, Watch companion if it has its own UI tests) in one pass
+  and confirm nothing regressed against something built earlier — accumulated features are
+  exactly what silently breaks an earlier one.
+- **Full manual walkthrough on the real iPhone** (not Simulator, per this project's own
+  repeated Simulator-gesture-unreliability findings) of every major surface: Home (all three
+  categories, timer habits, mosque-completion, Adhkar-after-Prayer panel), Progress (all
+  cards including the premium-gated one, both locked and Premium-unlocked), Profile/Settings,
+  every Islamic template group, cross-midnight prayer windows near an actual midnight,
+  Milestones (3D badge rendering on real hardware, not just Simulator SceneKit), Groups
+  (create/invite/join/Team Streak/Activity Feed and whichever Phase G features shipped),
+  Watch companion if built, home-screen widgets if built.
+- **HealthKit end-to-end re-verification** — already proven once (see P0 "Complete" above),
+  but re-confirm specifically because newer features (timer write-back, e.g.) touch
+  HealthKit paths that didn't exist during the original verification.
+- **A real two-account Groups test is a hard requirement, not optional** — a single
+  Simulator/single Apple ID can prove the code runs but cannot prove a `CKShare` invite
+  actually reaches and is accepted by a second real person. **Track B**: Bilal (or Bilal +
+  one real second person/device) does one real end-to-end create-group → send real invite →
+  second real Apple ID accepts → both complete a shared habit → Team Streak/Activity Feed
+  reflect it correctly. No amount of this session's own testing can substitute for this
+  specific step.
+- **Scale sanity check, sized to what this app actually is** (not a literal multi-user load
+  test — there's no traditional server): seed a realistic multi-year history (thousands of
+  completions across dozens of habits) in a debug build and confirm Home/Progress/Heatmap/
+  Streak-math queries stay fast — this is what CLAUDE.md's Engineering Standard #1
+  (bounded queries, no unbounded historical scans) is actually protecting against, worth
+  proving once at real data volume rather than trusting the standard was followed everywhere.
+  For Groups specifically: sanity-check CloudKit's per-zone/per-user quotas aren't a real risk
+  at expected group sizes (a handful of members, not thousands) — this is a documentation
+  check against current CloudKit limits, not a load-test harness.
+- **Accessibility sweep**: Dynamic Type at a large size, VoiceOver on the main flows,
+  Reduce Motion — confirm still respected across everything shipped since these were last
+  explicitly checked, not just the screens where it was originally verified.
+- **MetricKit dry-run**: once built (see the new P0 MetricKit task above), confirm at least
+  once on a real device that `didReceive` actually fires with a real payload before trusting
+  it silently in production.
+- **Track B**: the real on-device sandbox purchase/restore test and the real-location prayer
+  end-to-end test (both already flagged in Phase 7 below as needing Bilal's hardware) belong
+  conceptually to this QA pass too — listed once here, not duplicated, still executed as part
+  of Phase 7's checklist.
+
 ### Phase 7 — Track B checklist (Bilal only — reference list, not this session's work)
 Kept here so nothing gets lost, not because this session executes it:
 1. Confirm the App Store Connect app record exists for `com.bilalhammad.forge.native` (create
