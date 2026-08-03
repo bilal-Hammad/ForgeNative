@@ -9,6 +9,33 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
 
 ---
 
+## P0 — Production monitoring (MetricKit) — new, added 2026-08-03, small standalone task
+
+This app currently has zero crash reporting, performance telemetry, or analytics of any
+kind (confirmed by grep — no MetricKit, no third-party SDK, nothing), which means a real
+crash or slowdown after release would only ever surface if a user happened to report it
+manually. **MetricKit** is Apple's own built-in framework (`import MetricKit`, no third-
+party SDK or account, no extra privacy-policy disclosure burden beyond what's already
+true) that periodically hands the app aggregated, anonymized, privacy-safe reports
+straight from real devices — crashes, hangs, launch time, battery/CPU usage — with no
+server of Forge's own required to receive them (they can be logged locally / surfaced in
+a debug screen, matching this project's existing `Debug*View` precedent, or forwarded
+somewhere later if a real backend ever exists).
+- [ ] **Add `MXMetricManagerSubscriber` conformance** (a small dedicated type, e.g.
+      `MetricsReportingService`, matching this project's service-per-concern shape) that
+      registers via `MXMetricManager.shared.add(self)` at launch and implements
+      `didReceive(_ payloads: [MXMetricPayload])` / `didReceive(_ payloads:
+      [MXDiagnosticPayload])`. Verify current MetricKit APIs before coding (standing rule
+      — this framework has grown diagnostic payload types across recent iOS versions).
+      Log received reports somewhere inspectable (a new `Debug*View` entry, matching
+      `DebugSeedHealthKitView`/`DebugCalendarSyncView`'s kept-permanently precedent) so
+      Bilal has an actual way to look at them, not just silent background collection.
+- Small enough to fit before or shortly after the TestFlight launch above — not its own
+  multi-phase initiative, just flag it as a real, currently-open gap rather than letting
+  it stay silently missing (this note is what keeps it from disappearing again).
+
+---
+
 ## P0 — Complete
 
 - [x] **HealthKit crash bug** — a real, would-have-shipped bug (requesting share/read auth on
@@ -47,6 +74,19 @@ Developer Program membership. This launch is a **limited TestFlight release** (i
 external beta to a small invited group), **not** a full public App Store listing yet.
 Subscription prices are placeholders and explicitly **adjustable later** — get something
 reasonable into App Store Connect, don't block on finalizing exact numbers.
+
+**Sequencing vs. P1 below (confirmed with Bilal 2026-08-03): TestFlight waits for the whole
+app, including Groups/social, to be complete — not an early beta of just Phases A/B/C/E.**
+Concretely, this means Phase 7's actual real-world submission doesn't happen until every P1
+phase (A through I, plus the new personal-iCloud-sync phase above) is done, not just this P0
+section's own 7 phases. Worth being explicit about the tradeoff this implies, since it's a
+real one: no external tester sees a build, and no real-world feedback comes back, until the
+full multi-session Social/Prayer/Content/Watch/Widgets initiative below is finished — a
+materially longer runway than shipping an early beta without Groups and layering it in via a
+later TestFlight build. Recorded here as Bilal's explicit choice, not revisited without him
+saying so; **Track A work in this P0 section (Phases 0-6: fixes, drafts, screenshots, archive
+prep) can still proceed and finish independently in the meantime** — it's only the actual
+Phase 7 tester-invite step that waits on P1's full scope.
 
 **Hard boundary — two tracks, do not blur them:**
 - **Track A (this session executes fully, no human-only action needed):** code fixes,
@@ -364,6 +404,31 @@ this choice. **Verify current CloudKit/CKShare APIs before coding** (standing ru
   Monthly Challenges, Badges, Encouragement, Habit Races, Group Rewards, Promises, Group
   Calendar/Team Streak Calendar, Group Chat, Proofs, Celebrations, Seasons) is **Phase G**,
   built on top of this core once it's real and tested — do not attempt all 17 in this phase.
+- **Groups are Forge Premium-gated (decided 2026-08-03).** Creating a group requires an active
+  Forge Premium subscription (read through `EntitlementService`, same boundary every other
+  premium surface uses — not a bypass). Being *invited into* someone else's group does not
+  require Premium on the invitee's side — matches how a shared `CKShare` participant works
+  technically (the zone owner's account, not each participant's, is what CloudKit cares about)
+  and avoids a dead-end invite flow where a friend can't even open a group they were invited to.
+  If this asymmetry turns out to be exploitable (e.g. one Premium user fronting groups for many
+  non-Premium friends) revisit then — not a launch blocker, flag it, don't block Phase F on it.
+- **Invite mechanism (decided 2026-08-03):** default to **`UICloudSharingController`**, Apple's
+  built-in native share sheet for a `CKShare` — generates a real shareable link the owner sends
+  through Messages/Mail/any share extension (or copies directly); the recipient taps it, iCloud
+  handles auth, they land in the group. This is the same mechanism Apple's own Reminders/Notes
+  list-sharing uses, so it's well-supported, native-feeling, and needs no new UI beyond presenting
+  the system controller — build this first and treat it as sufficient for V1.
+  - **What's likely to fail or isn't worth building as the primary path:** direct participant
+    lookup by contact (email/phone via `CKUserIdentity`/`CKFetchShareParticipantsOperation`) only
+    works if the invitee already has Contacts permission granted *and* an iCloud account
+    discoverable from that exact contact info *and* Apple's people-discovery APIs stay available
+    at their current scope (Apple has been tightening these for privacy over recent OS versions) —
+    treat this as an optional nice-to-have fallback later, not something to depend on for V1.
+    A custom searchable username/friend-code directory is a bigger trap: CloudKit's public
+    database isn't well-suited to "search users by name," so building this for real would mean
+    standing up something closer to a lightweight directory service — real scope creep for a
+    feature the share-link path already solves adequately. Don't start down that path without
+    explicitly deciding it's worth the cost first.
 
 ### Phase G — Social features layer (needs Phase F)
 Build the remaining proposal features on top of Phase F's core, roughly in this order (easy/
@@ -1284,33 +1349,73 @@ there is deliberately no translation phase here anymore.)
       signed-in Apple ID would show the actual consent sheet instead — not chased further here, same
       "conclusively blocked past the accessibility-tree boundary" precedent as the HealthKit consent
       sheet elsewhere in this file). Temporary test file removed after capturing.
-- [ ] **Compete-with-friends / per-habit challenges (§9)** — Sign-In above is now real, so this is
-      technically unblocked, but still not started: spec explicitly frames this as its own later
-      phase needing a real design pass first (§9's own "design note to revisit... be deliberate about
-      privacy/tone... per-habit opt-in sharing... keep framing positive/playful" — none of that is
-      resolved yet, and there's still no backend to store friend relationships or shared challenge
-      state). Treat "Sign-In is done" as clearing the hard dependency, not as a signal to start
-      building this without a product pass on the open design questions first. **Correction to this
-      entry (re-audit, 2026-07-25):** previously
-      suggested reviewing `shared_sections`/`official_sections` Supabase tables as likely groundwork —
-      wrong, those tables belong to the separate original Expo/RN app (see root `CLAUDE.md`'s
-      "Supabase Tables" section), not this Swift rewrite. Confirmed via grep: zero Supabase code
-      exists anywhere in `Forge/` (one passing doc-comment mention in `HabitRepository.swift` noting
-      the backend choice — CloudKit, Supabase, or otherwise — is undecided, not that Supabase is
-      already in use). No backend groundwork exists yet for this feature in this codebase; when
-      picked up, the backend choice itself is an open decision, not inherited from the RN app.
-- [ ] **StoreKit 2 subscription + real premium gating (§10)** — `EntitlementService` protocol exists
-      and is correctly wired into Progress's premium card (`StubEntitlementService` always returns
-      `false`); real `Transaction`/`Product` async StoreKit 2 flow is unbuilt. Small follow-up noted
-      in the protocol's own doc comment: `SuggestedSectionTier` (gating the premium "Islamic" suggested
-      section) reads its own flag directly instead of going through `EntitlementService` — worth
-      consolidating once real entitlements exist, not before (no point centralizing a boundary that
-      still stubs both call sites the same way).
-- [ ] **Platform reach (§7)**: WidgetKit widget, Apple Watch companion app, Siri/App Intents,
-      Shortcuts integration, real remote push notifications, Contacts integration, iCloud sync.
-      None built yet — correct per spec's own "architect for now, build later" framing. Repository
-      pattern is already in place as the seam these would plug into. No urgency; pick up
-      opportunistically or when explicitly requested.
+- [x] **Compete-with-friends / per-habit challenges (§9) — SUPERSEDED (2026-08-03), do not build
+      from this entry.** The open design questions this entry was blocked on (backend choice,
+      privacy/tone, friend relationships) were resolved in the same 2026-08-03 planning pass that
+      produced "P1 — Forge Social, Prayer & Content Expansion" above: backend = CloudKit (Phase F's
+      "Decided" note), privacy = per-group `CKShare` zone rather than a per-friend matrix, and the
+      whole feature area was redesigned as **Groups** (Phase F core + Phase G's 9-feature layer,
+      including Leaderboard and Habit Races, which are this entry's real successors) rather than a
+      narrower 1:1 friends/challenges feature. Keeping this checkbox unresolved would contradict
+      Phase F/G, which is the actual live plan — closing it out here instead. If Groups is ever
+      scoped back down to a lighter 1:1 mode, that's a fresh product decision, not a reason to reopen
+      this exact entry.
+- [x] **StoreKit 2 subscription + real premium gating (§10) — CORRECTED (2026-08-03), was stale.**
+      This entry said the real `Transaction`/`Product` async flow was unbuilt — false as of this
+      re-audit. Confirmed by reading `Forge/Core/Entitlements/StoreKitEntitlementService.swift`
+      directly: real `Product.products(for:)` loading, `product.purchase()` →
+      `Product.PurchaseResult`/`VerificationResult<Transaction>` handling, `Transaction
+      .currentEntitlements` + a live `Transaction.updates` listener all genuinely present (built
+      2026-08-01, per the P1 StoreKit initiative). Only real open item, unchanged from before:
+      `SuggestedSectionTier` (gating the premium "Islamic" suggested section) still reads its own
+      flag directly instead of going through `EntitlementService` — worth consolidating, not before.
+      This is the exact correction Phase 0 of the launch-readiness plan above already flagged as
+      needed; performing it now rather than leaving it as a forward-reference.
+- [x] **Platform reach (§7) — SPLIT AND SUPERSEDED (2026-08-03), was stale/vague, do not build from
+      this entry as a flat list.** Re-homed each item into the actual live plan above rather than
+      leaving one vague bucket:
+      - WidgetKit widget → **Phase I** (Forge Flame / Islamic Widget / Today's Mission, V1 scope
+        decided).
+      - Apple Watch companion app, Siri/App Intents, Shortcuts integration → **Phase H**.
+      - Contacts integration → folded into **Phase F**'s group-invite mechanism as one option
+        (contact-based participant lookup), not a standalone feature — see Phase F's invite-flow
+        decision below; flagged there as the riskier of two options, not the recommended default.
+      - Real remote push notifications → partially covered by **Phase G #2** (Encouragement/
+        Celebrations use CloudKit's own push mechanism for in-group notifications) but a general-
+        purpose remote push channel unrelated to Groups is still genuinely unscoped — no phase
+        covers "push notifications about my own personal habits from a server," and none is needed
+        yet since there's no server; leaving this specific slice open/unscheduled rather than
+        pretending Phase G covers all of it.
+      - iCloud sync → this line conflated two different things that need to stay separate. Group
+        data sync is **Phase F** (CloudKit shared zones, already scoped). Syncing a single user's
+        own **personal** habit/mood/settings data across their own devices via iCloud is a distinct,
+        still-fully-unscoped feature — see the new **Phase F.5** below, added specifically because
+        this line was too vague to act on safely (personal-data sync has real data-loss risk that
+        group-sync doesn't, since there's no "other member's copy" to fall back on).
+
+### Phase F.5 — Personal iCloud sync (own devices only, distinct from Phase F's Groups) — new, unscoped until picked up
+**Not the same feature as Phase F.** Phase F is about sharing group data between different people;
+this is about one user's own personal `Habit`/`Completion`/`MoodEntry`/settings data staying in sync
+across their own iPhone/iPad/Watch — today this data is 100% local-only SwiftData, so a lost/reset
+device loses everything with no recovery path. **Hard requirement, non-negotiable given the stakes:
+this must never lose or silently overwrite a user's real data.** Concretely, when this is picked up:
+- Prefer `NSPersistentCloudKitContainer`-equivalent automatic sync **only if** SwiftData's own current
+  CloudKit-sync support (verify the exact current API — this has evolved across recent SDKs, don't
+  assume from memory) covers this app's model shapes cleanly; if it doesn't (e.g. due to the
+  `@Attribute(.unique)` constraint already in use on `MoodEntryModel.date`, which CloudKit-backed
+  SwiftData stores have historically restricted), fall back to a manual `CKRecord`-based sync through
+  the existing repository pattern (Engineering Standard #2) rather than fighting the automatic path.
+- **Merge, never blind-overwrite**, on first sync and on every subsequent conflict — same spirit as
+  the original Expo/RN app's own `syncOnLogin` precedent (root `CLAUDE.md`'s "Sync Flow": pull remote,
+  merge into local, remote wins **only** per an explicit scoping key, push local if remote is empty) —
+  but adapted to this being a single user's own data with no "which device is authoritative" answer
+  by default: a per-record last-modified timestamp (already implicit in SwiftData's change tracking)
+  deciding per-record, not a per-category blanket winner, is the safer default here — flag the exact
+  conflict rule as a real design decision to confirm, not to guess-implement.
+- Needs its own explicit test for the failure mode that matters most: two devices offline, both log
+  different completions for the same habit on the same day, both come back online — confirm no data
+  is silently dropped from either device once resolved.
+- No dependency on Phase F and no dependency from it; can be picked up independently, any time.
 
 ## P3 — Confirmed fully built (verified by reading the actual code, not assumed)
 
