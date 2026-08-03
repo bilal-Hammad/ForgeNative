@@ -34,6 +34,151 @@ See CLAUDE.md's "Autonomous operation policy" section for how this file is meant
 
 ---
 
+## P0 — App Store launch readiness (TestFlight, limited release — planned 2026-08-03)
+
+**This is the persistent source of truth for the launch-readiness effort, planned in an
+extensive chat pass and captured here before any code was written — same shape as the P1
+StoreKit initiative below.** Work through phases **in order**. Follow the Autonomous
+operation policy + Engineering standards throughout. After each phase, update this file +
+`RESULTS.md`, commit, push, and install to the real iPhone if connected (standing rule).
+
+**Decided scope (confirmed with Bilal 2026-08-03):** Bilal already has an active Apple
+Developer Program membership. This launch is a **limited TestFlight release** (internal/
+external beta to a small invited group), **not** a full public App Store listing yet.
+Subscription prices are placeholders and explicitly **adjustable later** — get something
+reasonable into App Store Connect, don't block on finalizing exact numbers.
+
+**Hard boundary — two tracks, do not blur them:**
+- **Track A (this session executes fully, no human-only action needed):** code fixes,
+  content drafts, generated assets, build-process scripts/docs. Everything under "Phases"
+  below is Track A unless explicitly marked "Track B."
+- **Track B (Bilal-only — flag and stop, do not attempt):** anything requiring the Apple
+  Developer account itself (App Store Connect data entry, IAP pricing entry, TestFlight
+  tester invites, export-compliance answer, beta review submission), real money/legal
+  (privacy policy hosting/sign-off, agreeing to Apple's terms), or physical-device/sandbox
+  testing that needs Bilal's hardware and Apple ID. This matches root `CLAUDE.md`'s
+  existing safety boundary (no financial/account actions performed on the user's behalf) —
+  it is not unique to this initiative, just especially relevant here.
+
+### Phase 0 — Audit current real state first
+Before starting, re-confirm (don't trust this list from memory) by reading the actual
+files/output named below — this file is generated from a chat-pass audit and could have
+drifted since:
+- `ForgeTests/StoreKitEntitlementServiceTests.swift`: 3 tests fail with `"notEntitled"` —
+  confirm still failing, confirm still isolated to these 3 (see the existing separate
+  TASKS.md entry on this).
+- `RemoteConfigService.defaultRemoteURL`: confirm still `nil`.
+- Confirm no privacy policy file/URL exists anywhere in this repo or referenced from the
+  app (grepped clean as of 2026-08-03).
+- Confirm no analytics/ads/tracking SDK exists (grepped clean as of 2026-08-03 — no
+  Firebase/Amplitude/Mixpanel/Segment/Adjust/AppsFlyer/GoogleMobileAds, no
+  `ATTrackingManager`/App Tracking Transparency usage anywhere in `Forge/`). This is a
+  real, verified fact the privacy policy draft below depends on — re-verify, don't assume
+  it's still true.
+- Confirm `AuthService`/`AppleAuthService` (`Forge/Core/Auth/`) is still local-only: Sign
+  in with Apple's identity (`userID`/`email`/`fullName`) persists to Keychain only, no
+  backend/network call anywhere in that file — this is what makes the "we don't transmit
+  your identity anywhere" privacy-policy claim true today.
+- Re-audit the existing **stale** TASKS.md entry under "P1 — Genuinely missing features"
+  titled "StoreKit 2 subscription + real premium gating (§10)" — it's marked unchecked but
+  contradicts the P1 StoreKit initiative section above, which shows a real
+  `StoreKitEntitlementService` built and working (Phase 1, done 2026-08-01). Confirm by
+  reading `Forge/Core/Entitlements/StoreKitEntitlementService.swift` directly, then correct
+  the stale entry (mark done, note what's actually still open there — just the
+  `SuggestedSectionTier` consolidation TODO, not the whole feature) and log the correction
+  in `RESULTS.md`, matching this project's own established "TASKS.md drifts, verify before
+  trusting" precedent.
+
+### Phase 1 — Fix the 3 failing StoreKitEntitlementServiceTests
+Root-cause and fix `"notEntitled"` (working theory already on record: `SKTestSession`'s
+injected transaction may not be visible to a freshly-constructed
+`StoreKitEntitlementService` without a settle/await step on `Transaction.updates` — verify
+against current StoreKit Testing docs before coding, don't guess-fix). This has been
+flagged as a separate pre-existing item for a few rounds now — resolve it before the launch
+push continues, since a shaky entitlement-test suite is exactly the kind of thing you want
+solid before real sandbox purchases get tested on-device in Phase 6.
+
+### Phase 2 — Remote config hosting
+Pick a real static HTTPS JSON host for `RemoteConfigService` (no server/backend needed —
+this is public, non-secret marketing copy per its own doc comment). Default to the
+simplest option that needs no new account: a raw file URL from this same GitHub repo
+(`raw.githubusercontent.com/.../remote_config.json`) works with zero new infrastructure and
+zero cost, and updates just by committing — use this unless Bilal specifies a preference.
+Wire `RemoteConfigService.defaultRemoteURL` to it, confirm `refresh()` actually fetches and
+falls back correctly (existing tests already cover fallback logic — extend if the real URL
+needs a new case).
+
+### Phase 3 — Privacy policy (draft — Track A drafts, Track B hosts + signs off)
+Draft an accurate privacy policy in plain language, grounded in Phase 0's verified facts —
+do not write generic boilerplate that claims more or less than the app actually does:
+- HealthKit: read/write, on-device only, purpose (auto-completing HealthKit-tracked
+  habits), user controls access via Health app / Settings, Forge never uploads Health data
+  anywhere.
+- Location: one-shot, foreground-only (when-in-use), used solely for prayer-time
+  calculation, never transmitted off-device, no continuous/background tracking.
+- Sign in with Apple: identity fields persist in the device Keychain only; no backend
+  exists today, so nothing is transmitted to Forge's own servers (there are none) or any
+  third party.
+- In-app purchases/subscriptions: handled entirely by Apple's StoreKit; Forge never sees
+  payment details.
+- No analytics, no advertising, no third-party trackers, no data sale — state this plainly
+  since it's true and worth leading with.
+- No account/cloud sync exists yet in this build (if that changes in a future version,
+  the policy needs a real update then, not before).
+Produce both a plain-Markdown version (for the repo) and a simple static single-page HTML
+version ready to drop onto any static host. **Track B**: Bilal picks where this actually
+lives (GitHub Pages, any static host) and gets it a real URL, then reviews/signs off on the
+wording himself before it's live — this is his legal representation, not something to
+publish unreviewed.
+
+### Phase 4 — App Store Connect / TestFlight content drafts (Track A drafts, Track B enters)
+Draft, ready to paste in, not entered anywhere by this session:
+- App name, subtitle, promotional text, full description, keywords, support email
+  placeholder (Bilal fills in the real one), marketing URL (optional, can be blank for a
+  limited TestFlight release).
+- TestFlight-specific: "Beta App Description" and "What to Test" notes for this build.
+- A recommended age-rating self-assessment answer set for the App Store Connect
+  questionnaire, reasoned from the app's actual content (habit tracker + Islamic prayer/
+  dhikr content, no user-generated content, no objectionable material) — a recommendation
+  for Bilal to confirm, not a submission on his behalf.
+- Export compliance: standard encryption exemption almost certainly applies (uses only
+  Apple's own HTTPS/StoreKit, no custom encryption) — draft the reasoning, Bilal answers
+  the actual question in App Store Connect (**Track B** — this is a legal attestation).
+
+### Phase 5 — TestFlight screenshots
+Generate screenshots via Simulator for whichever device sizes TestFlight/App Store Connect
+still requires for a limited beta (fewer than a full public listing needs — confirm current
+Apple requirements before assuming the full public-listing set is needed). Reuse the
+existing `-demoScreenshots` seed-data pattern precedent (CLAUDE.md's Progress-page
+screenshot methodology) for realistic, non-empty screens — remove the temporary flag/seed
+file after capturing, matching that established precedent.
+
+### Phase 6 — Build, archive, and export (Track A prepares; Track B uploads)
+Document/script the exact `xcodebuild archive` + `-exportArchive` steps for a distributable
+`.ipa`, verified against this project's actual scheme/signing configuration (`project.yml`,
+current provisioning). **Stop short of the actual upload** — uploading to App Store Connect
+needs Bilal's Apple ID/API-key credentials, which this session should never handle
+directly (matches this project's own credential-handling boundary). Recommend Bilal use
+Xcode's own "Distribute App" GUI flow for the actual upload (simplest, no credential
+sharing with any tooling needed) unless he'd rather set up an App Store Connect API key for
+scripted uploads later — flag that as an open choice, don't assume it.
+
+### Phase 7 — Track B checklist (Bilal only — reference list, not this session's work)
+Kept here so nothing gets lost, not because this session executes it:
+1. Confirm the App Store Connect app record exists for `com.bilalhammad.forge.native` (create
+   if not).
+2. Enter the subscription + Islamic-pack IAP products with real (adjustable) prices.
+3. Host the Phase 3 privacy policy live and get a real URL; review/sign off on its wording.
+4. Fill in App Store Connect's export-compliance question and TestFlight metadata using
+   Phase 4's drafts.
+5. Do the real on-device sandbox purchase/restore test and the full real-location prayer
+   end-to-end test (both already flagged elsewhere in this file as needing his hardware).
+6. Archive and upload the build (Xcode "Distribute App," or a scripted path if he sets up
+   an API key).
+7. Add internal/external TestFlight testers and send invites to the limited group.
+
+---
+
 ## P1 — StoreKit + Islamic Template (major multi-session initiative, started 2026-08-01)
 
 **This is the persistent source of truth for a large multi-session effort planned in an extensive
