@@ -179,6 +179,249 @@ Kept here so nothing gets lost, not because this session executes it:
 
 ---
 
+## P1 — Forge Social, Prayer & Content Expansion (major multi-session initiative, planned 2026-08-03)
+
+**Persistent source of truth for a large effort planned in an extensive chat pass, same shape
+as the StoreKit initiative below — nothing exists in code yet except where a phase says
+otherwise.** Work through phases **in strict order** — the ordering encodes real dependencies,
+not just priority (Groups' backend must exist before anything that reads/writes group data;
+bug fixes and the Dhikr/Prayer content work have zero dependency on it and can run first).
+After each phase: update this file + `RESULTS.md`, commit, push, install to the real iPhone
+if connected. Follow Autonomous operation policy + Engineering standards throughout —
+repository pattern for every new data type, bounded queries, real XCUITest for new gestures,
+verified current APIs (CloudKit/WidgetKit/WatchConnectivity/App Intents specifics below are
+this pass's best understanding, **re-verify against current docs before coding**, per this
+project's own standing rule). Flag any genuine product/design decision rather than guessing —
+this file already resolved the big ones (see "Decisions" under each area), but implementation
+will surface smaller ones.
+
+### Phase A — Bug fixes (no dependencies, do these first)
+Six real bugs reported directly by Bilal. Root-cause each on-device/Simulator as this
+project's standing practice requires (no guess-fixing) — starting points from a static-code
+pass are given, verify before trusting:
+1. **Long-press Complete/Reset dialog inconsistent size/position across habits.** Check the
+   `.contextMenu` construction in `HomeView.swift`'s `HabitCardRow` — likely the preview
+   size or menu content varies based on which optional rows render (HealthKit badge, timer
+   ring, etc.), shifting layout instead of a fixed contract.
+2. **Islamic template notifications fire even for habits never added.** Check
+   `PrayerNotificationScheduler`'s scheduling scope — it should only ever schedule for real
+   `Habit` records the user actually created, never for template catalog entries.
+3. **Tapping a notification opens a black screen.** Check `AppNotificationDelegate` and
+   whatever view-hierarchy/navigation state it restores into — likely a missing root-view
+   setup when the app cold-launches from a notification tap vs. resuming warm.
+4. **Notifications generally don't bring the app to foreground/open it correctly.** Likely
+   related to #3 — same delegate, investigate together rather than as two unrelated bugs.
+5. **Isha/Witr/Qiyam windows spanning past midnight lock out interaction with the
+   *previous* day's habits.** A real edge case in the cross-midnight window logic
+   (`PrayerWindow`/`PrayerWindowResolver` — see their existing cross-midnight handling for
+   Isha/Qiyam) — the fix needs to distinguish "which calendar day does this specific
+   completion belong to" from "what's the wall-clock time right now," likely by keying the
+   window/lock check off the completion's own `date` field rather than today's real date
+   when a night-spanning window is still open. Needs careful test coverage for the exact
+   boundary (11:59pm vs 12:01am on both sides).
+6. **Weekly strip: back-1-then-forward-2 swipe sequence incorrectly enters a week past the
+   real boundary.** `WeeklyRingsPagerView.swift`'s `newCenter = centerWeekOffset +
+   newRelative` (in the swipe-commit handler) is commented "guaranteed in-bounds — no
+   clamping needed here" — that assumption is the prime suspect; verify it actually holds
+   across a back-then-forward-twice sequence and add explicit clamping there if not, rather
+   than only in the `habits`-change reclamp path.
+Each fix needs its own regression test (unit or `ForgeUITests`, matching whichever pattern
+fits) before being marked done — no "looks right."
+
+### Phase B — Dhikr/Tasbih rework + new content (no dependencies)
+**Decided (2026-08-03):**
+- In `HabitFormView`, for any dhikr/tasbih-sourced habit (the existing Group-2 templates:
+  Subhanallah, Alhamdulillah, Allahu Akbar, Istighfar, Salawat, plus the two new ones
+  below): **title and icon become fixed/non-editable** (same locked-title pattern already
+  built for the core prayer templates — reuse that mechanism, don't reinvent it); **color
+  stays editable**. Good/Repeat/Time/Date sections stay visible and editable as normal.
+  Unit/Increment/Quick-set fields are hidden from the form entirely (Quick-set is already
+  gone project-wide; unit/increment become fixed internal values, not user-facing).
+- **Goal Progression moves out of `HabitFormView` entirely, into `SettingsView`**, placed
+  alongside the existing Calendar sync / Reminders sync rows (same settings-detail pattern,
+  reached the same way — drilling into a habit, or a dedicated section, matching whichever
+  of the two existing sync toggles' navigation shape fits better; this is a routine
+  implementation decision). This applies to goal progression generally, not just dhikr —
+  it was already a general quantity-habit feature (Phase 5b of the StoreKit initiative);
+  this just relocates its UI.
+- **New tap interaction for dhikr habits**: tapping a dhikr habit on Home opens a panel
+  reusing the exact visual language just built for the timer's `TimerExpandedPanel` (big
+  glass ring/counter, icon-only buttons, saved explicitly for reuse here — see that view's
+  doc comment and the TASKS.md note left for this). Instead of a countdown ring, it's a
+  **tasbih counter**: the dhikr's Arabic/English text displayed prominently, a large
+  tap-to-count control (each tap = +1, standard tasbih convention — no user-facing
+  increment field), and the running count toward goal.
+- **Completing via the real counter (actually tapping through the dhikr) counts differently
+  from a plain one-tap Home complete**: award **more points** for a counted completion than
+  a bare complete, and record in stats which completions were "counted" vs "quick-completed"
+  — mirrors the mosque feature's "completed at mosque vs. not" pattern (a boolean/enum flag
+  on `Completion`, read by `MilestoneEngine.catchUpPoints()` for the bonus, surfaced in
+  Progress stats). Reuse that exact mechanism rather than inventing a parallel one.
+- **Two new dhikr templates**: Tahlil ("La ilaha illallah") and Hawqalah ("La hawla wa la
+  quwwata illa billah al-'Aliyy al-'Azim") — same shape as the existing 5 (goal/step
+  defaults reasoned the same way the existing 5 were).
+- **Premium custom dhikr (Forge Premium + Islamic template pack owners only)**: a new
+  "Add your own dhikr" entry in the Islamic template pack's Dhikr group, gated behind
+  `EntitlementService` exactly like the rest of the pack. User provides a name + a
+  description (what the dhikr is/means) — the resulting habit gets **the same field
+  treatment as the built-in 5+2** (locked... except here title *is* user-set at creation,
+  matching how a custom section habit already works — title is set once at creation, not
+  re-editable after, consistent with the "fixed name" spirit) and the same tasbih-counter
+  tap interaction. This needs a `HabitTemplate`-like custom-dhikr creation flow, closer to
+  `EditSectionDetailView`'s existing custom-habit creation pattern than to picking a
+  built-in template — reuse that precedent.
+
+### Phase C — Prayer consolidation + new prayer (no dependencies)
+**Decided (2026-08-03):**
+- **Adhkar-after-prayer: consolidate the current 5 separate habits (one per prayer) into
+  ONE habit, "Adhkar after Prayer."** Tapping it opens a panel (same reused glass-panel
+  pattern as Phase B/timer) that cycles through whichever prayer's adhkar window is
+  currently open — "1 of 5" progression, completable once per prayer per day (not
+  repeatable within the same prayer's window). Stats need to show **which specific
+  prayers** the adhkar were actually completed after, keyed by the real time of completion
+  against each prayer's window (reuse `PrayerWindowResolver`'s existing per-prayer window
+  logic to classify which prayer a given completion timestamp belongs to — don't build a
+  second window system). A **plain complete-without-cycling** option must also exist
+  (matching the existing binary prayer habits' single-tap-complete), but **only cycling
+  through the actual panel counts toward the points bonus** — same "counted vs. quick-
+  complete" mechanism from Phase B, reused again.
+- **New "Duha" prayer habit** (English name, prayer-relative like Qiyam/Witr) — **verify the
+  correct fiqh window before implementing**: Duha's valid time is from roughly 15-20 minutes
+  after sunrise until just before Dhuhr (shortly before the sun reaches its zenith) — confirm
+  against the same class of sources this project already used for the other prayer windows
+  (IslamQA.info + SeekersGuidance, matching the precedent set for the original prayer-window
+  work) rather than assuming from memory, and implement via `PrayerAnchor`/a new
+  `PrayerWindow` case the same way Qiyam's Isha→Fajr window was added — this is a genuinely
+  different window shape from every existing one (anchored to sunrise, not to Fajr/Dhuhr/
+  Asr/Maghrib/Isha directly), so check whether `PrayerWindowResolver` needs a real new case
+  or can express it as an offset from an existing anchor.
+
+### Phase D — Mosque locations + group-integrated features (needs Phase F's Groups core first)
+**Decided (2026-08-03):** the simple version (save mosque locations, one-shot 10-100m fix at
+tap-time, 2x points — already specified in this file's existing "Mosque-completion tracking"
+entry below) is being **built from the start wired into Groups**, not as a standalone
+feature added later. Concretely: a mosque-completed prayer should be able to feed a group's
+**Habit Race** ("first to pray Fajr at the mosque this week") and a group's stats ("this
+week Bilal prayed Fajr at the mosque 5/5 times"). This phase **cannot start until Phase F
+(Groups core, CloudKit)** exists, since "who else in my group did X" is fundamentally a
+group-data question. When picked up: extend the already-planned `MosqueLocation`/
+`Completion.completedAtMosqueID` work (unchanged) plus a `GroupHabitRace` record type (see
+Phase F's model list) that a mosque-completion can trigger/update.
+
+### Phase E — Milestones: real 3D achievement system (no dependencies, can run any time)
+**Decided (2026-08-03), grounded in this app's actual current milestone data** (verified via
+`MilestoneEngine.swift`/`MilestoneKind.swift`): 4 streak thresholds (7/30/100/365) × 3
+categories (Good/Bad/To-Do) + unbounded per-habit streaks + 5 points thresholds (50/100/250/
+500/1000) + monthly per-category challenges. This maps cleanly onto a **small reusable base
+model + material system** (exactly Bilal's own proposed architecture) rather than hundreds of
+unique assets:
+- **2 base mesh families**: a "streak" shape (flame/ember-inspired, used for `habitStreak` +
+  `categoryStreak`) and a "points/challenge" shape (crystal or medal-inspired, used for
+  `points` + `categoryChallenge`).
+- **5 rarity-tier materials**, mapped to threshold crossed: 7→Forged Iron, 30→Bronze,
+  100→Silver, 365→Gold, 1000(points)/legendary→Diamond. Each tier differs in material
+  properties (metalness/roughness/clearCoat, per `Badge3DView`'s existing PBR approach —
+  extend that file, don't replace it), not just base color.
+- **Per-instance color tint** layered on top of the tier material — reuses
+  `Milestone.colorToken`/`.color` exactly as it works today (habit's own color for
+  `habitStreak`, category accent for `categoryStreak`/`categoryChallenge`, fixed gold for
+  `points`).
+- Net result: **~10 real reusable 3D model+material combinations** cover every current
+  badge, satisfying Bilal's own stated performance requirements (lazy-load only the
+  detail-screen instance, thumbnail images everywhere else — list rows keep using flat
+  color/2D thumbnails, never a live `SCNView` per row) — confirmed as realistic and already
+  half-built (`Badge3DView` is real SceneKit PBR today, just single-material).
+- Group badges (Phase F's "Group Rewards"/"Team Streak" badges) should reuse this exact
+  same base+material system once Groups exists, not a separate visual language.
+
+### Phase F — CloudKit social backend + Groups core (foundation for everything below)
+**Decided (2026-08-03): Apple-only backend — CloudKit, not Supabase/a custom server.** This
+was explicitly chosen over a cross-platform backend; if a future Android app needs to join
+the same social graph, that is its own later architectural project, not assumed solved by
+this choice. **Verify current CloudKit/CKShare APIs before coding** (standing rule).
+- **Model**: a "Group" is a `CKRecordZone` in the creating member's private CloudKit
+  database, shared to invited participants via `CKShare` (Apple's built-in "share a zone
+  with specific people" primitive — this is what gives the "members only see their group's
+  shared habits" privacy property for free, matching Bilal's own stated goal of keeping
+  privacy simple, per-zone rather than a per-friend permission matrix).
+- **New record/model types** (new `GroupRepository` protocol + `CloudKitGroupRepository` +
+  `InMemoryGroupRepository`, matching this project's established repository shape exactly —
+  Engineering Standard #2 applies here same as everywhere else):
+  - `Group` (name, purpose/category, icon, ownerID, createdDate).
+  - `GroupSharedHabit` (groupID, title, icon, color, schedule) — a group-level habit
+    definition, distinct from a personal `Habit`; a user's own private habits are
+    unaffected and never leave their private zone.
+  - `GroupHabitCompletion` (groupID, sharedHabitID, memberID, date, isComplete) — each
+    member writes their own completion records into the shared zone (CloudKit shared-zone
+    read-write participants can create records there), which is what makes Team
+    Streak/Activity Feed/Leaderboard computable by querying the zone across members.
+- **Core V1 group features only** in this phase: create/join a group, add a shared habit to
+  it, each member completes it from their own device, **Team Streak** (everyone completed
+  the same day) and a basic **Activity Feed** (recent completions across the group) —
+  computed client-side from `GroupHabitCompletion` queries, same aggregation style
+  `MilestoneEngine` already uses locally, just over CloudKit data instead of SwiftData.
+- Everything else in the original 17-feature proposal (Leaderboard, Shared Goals, Weekly/
+  Monthly Challenges, Badges, Encouragement, Habit Races, Group Rewards, Promises, Group
+  Calendar/Team Streak Calendar, Group Chat, Proofs, Celebrations, Seasons) is **Phase G**,
+  built on top of this core once it's real and tested — do not attempt all 17 in this phase.
+
+### Phase G — Social features layer (needs Phase F)
+Build the remaining proposal features on top of Phase F's core, roughly in this order (easy/
+high-value first, infra-heavy last):
+1. Leaderboard (streak/points/completions ranking within a group — pure read/aggregation,
+   no new record types).
+2. Encouragement + Celebrations (lightweight — a `GroupEvent`/notification sent between
+   members via CloudKit's push mechanism; no new heavy infra).
+3. Badges / Group Rewards (reuse Phase E's 3D system, scoped to group achievements).
+4. Shared Goals + Weekly/Monthly Challenges + Promises (new `GroupGoal` record type with a
+   target + contributing members' progress).
+5. Group Calendar / Team Streak Calendar (a calendar view over `GroupHabitCompletion`,
+   same data Team Streak already computes, just rendered per-day).
+6. Habit Races (needed by Phase D's mosque integration — pull this one forward if Phase D
+   is scheduled soon after).
+7. Seasons (time-boxed grouping of the above — a real scoping/archival decision, revisit
+   once the rest is live and in real use).
+8. Proofs (photo evidence — `CKAsset` handles the storage natively, but needs a real
+   moderation/privacy think-through before building, since it's the one feature here
+   touching user-generated media).
+9. Group Chat (the heaviest infra item — CloudKit has no first-class real-time chat
+   primitive; likely needs CloudKit subscriptions + local push rather than a true
+   real-time transport. Build last, and treat "is CloudKit even the right transport for
+   chat specifically" as an open question to revisit at that point rather than assumed
+   solved by the Phase F choice).
+
+### Phase H — Apple Watch app + Siri/App Intents (after Phase F, needs stable core app)
+**Decided (2026-08-03): a genuinely lightweight companion, not a mirror of the phone app.**
+- Watch app surface: today's remaining habits (glanceable list), one-tap complete.
+- **Smart suggestion**: detect prolonged inactivity via `HKWorkoutSession`/motion/stand-hour
+  data already exposed by watchOS, surface a plain suggestion ("Walk 5 min?") with a direct
+  Complete action — verify the exact current watchOS API for inactivity detection before
+  building, don't assume a specific framework call from memory.
+- **Siri/App Intents**: expose habit completion (and prayer-window-aware prayer completion)
+  as real App Intents, so "Hey Siri, complete [habit]" and Shortcuts both work — this is the
+  same App Intents system already used for the Live Activity's `ToggleTimerPauseIntent`,
+  extend that precedent rather than building a separate intents mechanism.
+- Data question to resolve when this phase starts: whether the Watch app talks to the
+  iPhone app via `WatchConnectivity` only (simplest, matches "not a mirror" framing) or also
+  needs its own CloudKit access for group data shown on-device — default to
+  WatchConnectivity-only for V1 unless a specific Watch-side group feature is requested.
+
+### Phase I — Widgets (no dependencies, can run any time)
+**Decided (2026-08-03), V1 = 3 widgets, rest deferred:**
+1. **Forge Flame** — signature widget, streak-length-driven flame glyph + number, built
+   entirely from `StreakMath`'s existing computation, zero new art assets.
+2. **Islamic Widget** — next prayer + countdown (from `PrayerTimeService`, already computed
+   daily) + last-adhkar-completed status.
+3. **Today's Mission** — remaining-habits-today count + simple progress bar, from the same
+   data Home's list already has.
+**Explicitly deferred** (need real art/content production, not just code): Forge Kingdom,
+Forge Workshop, Hero/RPG leveling, Puzzle Progress, Crystal Growth, Forge Tree, Dynamic
+Seasons, Smart Rotating Widget, Trophy Pedestal, Forging Progress, Forge Energy Core, Group
+Widget (needs Phase F/G first anyway). Revisit once Phases A-H are live and there's bandwidth
+for a real art/content pass.
+
+---
+
 ## P1 — StoreKit + Islamic Template (major multi-session initiative, started 2026-08-01)
 
 **This is the persistent source of truth for a large multi-session effort planned in an extensive
