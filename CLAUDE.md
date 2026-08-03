@@ -40,6 +40,34 @@ than silently shipping, whenever a feature conflicts with one of these:
 8. **API resilience.** Handle timeouts, retries, and rate limits gracefully —
    external API failures shouldn't cascade into app-wide failures.
 
+**Mandatory close-out gate (added 2026-08-03):** this list has existed since early in the
+project but was never actually operationalized — a full audit of `RESULTS.md` found zero
+entries that explicitly checked it, and zero evidence any real load testing has ever been
+performed. A written standard nobody is required to check against doesn't guarantee
+anything by itself. Going forward: **any phase that touches a database, a shared/remote
+backend, or an external API is not done until its `RESULTS.md` entry explicitly answers
+all 8 items above** — satisfied / deferred-with-reason / not applicable, one line each.
+This is a required part of that entry, not a general reminder to keep in mind.
+
+**CloudKit-specific resilience (added 2026-08-03, relevant starting with the Groups/social
+initiative's Phase F — this app's first real shared/multi-user backend):** item 8 above
+means, concretely for CloudKit: back off using `CKError.retryAfterSeconds` rather than a
+fixed retry interval, handle partial failures in a `CKModifyRecordsOperation` batch
+per-record (not all-or-nothing), and design around CloudKit's eventual consistency and
+per-user/per-zone quotas rather than assuming a traditional server's request/response
+guarantees. Verify current CloudKit error-handling APIs before coding — don't assume this
+note's specifics are still exactly right by the time that phase starts.
+
+**Production monitoring (added 2026-08-03):** this project currently has zero crash
+reporting, performance telemetry, or analytics of any kind (confirmed by grep — no
+MetricKit, no third-party SDK, nothing) — meaning a real scaling or stability problem after
+release would only surface if a user manually reports it. Add **`MetricKit`** (Apple's own
+built-in, privacy-respecting crash/hang/performance-report framework — no third-party SDK,
+no extra privacy-policy disclosure burden beyond what's already true) as the minimum viable
+baseline before or shortly after the TestFlight launch. This is a real, currently-open gap,
+not yet scheduled under any phase above — flag it for its own small task rather than letting
+it stay silently missing.
+
 ## Build & Run
 
 ```bash
