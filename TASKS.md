@@ -249,6 +249,15 @@ skipped in favor of "each phase already had its own tests." Concretely:
 - **MetricKit dry-run**: once built (see the new P0 MetricKit task above), confirm at least
   once on a real device that `didReceive` actually fires with a real payload before trusting
   it silently in production.
+- **Notification-scheduling correctness sweep, all schedulers (added 2026-08-07, per Bilal's
+  explicit direction after the Islamic-notification bug report above)**: for every scheduler in
+  the app (`PrayerNotificationScheduler`, `HabitNotificationScheduler`,
+  `WeeklyReflectionScheduler`, `MoodNotificationScheduler`, and any added by Phase B/C/G/J),
+  confirm on a real device that notifications fire **only** for habits the user actually
+  created/still has, never for template catalog entries, never for a deleted/archived habit,
+  never a stale one left behind after an edit. Don't just re-test the one reported case —
+  this is exactly the kind of bug (scheduling against the wrong source of truth) that's easy
+  to reintroduce in a new scheduler later, so check all of them together here.
 - **Track B**: the real on-device sandbox purchase/restore test and the real-location prayer
   end-to-end test (both already flagged in Phase 7 below as needing Bilal's hardware) belong
   conceptually to this QA pass too — listed once here, not duplicated, still executed as part
@@ -296,7 +305,16 @@ pass are given, verify before trusting:
    ring, etc.), shifting layout instead of a fixed contract.
 2. **Islamic template notifications fire even for habits never added.** Check
    `PrayerNotificationScheduler`'s scheduling scope — it should only ever schedule for real
-   `Habit` records the user actually created, never for template catalog entries.
+   `Habit` records the user actually created, never for template catalog entries. **Treat as a
+   systemic bug class, not a one-off (added 2026-08-07, per Bilal's explicit direction):** once
+   root-caused here, check whether the same class of mistake (scheduling/notifying against a
+   template or a stale/removed reference instead of a real current `Habit` record) exists
+   anywhere else notifications are scheduled in this app — `HabitNotificationScheduler`,
+   `WeeklyReflectionScheduler`, `MoodNotificationScheduler`, and any scheduler Phase B/C/G/J
+   below add — don't fix only the reported Islamic-prayer instance and stop. A full confirming
+   sweep of every scheduler against this exact failure mode belongs in **Phase 6.5** (see its
+   new line below) once the app is otherwise feature-complete, since new schedulers keep getting
+   added by later phases.
 3. **Tapping a notification opens a black screen.** Check `AppNotificationDelegate` and
    whatever view-hierarchy/navigation state it restores into — likely a missing root-view
    setup when the app cold-launches from a notification tap vs. resuming warm.
@@ -362,6 +380,56 @@ fits) before being marked done — no "looks right."
   `EditSectionDetailView`'s existing custom-habit creation pattern than to picking a
   built-in template — reuse that precedent.
 
+### Phase B.5 — Quran habit restructure (new, added 2026-08-07, no dependencies)
+**Decided (2026-08-07):** the already-shipped single "Quran reading" template (part of Group 3
+in the Islamic pack, `good-islamic-quran-character`) is replaced by three separate habits:
+- **Memorization** (حفظ) and **Review** (مراجعة) — two distinct habits, but **unified on the
+  same unit: pages**, matching how Bilal actually tracks this personally. Both are quantity-type
+  habits with a page-count goal, not plain check-off.
+- **Regular reading** (قراءة عادية) — kept as its own separate habit, but tracked by **time**
+  (minutes), not pages — a different unit from the two above, since casual reading isn't
+  naturally page-counted the same way memorization/review progress is.
+
+**OPEN DECISION — needs Bilal's actual input before building, not a silent implementation
+choice (flagged 2026-08-07 per his own explicit "I don't know the right approach, don't want
+this to cost me" note):** for Memorization and Review specifically, Bilal wants photo evidence
+— the user photographs the physical Quran page(s) they just worked on, and the app should
+verify (a) it's genuinely a Quran page, (b) it's a page distinct from ones already submitted
+(so someone can't repeatedly photograph the same page to fake progress), and (c) if the day's
+goal is e.g. 2 pages, two distinct-page photos are required to satisfy it. Three real options,
+each with a genuinely different cost/accuracy tradeoff — this needs a real decision, not a
+default guess, specifically because option (b) below has an ongoing *recurring* cost that
+scales with usage, which Bilal explicitly flagged concern about:
+  1. **Fully on-device (Apple's own `Vision`/`VisionKit`), zero ongoing cost.** Use
+     `VNGenerateImageFeaturePrintRequest` (or similar current perceptual-similarity API —
+     verify exact current name) to detect "is this the same photo/page as one already
+     submitted" cheaply and privately, no network call, works offline, no per-use cost ever.
+     Weaker on genuinely confirming "this is a Quran page" specifically (would accept any
+     photo unless paired with a lightweight on-device classifier or a simple on-device OCR
+     Arabic-script-density sanity check) and can't identify *which* Surah/page number.
+  2. **Cloud vision-capable AI API call per photo**, sending the image to a model that can
+     genuinely read "yes this is a Mushaf page, this is Surah X ayah Y-Z, and it's different
+     from these prior submissions." Much more accurate and can do real semantic verification,
+     but this is a **real, recurring operating cost** that scales directly with active users ×
+     daily submissions — fundamentally different from a one-time build cost, and the exact
+     thing Bilal flagged concern about. Needs a real per-call cost estimate at realistic usage
+     before this is a responsible default.
+  3. **Hybrid, pragmatic default given the stated cost sensitivity**: on-device perceptual-hash
+     dedup (option 1's free duplicate-detection) plus a simple on-device Arabic-script-density/
+     structure check (also free, `Vision` text detection without full OCR) as "good enough"
+     fraud resistance, explicitly **not** attempting full page/Surah identification. Cheapest,
+     private, zero recurring cost, but the weakest guarantee of the three — accepts "a page of
+     Arabic text" rather than confirming "specifically a Quran page, specifically this Surah."
+  **Recommendation if asked to pick a default: option 3**, given the cost concern was raised
+  unprompted and explicitly — but this is genuinely Bilal's call, not something to silently
+  build one way. Flag it again when this phase is actually picked up rather than assuming this
+  note settles it permanently.
+- Review needs the equivalent same-day distinct-page logic as Memorization (Bilal's message
+  said "same for Review" — treat both identically for this feature, not two different rules).
+- Regular reading (time-based) does **not** need any of the above — no photo requirement, plain
+  timer-style tracking (reuse the existing `HabitUnit.isTimeBased` timer interaction already
+  built for other time-unit habits, per CLAUDE.md's "Timer-based interaction" section).
+
 ### Phase C — Prayer consolidation + new prayer (no dependencies)
 **Decided (2026-08-03):**
 - **Adhkar-after-prayer: consolidate the current 5 separate habits (one per prayer) into
@@ -424,6 +492,14 @@ unique assets:
   half-built (`Badge3DView` is real SceneKit PBR today, just single-material).
 - Group badges (Phase F's "Group Rewards"/"Team Streak" badges) should reuse this exact
   same base+material system once Groups exists, not a separate visual language.
+- **Sequencing note (added 2026-08-07, per Bilal's explicit direction):** this phase's base+
+  material system is decided and stays as-is. But as later phases in this file add new
+  milestone-worthy things (Phase J's Screen Time badges, any Phase B.5 Quran-memorization
+  streak, etc.), **do not design each one's exact badge/threshold detail now** — just note
+  that it will need a Milestone entry when that phase is actually built. Bilal wants the
+  detailed Milestones design pass to happen **after the overall high-level plan (all of P1) is
+  finished**, not interleaved phase-by-phase. Revisit Milestones as its own focused pass once
+  Phase M (final polish, added below) is reached, not before.
 
 ### Phase F — CloudKit social backend + Groups core (foundation for everything below)
 **Decided (2026-08-03): Apple-only backend — CloudKit, not Supabase/a custom server.** This
@@ -535,6 +611,92 @@ Forge Workshop, Hero/RPG leveling, Puzzle Progress, Crystal Growth, Forge Tree, 
 Seasons, Smart Rotating Widget, Trophy Pedestal, Forging Progress, Forge Energy Core, Group
 Widget (needs Phase F/G first anyway). Revisit once Phases A-H are live and there's bandwidth
 for a real art/content pass.
+
+### Phase J — Screen Time tracking (social media apps) + accountability-partner Habit Race (new, added 2026-08-07 — needs Phase E for Milestone reuse, Phase F for Groups/accountability partner, Phase G #6 for Habit Races)
+**Real technical constraint to verify before designing UX (flag this, don't promise a specific
+experience until confirmed against current docs):** Apple's Screen Time system
+(`FamilyControls`/`DeviceActivity`/`ManagedSettings`) requires a special **Family Controls
+entitlement**, which Apple grants by request/review, not automatically available like a normal
+capability — confirm Bilal can actually get this entitlement before committing engineering
+time here. Separately, by design **Apple does not hand third-party apps exact per-app usage
+numbers** for privacy reasons: the realistic building blocks are a `DeviceActivityReport`
+extension (renders a privacy-preserving report *view*, not raw numbers back to the main app),
+`DeviceActivityMonitor` extension threshold-crossing **events** ("user crossed 30 min of
+Social category today" — a boolean/event, not a live running total readable by the main app),
+and `ManagedSettings` for actually shielding/blocking apps past a threshold. **Verify current
+exact capabilities against Apple's current docs before scoping the feature further** — this
+may mean "show your exact social media minutes inside Forge's own UI" isn't achievable the way
+a normal in-app metric is, and the real feature shape ends up closer to "did you stay under
+your goal today" (threshold-event-based) than a live number. This determines a lot of the
+downstream design, so resolve it first.
+- Once the real data shape is confirmed: treat "stayed under your social-media-time goal
+  today" as a new trackable **Bad-category** habit type (same spirit as the existing
+  "Limit"-style bad habits, e.g. "Limit Coffee").
+- Reuse **Phase E's Milestone base+material system** for its streaks/badges — no separate
+  visual language, per Phase E's own existing "reuse, don't invent a new system" precedent —
+  but the exact badge/threshold detail for this specific habit type is deferred until the
+  Phase E "detailed design pass" milestone-sequencing note above (i.e., after all of P1's
+  high-level planning is done, not now).
+- **Accountability-partner Habit Race**: reuse **Phase G item #6 (Habit Races)**, scoped to a
+  2-person group specifically for this — "who stayed under their social-media-time goal more
+  days this week" between the user and one accountability partner, same `GroupHabitRace`
+  record type Phase D's mosque-race work already introduces, just a different triggering
+  metric. No new Groups infrastructure needed beyond what Phase F/G already builds.
+
+### Phase K — Onboarding, in-app "how to use," and template feature explainers (new, added 2026-08-07 — build only after the rest of the app is otherwise feature-complete, per Bilal's explicit sequencing)
+Three related but distinct pieces, all deferred until the app is otherwise done building so
+they reflect the real final feature set rather than needing rework as more phases land:
+- **First-launch onboarding Q&A**: ask the user's name and their goal(s) for using the app,
+  then generate suggested habits/goals from their answers ("based on what you told me,
+  intelligently" — Bilal's own framing). **Open decision, not yet resolved:** whether "based
+  on your answers, smartly" means a real generative/LLM-backed suggestion step (which — same
+  cost caveat as Phase B.5's photo verification — would be a real recurring API cost per new
+  user, worth flagging explicitly since Bilal has already raised cost sensitivity once this
+  session) or a simpler deterministic rule-based mapping from a handful of Q&A answers to the
+  existing template catalog (free, no network dependency, easier to get exactly right, but
+  less "intelligent" than a real model). Flag for Bilal's decision when this phase starts,
+  don't default silently to the cloud option given the pattern of concern already raised.
+- **Always-available in-app "how to use the app" guide** — not just a one-time first-launch
+  flow; a reference a user can return to later (e.g. from Settings/Profile) to re-learn a
+  feature, distinct from the onboarding Q&A above which only runs once.
+- **Per-template feature explainer**: when a user adds a new template (from any category —
+  Islamic pack, Group 1-4, custom, etc.), show what makes that specific habit/template useful
+  and how its specific mechanic works (e.g. explain the tasbih counter interaction the first
+  time someone adds a Dhikr habit, explain the mosque-proximity bonus the first time someone
+  adds a prayer habit with location on, explain the new Phase B.5 photo-verification
+  requirement the first time someone adds Memorization/Review). Reuse a single small
+  reusable "template info" presentation pattern across all of these rather than one-off
+  custom copy per template — consistent with this project's general preference for shared
+  components over bespoke per-feature UI.
+
+### Phase L — Marketing announcement, Arabic + English (new, added 2026-08-07 — only after the entire app (all of P1) is fully complete, per Bilal's explicit sequencing)
+Draft ad/announcement copy in both Arabic and English, intended for release/promotion in the
+US, Saudi Arabia, and UAE specifically (three different markets — the Arabic copy should read
+as genuinely native for a Gulf/Saudi audience, not a literal translation of the English one,
+and vice versa; tone/framing may reasonably differ per market, flag if a single unified message
+doesn't fit all three). Track A can draft the actual copy (same "draft, ready to paste in, not
+entered anywhere by this session" pattern as the P0 launch section's Phase 4 content drafts);
+actual placement, ad spend, and any account/platform setup for running the promotion in each
+country is Bilal's own call (Track B), not this session's to execute. Positioned last/after
+full completion because the announcement should describe the real, finished feature set (Groups,
+Screen Time, the restructured Quran habits, onboarding, etc.), not an early subset that would
+need rewriting later.
+
+### Phase M — Final polish pass: animations, sounds, interactivity (new, added 2026-08-07 — last phase before Phase 7's actual submission, after everything else above is built)
+Bilal's own framing: "حابب اعدل بس نخلص من التطبيق" — final polish is wanted, but explicitly
+**after** the app is otherwise done, not interleaved throughout. This phase revisits every
+feature built across the whole P1 initiative (timer/Live Activity, mood check-in, Groups,
+Screen Time, the restructured Quran habits + photo capture, onboarding, milestones, and
+everything else) and brings its animation/sound/haptic feedback up to the same bar the
+original spec's §15 already set for the core app (tiered feedback across simple-complete/
+sub-goal-increment/crossing-into-complete/un-completing, `CompletionFeedback.swift`,
+Reduce-Motion-aware throughout) — the goal is that nothing added during this whole initiative
+feels like a second-class citizen next to the original polished core interactions. Concretely:
+audit each new interaction point added by Phases A-L for whether it has real completion
+feedback, a real sound (respecting the existing Sound Effects Settings toggle), and real
+interactivity/haptics where appropriate — not just visually correct but static. No new
+interaction pattern invented here; extend `CompletionFeedback`'s existing tiered system to
+cover the new surfaces, matching this project's established reuse-over-reinvention practice.
 
 ---
 
