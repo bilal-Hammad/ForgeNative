@@ -3091,3 +3091,62 @@ drops below 26.0, that branch becomes genuinely necessary.
 This glass-panel + big-ring + icon-only-button pattern is intended to be **reused for the future dhikr/
 adhkar counter UI** (a separate, later feature — the Islamic pack's Group 2). Flagged in
 `TimerExpandedPanel`'s own doc comment and in TASKS.md; no counter-specific code was written this pass.
+
+## 2026-08-07 — Category display rename: Good/Bad/To-Do → Build/Destroy/Tasks (display-only)
+
+Display-string-only rename of the three habit categories. **No internal identifier, enum case name, or
+persisted raw value was touched** — so no data migration is needed, and nothing that keys off
+`HabitCategory.rawValue` (`good`/`bad`/`todo`) changed behavior.
+
+### Changed (one file, one property)
+`Forge/Core/Models/HabitCategory.swift` — `displayName` only: `"Good"`→`"Build"`, `"Bad"`→`"Destroy"`,
+`"To-Do"`→`"Tasks"`, plus a doc comment recording *why* the display strings are deliberately decoupled
+from the raw values (so a future reader doesn't "tidy up" the mismatch and break persisted IDs).
+Committed as `01581e1`.
+
+### Audit — every other hardcoded "Good"/"Bad"/"To-Do" string in Forge/, ForgeTests/, ForgeUITests/, ForgeWidgets/
+Grepped all four targets (case-insensitive, inside string literals) rather than find-and-replacing.
+Every hit, with its verdict:
+- `MoodLevel.swift:31` (`case .good: "Good"`) — the **daily mood check-in's** "Good" level, an unrelated
+  enum. **Left unchanged** (as instructed).
+- `HealthKitService.swift:17` — a **doc comment** using `"Bad"`/limit habit as an example. Not
+  user-facing. **Left unchanged** (optional per instruction).
+- `WeeklyReflectionScheduler.swift:99` — a **code comment** explaining that a completion "means 'avoided'
+  for a Bad habit and 'did it' for Good/To-Do". Not user-facing; left as-is, but noting here that its
+  terminology is now slightly stale if anyone wants a cosmetic follow-up.
+- `TemplateCatalog.swift` section IDs (`good-health-fitness`, `good-islamic*`, `bad-screen-time`,
+  `todo-admin-legal`, …) and all `category: .good/.bad/.todo` enum references — **internal identifiers**,
+  not display names. **Left unchanged.**
+- `ForgeUITests/MoodCheckInTests.swift:64` (`moodCheckIn.good`) — mood accessibility identifier,
+  unrelated. **Left unchanged.**
+- **No accessibility label, notification copy, VoiceOver hint, or widget string** anywhere used these
+  words as a category display name. **No UI test asserts on or navigates by category display text**
+  (verified by grep) — so the rename broke no test selectors.
+
+All 25+ real display call sites go through `category.displayName`, so they picked the new names up
+automatically: category picker, `CategoryDetailView` nav title, "Edit \(displayName) Sections", the
+reset-confirmation copy, Settings' per-category sections, and the Progress cards/charts.
+
+### Verified
+- **Build succeeds.**
+- **Unit suite: 66 tests, 63 pass.** `EntitlementResolverTests` **9/9 pass**, specifically including
+  `testEveryIslamicPackSectionUnlocksWithThePack` and `testPackIdAliasResolvesToSameProduct` — these
+  assert the `good-islamic*` section IDs still resolve to the Islamic pack product, which is direct
+  proof the StoreKit identifiers were not touched.
+- The **3 `StoreKitEntitlementServiceTests` failures are pre-existing and provably unrelated**: rather
+  than assert that from memory, I `git stash`ed the rename and re-ran them — **identical 3 failures,
+  identical `"notEntitled"` error, identical lines (44/56/70) without my change present**. Same
+  already-documented `SKTestSession` issue queued separately in TASKS.md; untouched by this pass.
+- **Screenshots (Simulator, real touch injection via a temporary UI test, deleted afterwards):** the
+  category picker renders **Build / Destroy / Tasks** with correct colors and section counts (9/4/4),
+  and drilling in shows a **"Build"** navigation title with template content intact. Home renders
+  normally (it shows habit titles/colors, no category labels).
+
+### One honest consequence worth knowing (not a bug, no action taken)
+`MilestoneEngine` bakes `category.displayName` into milestone **titles/subtitles**, and those strings are
+**persisted** on `MilestoneModel`. `MilestoneRepository.award()` is dedupe-guarded (returns early if the
+`dedupeKey` already exists), so **already-earned milestones keep their old text** ("Good 7-Day Streak")
+while newly-earned ones read "Build 7-Day Streak" — a cosmetic split on existing installs only.
+Critically, `dedupeKey` is built from `kind`/`scopeID`(=`rawValue`)/`value`/`periodKey` and **does not
+include the title**, so the rename **cannot** re-award or duplicate milestones. Flagged rather than
+fixed: back-filling old titles would be a real data migration, which this task explicitly scoped out.
