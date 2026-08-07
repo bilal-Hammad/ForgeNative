@@ -10,11 +10,18 @@ enum HabitCategory: String, Codable, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// User-facing labels only. Deliberately decoupled from the raw values
+    /// below (`good`/`bad`/`todo`), which are persisted in SwiftData and used
+    /// to build stable identifiers elsewhere (e.g. `TemplateCatalog`'s
+    /// `good-islamic*` section IDs and their StoreKit product IDs) — renaming
+    /// those would need a real data migration, so the display rename
+    /// (2026-08-07: Good/Bad/To-Do → Build/Destroy/Tasks) changes these
+    /// strings and nothing else.
     var displayName: String {
         switch self {
-        case .good: "Good"
-        case .bad: "Bad"
-        case .todo: "To-Do"
+        case .good: "Build"
+        case .bad: "Destroy"
+        case .todo: "Tasks"
         }
     }
 
